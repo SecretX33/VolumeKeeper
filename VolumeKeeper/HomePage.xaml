@@ -1,0 +1,158 @@
+﻿<Page x:Class="VolumeKeeper.HomePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:VolumeKeeper">
+
+    <Grid Padding="24,12,24,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title Section -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock Text="Application Volumes" 
+                       Style="{ThemeResource TitleTextBlockStyle}"
+                       Margin="0,0,0,4"/>
+            <TextBlock Text="Manage volume levels for your applications"
+                       Style="{ThemeResource CaptionTextBlockStyle}"
+                       Opacity="0.6"/>
+        </StackPanel>
+
+        <!-- Controls Section -->
+        <StackPanel Grid.Row="1" 
+                    Orientation="Horizontal" 
+                    Spacing="12"
+                    Margin="0,0,0,16">
+            <Button x:Name="RefreshButton" Click="RefreshButton_Click">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <SymbolIcon Symbol="Refresh"/>
+                    <TextBlock Text="Refresh"/>
+                </StackPanel>
+            </Button>
+            
+            <Button x:Name="ClearAllButton" 
+                    Click="ClearAllButton_Click"
+                    Style="{ThemeResource AccentButtonStyle}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <SymbolIcon Symbol="Clear"/>
+                    <TextBlock Text="Clear All"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
+        <!-- Application List -->
+        <ListView x:Name="ApplicationListView" 
+                  Grid.Row="2"
+                  SelectionMode="None"
+                  ItemsSource="{x:Bind Applications}">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local:ApplicationVolume">
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Margin="0,4"
+                            Padding="16"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- App Icon -->
+                            <Border Grid.Column="0"
+                                    Width="48"
+                                    Height="48"
+                                    CornerRadius="4"
+                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                    Margin="0,0,16,0">
+                                <SymbolIcon Symbol="Audio" 
+                                            Foreground="White"/>
+                            </Border>
+
+                            <!-- App Name and Status -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind ApplicationName}" 
+                                           Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                           Margin="0,0,0,2"/>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="{x:Bind Status}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Opacity="0.6"/>
+                                    <TextBlock Text="•"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Opacity="0.6"/>
+                                    <TextBlock Text="{x:Bind LastSeen}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Opacity="0.6"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Volume Slider -->
+                            <StackPanel Grid.Column="2" 
+                                        Orientation="Horizontal"
+                                        Spacing="8"
+                                        VerticalAlignment="Center">
+                                <SymbolIcon Symbol="Volume"/>
+                                <Slider Value="{x:Bind Volume, Mode=TwoWay}" 
+                                        Minimum="0" 
+                                        Maximum="100"
+                                        Width="120"
+                                        VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Bind Volume, Mode=OneWay}" 
+                                           Width="30"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Actions -->
+                            <Button Grid.Column="3"
+                                    Click="RemoveApplication_Click"
+                                    CommandParameter="{x:Bind}"
+                                    VerticalAlignment="Center"
+                                    Margin="8,0,0,0">
+                                <SymbolIcon Symbol="Delete"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+            
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                </Style>
+            </ListView.ItemContainerStyle>
+        </ListView>
+
+        <!-- Empty State -->
+        <StackPanel x:Name="EmptyState"
+                    Grid.Row="2"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Spacing="16"
+                    Visibility="Collapsed">
+            <SymbolIcon Symbol="Audio" 
+                        RenderTransformOrigin="0.5,0.5">
+                <SymbolIcon.RenderTransform>
+                    <CompositeTransform ScaleX="4" ScaleY="4"/>
+                </SymbolIcon.RenderTransform>
+            </SymbolIcon>
+            <TextBlock Text="No applications detected" 
+                       Style="{ThemeResource SubtitleTextBlockStyle}"
+                       Opacity="0.6"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Launch applications and adjust their volume to get started"
+                       Style="{ThemeResource CaptionTextBlockStyle}"
+                       Opacity="0.4"
+                       HorizontalAlignment="Center"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</Page>
