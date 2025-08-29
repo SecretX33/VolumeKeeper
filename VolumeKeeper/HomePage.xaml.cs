@@ -3,70 +3,126 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System.Collections.ObjectModel;
 using System.Linq;
+using VolumeKeeper.Services;
+using Microsoft.UI.Dispatching;
 
 namespace VolumeKeeper;
 
 public sealed partial class HomePage : Page
 {
     public ObservableCollection<ApplicationVolume> Applications { get; }
+    private readonly AudioSessionService _audioService;
+    private readonly DispatcherQueue _dispatcherQueue;
+    private readonly DispatcherTimer _refreshTimer;
 
     public HomePage()
     {
         InitializeComponent();
         Applications = new ObservableCollection<ApplicationVolume>();
-        LoadMockData();
+        _audioService = new AudioSessionService();
+        _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+
+        _refreshTimer = new DispatcherTimer();
+        _refreshTimer.Interval = TimeSpan.FromSeconds(2);
+        _refreshTimer.Tick += RefreshTimer_Tick;
+        _refreshTimer.Start();
+
+        LoadAudioSessions();
         UpdateEmptyStateVisibility();
     }
 
-    private void LoadMockData()
+    private void LoadAudioSessions()
     {
-        Applications.Add(new ApplicationVolume
+        try
         {
-            ApplicationName = "Spotify",
-            Volume = 75,
-            Status = "Active",
-            LastSeen = "Just now"
-        });
+            var sessions = _audioService.GetActiveAudioSessions();
 
-        Applications.Add(new ApplicationVolume
-        {
-            ApplicationName = "Discord",
-            Volume = 50,
-            Status = "Active",
-            LastSeen = "2 mins ago"
-        });
+            _dispatcherQueue.TryEnqueue(() =>
+            {
+                Applications.Clear();
 
-        Applications.Add(new ApplicationVolume
-        {
-            ApplicationName = "Microsoft Edge",
-            Volume = 100,
-            Status = "Inactive",
-            LastSeen = "15 mins ago"
-        });
+                foreach (var session in sessions)
+                {
+                    Applications.Add(new ApplicationVolume
+                    {
+                        ApplicationName = session.ApplicationName,
+                        ProcessName = session.ProcessName,
+                        Volume = session.Volume,
+                        Status = session.IsActive ? "Active" : "Inactive",
+                        LastSeen = "Just now",
+                        IsMuted = session.IsMuted
+                    });
+                }
 
-        Applications.Add(new ApplicationVolume
+                UpdateEmptyStateVisibility();
+            });
+        }
+        catch (Exception)
         {
-            ApplicationName = "Steam",
-            Volume = 80,
-            Status = "Active",
-            LastSeen = "Just now"
-        });
+            // Handle silently for now
+        }
+    }
 
-        Applications.Add(new ApplicationVolume
+    private void RefreshTimer_Tick(object? sender, object e)
+    {
+        UpdateAudioSessions();
+    }
+
+    private void UpdateAudioSessions()
+    {
+        try
         {
-            ApplicationName = "Visual Studio Code",
-            Volume = 0,
-            Status = "Inactive",
-            LastSeen = "1 hour ago"
-        });
+            var sessions = _audioService.GetActiveAudioSessions();
+
+            _dispatcherQueue.TryEnqueue(() =>
+            {
+                // Update existing applications
+                foreach (var app in Applications.ToList())
+                {
+                    var session = sessions.FirstOrDefault(s => s.ProcessName == app.ProcessName);
+                    if (session != null)
+                    {
+                        app.Volume = session.Volume;
+                        app.Status = session.IsActive ? "Active" : "Inactive";
+                        app.IsMuted = session.IsMuted;
+                        app.LastSeen = "Just now";
+                    }
+                    else
+                    {
+                        // Application no longer has audio session
+                        Applications.Remove(app);
+                    }
+                }
+
+                // Add new applications
+                foreach (var session in sessions)
+                {
+                    if (!Applications.Any(a => a.ProcessName == session.ProcessName))
+                    {
+                        Applications.Add(new ApplicationVolume
+                        {
+                            ApplicationName = session.ApplicationName,
+                            ProcessName = session.ProcessName,
+                            Volume = session.Volume,
+                            Status = session.IsActive ? "Active" : "Inactive",
+                            LastSeen = "Just now",
+                            IsMuted = session.IsMuted
+                        });
+                    }
+                }
+
+                UpdateEmptyStateVisibility();
+            });
+        }
+        catch (Exception)
+        {
+            // Handle silently for now
+        }
     }
 
     private void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var app in Applications)
-        {
-            app.LastSeen = "Just now";
-        }
+        LoadAudioSessions();
     }
 
     private void ClearAllButton_Click(object sender, RoutedEventArgs e)
@@ -89,14 +145,22 @@ public sealed partial class HomePage : Page
         EmptyState.Visibility = Applications.Any() ? Visibility.Collapsed : Visibility.Visible;
         ApplicationListView.Visibility = Applications.Any() ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Stop();
+        _audioService?.Dispose();
+    }
 }
 
 public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
 {
     private string _applicationName = string.Empty;
+    private string _processName = string.Empty;
     private double _volume;
     private string _status = string.Empty;
     private string _lastSeen = string.Empty;
+    private bool _isMuted;
     private const double VolumeDifferenceTolerance = 0.01;
 
     public string ApplicationName
@@ -108,6 +172,19 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
             {
                 _applicationName = value;
                 OnPropertyChanged(nameof(ApplicationName));
+            }
+        }
+    }
+
+    public string ProcessName
+    {
+        get => _processName;
+        set
+        {
+            if (_processName != value)
+            {
+                _processName = value;
+                OnPropertyChanged(nameof(ProcessName));
             }
         }
     }
@@ -147,6 +224,19 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
             {
                 _lastSeen = value;
                 OnPropertyChanged(nameof(LastSeen));
+            }
+        }
+    }
+
+    public bool IsMuted
+    {
+        get => _isMuted;
+        set
+        {
+            if (_isMuted != value)
+            {
+                _isMuted = value;
+                OnPropertyChanged(nameof(IsMuted));
             }
         }
     }
