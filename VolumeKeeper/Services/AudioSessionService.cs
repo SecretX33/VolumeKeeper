@@ -14,7 +14,16 @@ public class AudioSessionService : IDisposable
 
     public AudioSessionService()
     {
-        deviceEnumerator = new MMDeviceEnumerator();
+        try
+        {
+            deviceEnumerator = new MMDeviceEnumerator();
+            App.Logger.LogInfo("AudioSessionService initialized", "AudioSessionService");
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to initialize MMDeviceEnumerator", ex, "AudioSessionService");
+            throw;
+        }
     }
 
     public List<AudioSessionInfo> GetActiveAudioSessions()
@@ -47,8 +56,9 @@ public class AudioSessionService : IDisposable
                             using var process = Process.GetProcessById((int)processId);
                             applicationName = process.ProcessName;
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            App.Logger.LogWarning($"Failed to get process name for PID {processId}: {ex.Message}", "AudioSessionService");
                             continue;
                         }
                     }
@@ -70,8 +80,9 @@ public class AudioSessionService : IDisposable
                         Session = session
                     });
                 }
-                catch
+                catch (Exception ex)
                 {
+                    App.Logger.LogWarning($"Failed to process audio session: {ex.Message}", "AudioSessionService");
                     continue;
                 }
             }
@@ -84,8 +95,9 @@ public class AudioSessionService : IDisposable
 
             return uniqueSessions;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            App.Logger.LogError("Failed to get active audio sessions", ex, "AudioSessionService");
             return sessions;
         }
     }
@@ -116,15 +128,16 @@ public class AudioSessionService : IDisposable
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    App.Logger.LogWarning($"Failed to set volume for process: {ex.Message}", "AudioSessionService");
                     continue;
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Handle silently
+            App.Logger.LogError($"Failed to set application volume for {processName}", ex, "AudioSessionService");
         }
     }
 
@@ -161,6 +174,7 @@ public class AudioSessionService : IDisposable
 
     public void Dispose()
     {
+        App.Logger.LogInfo("AudioSessionService disposing", "AudioSessionService");
         deviceEnumerator?.Dispose();
     }
 }

@@ -5,6 +5,8 @@ using System.Windows.Input;
 using H.NotifyIcon;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using VolumeKeeper.Services;
+using Microsoft.UI.Dispatching;
 
 namespace VolumeKeeper;
 
@@ -12,8 +14,10 @@ public partial class App : Application
 {
     private MainWindow? _mainWindow;
     private TaskbarIcon? _trayIcon;
+    private static LoggingService? _loggingService;
 
     public bool HasTrayIcon => _trayIcon != null;
+    public static ILoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
 
     public App()
     {
@@ -22,6 +26,10 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // Initialize logging service first
+        _loggingService = new LoggingService(DispatcherQueue.GetForCurrentThread());
+        Logger.LogInfo("VolumeKeeper application starting");
+
         _mainWindow = new MainWindow();
 
         CreateTrayIcon();
@@ -60,7 +68,7 @@ public partial class App : Application
         catch (Exception ex)
         {
             // If tray icon creation fails, we'll just run without it
-            Debug.WriteLine($"Failed to create tray icon: {ex.Message}");
+            Logger.LogError("Failed to create tray icon", ex, "App");
             _trayIcon = null;
         }
     }
@@ -70,7 +78,7 @@ public partial class App : Application
         if (_mainWindow != null)
         {
             _mainWindow.Activate();
-            
+
             // Get window handle and show window
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_mainWindow);
             if (hwnd != IntPtr.Zero)
@@ -87,6 +95,7 @@ public partial class App : Application
     {
         _trayIcon?.Dispose();
         _mainWindow?.Close();
+        _loggingService?.Dispose();
         Environment.Exit(0);
     }
 
@@ -97,21 +106,21 @@ public partial class App : Application
         using (var graphics = Graphics.FromImage(bitmap))
         {
             graphics.Clear(Color.Transparent);
-            
+
             // Draw a simple speaker shape
             using (var brush = new SolidBrush(Color.White))
             {
                 // Speaker base
                 graphics.FillRectangle(brush, 2, 6, 4, 4);
                 // Speaker cone
-                graphics.FillPolygon(brush, new Point[] { 
-                    new Point(6, 4), new Point(6, 12), new Point(10, 14), new Point(10, 2) 
+                graphics.FillPolygon(brush, new Point[] {
+                    new Point(6, 4), new Point(6, 12), new Point(10, 14), new Point(10, 2)
                 });
                 // Sound waves
                 graphics.DrawArc(new Pen(Color.White, 1), 11, 5, 4, 6, -30, 60);
             }
         }
-        
+
         return Icon.FromHandle(bitmap.GetHicon());
     }
 }

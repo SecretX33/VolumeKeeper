@@ -193,6 +193,28 @@ The project follows a WinUI 3 application structure with MVVM implementation:
 - Ensure proper disposal of audio resources
 - Handle Windows session changes (lock/unlock, sleep/wake)
 
+### Exception Handling and Logging
+
+**CRITICAL**: Always log exceptions instead of swallowing them silently. Every catch block must:
+1. Log the exception using `App.Logger.LogError()` with a descriptive message
+2. Include context about what operation failed
+3. Specify the source/component name
+
+Example:
+```csharp
+try
+{
+    // Some operation
+}
+catch (Exception ex)
+{
+    App.Logger.LogError("Failed to perform operation X", ex, "ComponentName");
+    // Handle gracefully if needed
+}
+```
+
+Never use empty catch blocks or silent exception handling. The logging service provides visibility to users about what's happening in the application.
+
 ## Current Status
 
 The project is in initial setup phase with basic WPF scaffolding. Next steps include:

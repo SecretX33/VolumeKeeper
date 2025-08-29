@@ -57,9 +57,9 @@ public sealed partial class HomePage : Page
                 UpdateEmptyStateVisibility();
             });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Handle silently for now
+            App.Logger.LogError("Failed to load audio sessions", ex, "HomePage");
         }
     }
 
@@ -90,6 +90,7 @@ public sealed partial class HomePage : Page
                     else
                     {
                         // Application no longer has audio session
+                        App.Logger.LogInfo($"Audio session ended for {app.ApplicationName}", "HomePage");
                         Applications.Remove(app);
                     }
                 }
@@ -99,6 +100,7 @@ public sealed partial class HomePage : Page
                 {
                     if (!Applications.Any(a => a.ProcessName == session.ProcessName))
                     {
+                        App.Logger.LogInfo($"New audio session detected: {session.ApplicationName} (Volume: {session.Volume}%)", "HomePage");
                         Applications.Add(new ApplicationVolume
                         {
                             ApplicationName = session.ApplicationName,
@@ -114,9 +116,9 @@ public sealed partial class HomePage : Page
                 UpdateEmptyStateVisibility();
             });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Handle silently for now
+            App.Logger.LogError("Failed to load audio sessions", ex, "HomePage");
         }
     }
 
