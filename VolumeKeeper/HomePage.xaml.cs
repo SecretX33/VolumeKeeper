@@ -1,4 +1,5 @@
-﻿using Microsoft.UI.Xaml;
+﻿using System;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -92,19 +93,20 @@ public sealed partial class HomePage : Page
 
 public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
 {
-    private string applicationName = string.Empty;
-    private double volume;
-    private string status = string.Empty;
-    private string lastSeen = string.Empty;
+    private string _applicationName = string.Empty;
+    private double _volume;
+    private string _status = string.Empty;
+    private string _lastSeen = string.Empty;
+    private const double VolumeDifferenceTolerance = 0.01;
 
     public string ApplicationName
     {
-        get => applicationName;
+        get => _applicationName;
         set
         {
-            if (applicationName != value)
+            if (_applicationName != value)
             {
-                applicationName = value;
+                _applicationName = value;
                 OnPropertyChanged(nameof(ApplicationName));
             }
         }
@@ -112,12 +114,12 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
 
     public double Volume
     {
-        get => volume;
+        get => _volume;
         set
         {
-            if (volume != value)
+            if (Math.Abs(_volume - value) > VolumeDifferenceTolerance)
             {
-                volume = value;
+                _volume = value;
                 OnPropertyChanged(nameof(Volume));
             }
         }
@@ -125,12 +127,12 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
 
     public string Status
     {
-        get => status;
+        get => _status;
         set
         {
-            if (status != value)
+            if (_status != value)
             {
-                status = value;
+                _status = value;
                 OnPropertyChanged(nameof(Status));
             }
         }
@@ -138,12 +140,12 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
 
     public string LastSeen
     {
-        get => lastSeen;
+        get => _lastSeen;
         set
         {
-            if (lastSeen != value)
+            if (_lastSeen != value)
             {
-                lastSeen = value;
+                _lastSeen = value;
                 OnPropertyChanged(nameof(LastSeen));
             }
         }

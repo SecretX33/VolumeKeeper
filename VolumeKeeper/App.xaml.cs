@@ -1,6 +1,9 @@
-﻿using Microsoft.UI.Xaml;
-using System;
+﻿using System;
+using System.Diagnostics;
+using System.Drawing;
+using System.Windows.Input;
 using H.NotifyIcon;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace VolumeKeeper;
@@ -9,6 +12,8 @@ public partial class App : Application
 {
     private MainWindow? _mainWindow;
     private TaskbarIcon? _trayIcon;
+
+    public bool HasTrayIcon => _trayIcon != null;
 
     public App()
     {
@@ -26,30 +31,57 @@ public partial class App : Application
 
     private void CreateTrayIcon()
     {
-        _trayIcon = new TaskbarIcon();
-        _trayIcon.ToolTipText = "VolumeKeeper";
+        try
+        {
+            _trayIcon = new TaskbarIcon();
+            _trayIcon.ToolTipText = "VolumeKeeper";
 
-        var contextMenu = new MenuFlyout();
+            // Create a simple icon using System.Drawing
+            _trayIcon.Icon = CreateSimpleIcon();
 
-        var openItem = new MenuFlyoutItem { Text = "Open VolumeKeeper" };
-        openItem.Click += (_, _) => ShowMainWindow();
-        contextMenu.Items.Add(openItem);
+            var contextMenu = new MenuFlyout();
 
-        contextMenu.Items.Add(new MenuFlyoutSeparator());
+            var openItem = new MenuFlyoutItem { Text = "Open VolumeKeeper" };
+            openItem.Click += (_, _) => ShowMainWindow();
+            contextMenu.Items.Add(openItem);
 
-        var exitItem = new MenuFlyoutItem { Text = "Exit" };
-        exitItem.Click += (_, _) => ExitApplication();
-        contextMenu.Items.Add(exitItem);
+            contextMenu.Items.Add(new MenuFlyoutSeparator());
 
-        _trayIcon.ContextFlyout = contextMenu;
-        _trayIcon.LeftClickCommand = new RelayCommand(ShowMainWindow);
+            var exitItem = new MenuFlyoutItem { Text = "Exit" };
+            exitItem.Click += (_, _) => ExitApplication();
+            contextMenu.Items.Add(exitItem);
+
+            _trayIcon.ContextFlyout = contextMenu;
+            _trayIcon.LeftClickCommand = new RelayCommand(ShowMainWindow);
+
+            // Make sure the icon is visible
+            _trayIcon.Visibility = Visibility.Visible;
+        }
+        catch (Exception ex)
+        {
+            // If tray icon creation fails, we'll just run without it
+            Debug.WriteLine($"Failed to create tray icon: {ex.Message}");
+            _trayIcon = null;
+        }
     }
 
     private void ShowMainWindow()
     {
-        _mainWindow?.Activate();
-        _mainWindow?.Show();
+        if (_mainWindow != null)
+        {
+            _mainWindow.Activate();
+            
+            // Get window handle and show window
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_mainWindow);
+            if (hwnd != IntPtr.Zero)
+            {
+                ShowWindow(hwnd, 5); // SW_SHOW
+            }
+        }
     }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
     private void ExitApplication()
     {
@@ -57,9 +89,34 @@ public partial class App : Application
         _mainWindow?.Close();
         Environment.Exit(0);
     }
+
+    private Icon CreateSimpleIcon()
+    {
+        // Create a simple 16x16 icon with a volume symbol
+        var bitmap = new Bitmap(16, 16);
+        using (var graphics = Graphics.FromImage(bitmap))
+        {
+            graphics.Clear(Color.Transparent);
+            
+            // Draw a simple speaker shape
+            using (var brush = new SolidBrush(Color.White))
+            {
+                // Speaker base
+                graphics.FillRectangle(brush, 2, 6, 4, 4);
+                // Speaker cone
+                graphics.FillPolygon(brush, new Point[] { 
+                    new Point(6, 4), new Point(6, 12), new Point(10, 14), new Point(10, 2) 
+                });
+                // Sound waves
+                graphics.DrawArc(new Pen(Color.White, 1), 11, 5, 4, 6, -30, 60);
+            }
+        }
+        
+        return Icon.FromHandle(bitmap.GetHicon());
+    }
 }
 
-public partial class RelayCommand : System.Windows.Input.ICommand
+public partial class RelayCommand : ICommand
 {
     private readonly Action _execute;
 
