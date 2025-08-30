@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System.Collections.ObjectModel;
@@ -12,7 +14,6 @@ namespace VolumeKeeper;
 public sealed partial class HomePage : Page
 {
     public ObservableCollection<ApplicationVolume> Applications { get; }
-    private readonly AudioSessionService _audioService;
     private readonly IconService _iconService;
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly DispatcherTimer _refreshTimer;
@@ -21,7 +22,6 @@ public sealed partial class HomePage : Page
     {
         InitializeComponent();
         Applications = new ObservableCollection<ApplicationVolume>();
-        _audioService = new AudioSessionService();
         _iconService = new IconService();
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
@@ -34,30 +34,44 @@ public sealed partial class HomePage : Page
         UpdateEmptyStateVisibility();
     }
 
-    private void LoadAudioSessions()
+    private async void LoadAudioSessions()
     {
         try
         {
-            var sessions = _audioService.GetActiveAudioSessions();
+            if (App.AudioSessionManager == null) return;
+            var sessions = App.AudioSessionManager.GetAllSessions();
+
+            var sessionsWithSavedVolumes = new List<(Services.AudioSession session, int? savedVolume)>();
+
+            foreach (var session in sessions)
+            {
+                var savedVolume = App.VolumeStorageService != null
+                    ? await App.VolumeStorageService.GetVolumeAsync(session.ExecutableName)
+                    : null;
+                sessionsWithSavedVolumes.Add((session, savedVolume));
+            }
 
             _dispatcherQueue.TryEnqueue(() =>
             {
                 Applications.Clear();
 
-                foreach (var session in sessions)
+                foreach (var (session, savedVolume) in sessionsWithSavedVolumes)
                 {
+
                     var app = new ApplicationVolume
                     {
-                        ApplicationName = session.ApplicationName,
+                        ApplicationName = Path.GetFileNameWithoutExtension(session.ExecutableName),
                         ProcessName = session.ProcessName,
+                        ExecutableName = session.ExecutableName,
                         Volume = session.Volume,
-                        Status = session.IsActive ? "Active" : "Inactive",
+                        SavedVolume = savedVolume,
+                        Status = "Active",
                         LastSeen = "Just now",
                         IsMuted = session.IsMuted
                     };
-                    
+
                     Applications.Add(app);
-                    
+
                     // Load icon asynchronously
                     LoadApplicationIconAsync(app, session.IconPath);
                 }
@@ -76,28 +90,40 @@ public sealed partial class HomePage : Page
         UpdateAudioSessions();
     }
 
-    private void UpdateAudioSessions()
+    private async void UpdateAudioSessions()
     {
         try
         {
-            var sessions = _audioService.GetActiveAudioSessions();
+            if (App.AudioSessionManager == null) return;
+            var sessions = App.AudioSessionManager.GetAllSessions();
+
+            // Get saved volumes for new sessions
+            var newSessions = sessions.Where(s => !Applications.Any(a => string.Equals(a.ExecutableName, s.ExecutableName, StringComparison.OrdinalIgnoreCase))).ToList();
+            var newSessionsWithVolumes = new List<(Services.AudioSession session, int? savedVolume)>();
+
+            foreach (var session in newSessions)
+            {
+                var savedVolume = App.VolumeStorageService != null
+                    ? await App.VolumeStorageService.GetVolumeAsync(session.ExecutableName)
+                    : null;
+                newSessionsWithVolumes.Add((session, savedVolume));
+            }
 
             _dispatcherQueue.TryEnqueue(() =>
             {
                 // Update existing applications
                 foreach (var app in Applications.ToList())
                 {
-                    var session = sessions.FirstOrDefault(s => s.ProcessName == app.ProcessName);
+                    var session = sessions.FirstOrDefault(s => string.Equals(s.ExecutableName, app.ExecutableName, StringComparison.OrdinalIgnoreCase));
                     if (session != null)
                     {
-                        // Check if volume changed and log it
                         if (Math.Abs(app.Volume - session.Volume) > 1.0)
                         {
                             App.Logger.LogInfo($"Volume changed for {app.ApplicationName}: {app.Volume}% → {session.Volume}%", "HomePage");
                         }
-                        
+
                         app.Volume = session.Volume;
-                        app.Status = session.IsActive ? "Active" : "Inactive";
+                        app.Status = "Active";
                         app.IsMuted = session.IsMuted;
                         app.LastSeen = "Just now";
                     }
@@ -110,26 +136,26 @@ public sealed partial class HomePage : Page
                 }
 
                 // Add new applications
-                foreach (var session in sessions)
+                foreach (var (session, savedVolume) in newSessionsWithVolumes)
                 {
-                    if (!Applications.Any(a => a.ProcessName == session.ProcessName))
+                    App.Logger.LogInfo($"New audio session detected: {Path.GetFileNameWithoutExtension(session.ExecutableName)} (Volume: {session.Volume}%)", "HomePage");
+
+                    var app = new ApplicationVolume
                     {
-                        App.Logger.LogInfo($"New audio session detected: {session.ApplicationName} (Volume: {session.Volume}%)", "HomePage");
-                        var app = new ApplicationVolume
-                        {
-                            ApplicationName = session.ApplicationName,
-                            ProcessName = session.ProcessName,
-                            Volume = session.Volume,
-                            Status = session.IsActive ? "Active" : "Inactive",
-                            LastSeen = "Just now",
-                            IsMuted = session.IsMuted
-                        };
-                        
-                        Applications.Add(app);
-                        
-                        // Load icon asynchronously
-                        LoadApplicationIconAsync(app, session.IconPath);
-                    }
+                        ApplicationName = Path.GetFileNameWithoutExtension(session.ExecutableName),
+                        ProcessName = session.ProcessName,
+                        ExecutableName = session.ExecutableName,
+                        Volume = session.Volume,
+                        SavedVolume = savedVolume,
+                        Status = "Active",
+                        LastSeen = "Just now",
+                        IsMuted = session.IsMuted
+                    };
+
+                    Applications.Add(app);
+
+                    // Load icon asynchronously
+                    LoadApplicationIconAsync(app, session.IconPath);
                 }
 
                 UpdateEmptyStateVisibility();
@@ -167,14 +193,16 @@ public sealed partial class HomePage : Page
         ApplicationListView.Visibility = Applications.Any() ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private async void VolumeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    private void VolumeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
-        if (sender is Microsoft.UI.Xaml.Controls.Slider slider && slider.Tag is ApplicationVolume app)
+        if (sender is Slider slider && slider.Tag is ApplicationVolume app)
         {
-            var newVolume = e.NewValue;
-            
-            // Update the application volume in Windows
-            await _audioService.SetApplicationVolumeAsync(app.ProcessName, newVolume);
+            var newVolume = (float)e.NewValue;
+
+            if (App.AudioSessionManager != null && !string.IsNullOrEmpty(app.ExecutableName))
+            {
+                App.AudioSessionManager.SetSessionVolume(app.ExecutableName, newVolume);
+            }
         }
     }
 
@@ -200,7 +228,6 @@ public sealed partial class HomePage : Page
     public void Dispose()
     {
         _refreshTimer?.Stop();
-        _audioService?.Dispose();
     }
 }
 
@@ -208,7 +235,9 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
 {
     private string _applicationName = string.Empty;
     private string _processName = string.Empty;
+    private string _executableName = string.Empty;
     private double _volume;
+    private int? _savedVolume;
     private string _status = string.Empty;
     private string _lastSeen = string.Empty;
     private bool _isMuted;
@@ -305,6 +334,35 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
             }
         }
     }
+
+    public string ExecutableName
+    {
+        get => _executableName;
+        set
+        {
+            if (_executableName != value)
+            {
+                _executableName = value;
+                OnPropertyChanged(nameof(ExecutableName));
+            }
+        }
+    }
+
+    public int? SavedVolume
+    {
+        get => _savedVolume;
+        set
+        {
+            if (_savedVolume != value)
+            {
+                _savedVolume = value;
+                OnPropertyChanged(nameof(SavedVolume));
+                OnPropertyChanged(nameof(SavedVolumeDisplay));
+            }
+        }
+    }
+
+    public string SavedVolumeDisplay => SavedVolume.HasValue ? $"Saved: {SavedVolume}%" : "";
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 

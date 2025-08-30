@@ -1,12 +1,12 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using H.NotifyIcon;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using VolumeKeeper.Services;
 using Microsoft.UI.Dispatching;
+using VolumeKeeper.Services;
 
 namespace VolumeKeeper;
 
@@ -15,20 +15,30 @@ public partial class App : Application
     private MainWindow? _mainWindow;
     private TaskbarIcon? _trayIcon;
     private static LoggingService? _loggingService;
+    private AudioSessionManager? _audioSessionManager;
+    private VolumeStorageService? _volumeStorageService;
+    private VolumeMonitorService? _volumeMonitorService;
+    private ApplicationMonitorService? _applicationMonitorService;
+    private VolumeRestorationService? _volumeRestorationService;
 
     public bool HasTrayIcon => _trayIcon != null;
     public static ILoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
+    public static AudioSessionManager? AudioSessionManager { get; private set; }
+    public static VolumeStorageService? VolumeStorageService { get; private set; }
 
     public App()
     {
         InitializeComponent();
     }
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         // Initialize logging service first
         _loggingService = new LoggingService(DispatcherQueue.GetForCurrentThread());
         Logger.LogInfo("VolumeKeeper application starting");
+
+        // Initialize volume management services
+        await InitializeServicesAsync();
 
         _mainWindow = new MainWindow();
 
@@ -91,8 +101,52 @@ public partial class App : Application
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+    private async Task InitializeServicesAsync()
+    {
+        try
+        {
+            Logger.LogInfo("Initializing volume management services");
+
+            // Initialize core services
+            _audioSessionManager = new AudioSessionManager();
+            AudioSessionManager = _audioSessionManager;
+
+            _volumeStorageService = new VolumeStorageService();
+            VolumeStorageService = _volumeStorageService;
+
+            // Initialize monitoring services
+            _volumeMonitorService = new VolumeMonitorService(_audioSessionManager, _volumeStorageService);
+            await _volumeMonitorService.InitializeAsync();
+
+            _applicationMonitorService = new ApplicationMonitorService();
+            await _applicationMonitorService.InitializeAsync();
+
+            _volumeRestorationService = new VolumeRestorationService(
+                _audioSessionManager,
+                _volumeStorageService,
+                _applicationMonitorService);
+
+            // Restore volumes for currently running applications
+            await _volumeRestorationService.RestoreAllCurrentSessionsAsync();
+
+            Logger.LogInfo("All services initialized successfully");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("Failed to initialize services", ex, "App");
+        }
+    }
+
     private void ExitApplication()
     {
+        Logger.LogInfo("VolumeKeeper application shutting down");
+
+        // Dispose services
+        _volumeMonitorService?.Dispose();
+        _applicationMonitorService?.Dispose();
+        _volumeRestorationService?.Dispose();
+        _audioSessionManager?.Dispose();
+
         _trayIcon?.Dispose();
         _mainWindow?.Close();
         _loggingService?.Dispose();

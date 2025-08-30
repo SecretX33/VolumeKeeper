@@ -215,11 +215,52 @@ catch (Exception ex)
 
 Never use empty catch blocks or silent exception handling. The logging service provides visibility to users about what's happening in the application.
 
+## Volume Persistence Requirements
+
+### Core Feature: Per-Application Volume Management
+
+The main feature of VolumeKeeper is to persist and restore application volume levels automatically:
+
+#### Volume Persistence
+- Monitor volume changes for all applications in real-time
+- Capture volume modifications from both:
+  - VolumeKeeper's own UI controls
+  - Windows Volume Mixer changes
+- Save volume levels immediately when changed
+
+#### Storage Format
+- Use JSON file for storing volume settings
+- Structure: `{ "executable.exe": volumePercentage }`
+- Example: `{ "firefox.exe": 75, "chrome.exe": 50, "spotify.exe": 30 }`
+- Store as percentage values (0-100) for user clarity
+
+#### Application Matching
+- Match applications EXCLUSIVELY by executable name
+- Case-insensitive matching (e.g., "Firefox.exe" = "firefox.exe")
+- Ignore all other attributes:
+  - File path
+  - Icon
+  - File hash
+  - Command line arguments
+  - Window title
+
+#### Volume Restoration
+- Detect when applications launch
+- Check if saved volume exists for the executable
+- Automatically apply the saved volume level
+- Log all restoration activities
+
+#### Technical Implementation
+- Use NAudio for Windows Core Audio API access
+- Thread-safe JSON file operations
+- Background services for monitoring
+- Real-time logging of all activities
+
 ## Current Status
 
-The project is in initial setup phase with basic WinUI 3 scaffolding. Next steps include:
-1. Adding NAudio NuGet package for audio management
-2. Implementing system tray functionality
-3. Creating the volume monitoring service
-4. Building the UI according to the minimalist design specification
-5. Implementing MVVM architecture with proper ViewModels
+The project is in initial setup phase with basic WinUI 3 scaffolding. NAudio package has been added. Next steps include:
+1. Implementing the volume persistence architecture
+2. Creating background monitoring services
+3. Building volume storage and restoration logic
+4. Updating UI to display saved volumes
+5. Implementing system tray functionality
