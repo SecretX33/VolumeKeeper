@@ -10,16 +10,16 @@ using System.IO;
 
 namespace VolumeKeeper.Services;
 
-public class AudioSessionService : IDisposable
+public partial class AudioSessionService : IDisposable
 {
-    private MMDeviceEnumerator? deviceEnumerator;
-    private SessionCollection? sessionCollection;
+    private readonly MMDeviceEnumerator? _deviceEnumerator;
+    private SessionCollection? _sessionCollection;
 
     public AudioSessionService()
     {
         try
         {
-            deviceEnumerator = new MMDeviceEnumerator();
+            _deviceEnumerator = new MMDeviceEnumerator();
             App.Logger.LogInfo("AudioSessionService initialized", "AudioSessionService");
         }
         catch (Exception ex)
@@ -35,23 +35,23 @@ public class AudioSessionService : IDisposable
 
         try
         {
-            using var device = deviceEnumerator?.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            using var device = _deviceEnumerator?.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             if (device?.AudioSessionManager?.Sessions == null)
                 return sessions;
 
-            sessionCollection = device.AudioSessionManager.Sessions;
+            _sessionCollection = device.AudioSessionManager.Sessions;
 
-            for (int i = 0; i < sessionCollection.Count; i++)
+            for (int i = 0; i < _sessionCollection.Count; i++)
             {
                 try
                 {
-                    var session = sessionCollection[i];
+                    var session = _sessionCollection[i];
                     if (session.State == AudioSessionState.AudioSessionStateExpired)
                         continue;
 
                     var processId = session.GetProcessID;
                     string? applicationName = null;
-                    
+
                     if (processId > 0)
                     {
                         try
@@ -110,7 +110,7 @@ public class AudioSessionService : IDisposable
     {
         try
         {
-            using var device = deviceEnumerator?.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            using var device = _deviceEnumerator?.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             if (device?.AudioSessionManager?.Sessions == null)
                 return;
 
@@ -122,17 +122,14 @@ public class AudioSessionService : IDisposable
                 {
                     var session = sessions[i];
                     var processId = session.GetProcessID;
+                    if (processId <= 0) continue;
 
-                    if (processId > 0)
-                    {
-                        using var process = Process.GetProcessById((int)processId);
-                        if (string.Equals(process.ProcessName, processName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            var newVolume = (float)(volumePercent / 100.0);
-                            session.SimpleAudioVolume.Volume = newVolume;
-                            App.Logger.LogInfo($"Set {processName} volume to {volumePercent}%", "AudioSessionService");
-                        }
-                    }
+                    using var process = Process.GetProcessById((int)processId);
+                    if (!string.Equals(process.ProcessName, processName, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var newVolume = (float)(volumePercent / 100.0);
+                    session.SimpleAudioVolume.Volume = newVolume;
+                    App.Logger.LogInfo($"Set {processName} volume to {volumePercent}%", "AudioSessionService");
                 }
                 catch (Exception ex)
                 {
@@ -189,8 +186,8 @@ public class AudioSessionService : IDisposable
             ["potplayer64"] = "PotPlayer"
         };
 
-        return knownApps.TryGetValue(processName, out var displayName) 
-            ? displayName 
+        return knownApps.TryGetValue(processName, out var displayName)
+            ? displayName
             : processName.Replace("_", " ").Replace("-", " ");
     }
 
@@ -211,7 +208,7 @@ public class AudioSessionService : IDisposable
     public void Dispose()
     {
         App.Logger.LogInfo("AudioSessionService disposing", "AudioSessionService");
-        deviceEnumerator?.Dispose();
+        _deviceEnumerator?.Dispose();
     }
 }
 
