@@ -98,6 +98,11 @@
                   <TextBlock Text="{x:Bind LastSeen}"
                              Style="{ThemeResource CaptionTextBlockStyle}"
                              Opacity="0.6" />
+                  <TextBlock Text="{x:Bind SavedVolumeDisplay, Mode=OneWay}"
+                             Style="{ThemeResource CaptionTextBlockStyle}"
+                             Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                             Opacity="0.8"
+                             Margin="8,0,0,0" />
                 </StackPanel>
               </StackPanel>
 
