@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using VolumeKeeper.Services;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace VolumeKeeper;
 
@@ -12,6 +13,7 @@ public sealed partial class HomePage : Page
 {
     public ObservableCollection<ApplicationVolume> Applications { get; }
     private readonly AudioSessionService _audioService;
+    private readonly IconService _iconService;
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly DispatcherTimer _refreshTimer;
 
@@ -20,6 +22,7 @@ public sealed partial class HomePage : Page
         InitializeComponent();
         Applications = new ObservableCollection<ApplicationVolume>();
         _audioService = new AudioSessionService();
+        _iconService = new IconService();
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
         _refreshTimer = new DispatcherTimer();
@@ -43,7 +46,7 @@ public sealed partial class HomePage : Page
 
                 foreach (var session in sessions)
                 {
-                    Applications.Add(new ApplicationVolume
+                    var app = new ApplicationVolume
                     {
                         ApplicationName = session.ApplicationName,
                         ProcessName = session.ProcessName,
@@ -51,7 +54,12 @@ public sealed partial class HomePage : Page
                         Status = session.IsActive ? "Active" : "Inactive",
                         LastSeen = "Just now",
                         IsMuted = session.IsMuted
-                    });
+                    };
+                    
+                    Applications.Add(app);
+                    
+                    // Load icon asynchronously
+                    LoadApplicationIconAsync(app, session.IconPath);
                 }
 
                 UpdateEmptyStateVisibility();
@@ -82,6 +90,12 @@ public sealed partial class HomePage : Page
                     var session = sessions.FirstOrDefault(s => s.ProcessName == app.ProcessName);
                     if (session != null)
                     {
+                        // Check if volume changed and log it
+                        if (Math.Abs(app.Volume - session.Volume) > 1.0)
+                        {
+                            App.Logger.LogInfo($"Volume changed for {app.ApplicationName}: {app.Volume}% → {session.Volume}%", "HomePage");
+                        }
+                        
                         app.Volume = session.Volume;
                         app.Status = session.IsActive ? "Active" : "Inactive";
                         app.IsMuted = session.IsMuted;
@@ -101,7 +115,7 @@ public sealed partial class HomePage : Page
                     if (!Applications.Any(a => a.ProcessName == session.ProcessName))
                     {
                         App.Logger.LogInfo($"New audio session detected: {session.ApplicationName} (Volume: {session.Volume}%)", "HomePage");
-                        Applications.Add(new ApplicationVolume
+                        var app = new ApplicationVolume
                         {
                             ApplicationName = session.ApplicationName,
                             ProcessName = session.ProcessName,
@@ -109,7 +123,12 @@ public sealed partial class HomePage : Page
                             Status = session.IsActive ? "Active" : "Inactive",
                             LastSeen = "Just now",
                             IsMuted = session.IsMuted
-                        });
+                        };
+                        
+                        Applications.Add(app);
+                        
+                        // Load icon asynchronously
+                        LoadApplicationIconAsync(app, session.IconPath);
                     }
                 }
 
@@ -148,6 +167,36 @@ public sealed partial class HomePage : Page
         ApplicationListView.Visibility = Applications.Any() ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private async void VolumeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (sender is Microsoft.UI.Xaml.Controls.Slider slider && slider.Tag is ApplicationVolume app)
+        {
+            var newVolume = e.NewValue;
+            
+            // Update the application volume in Windows
+            await _audioService.SetApplicationVolumeAsync(app.ProcessName, newVolume);
+        }
+    }
+
+    private async void LoadApplicationIconAsync(ApplicationVolume app, string? iconPath)
+    {
+        try
+        {
+            var icon = await _iconService.GetApplicationIconAsync(iconPath, app.ProcessName);
+            if (icon != null)
+            {
+                _dispatcherQueue.TryEnqueue(() =>
+                {
+                    app.Icon = icon;
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogWarning($"Failed to load icon for {app.ApplicationName}: {ex.Message}", "HomePage");
+        }
+    }
+
     public void Dispose()
     {
         _refreshTimer?.Stop();
@@ -163,6 +212,7 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
     private string _status = string.Empty;
     private string _lastSeen = string.Empty;
     private bool _isMuted;
+    private BitmapImage? _icon;
     private const double VolumeDifferenceTolerance = 0.01;
 
     public string ApplicationName
@@ -239,6 +289,19 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
             {
                 _isMuted = value;
                 OnPropertyChanged(nameof(IsMuted));
+            }
+        }
+    }
+
+    public BitmapImage? Icon
+    {
+        get => _icon;
+        set
+        {
+            if (_icon != value)
+            {
+                _icon = value;
+                OnPropertyChanged(nameof(Icon));
             }
         }
     }

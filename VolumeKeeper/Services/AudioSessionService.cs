@@ -4,6 +4,9 @@ using System.Diagnostics;
 using System.Linq;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
+using System.Threading.Tasks;
+using System.Drawing;
+using System.IO;
 
 namespace VolumeKeeper.Services;
 
@@ -77,7 +80,8 @@ public class AudioSessionService : IDisposable
                         Volume = volume,
                         IsMuted = isMuted,
                         IsActive = isActive,
-                        Session = session
+                        Session = session,
+                        IconPath = GetApplicationIconPath(processId)
                     });
                 }
                 catch (Exception ex)
@@ -124,7 +128,9 @@ public class AudioSessionService : IDisposable
                         using var process = Process.GetProcessById((int)processId);
                         if (string.Equals(process.ProcessName, processName, StringComparison.OrdinalIgnoreCase))
                         {
-                            session.SimpleAudioVolume.Volume = (float)(volumePercent / 100.0);
+                            var newVolume = (float)(volumePercent / 100.0);
+                            session.SimpleAudioVolume.Volume = newVolume;
+                            App.Logger.LogInfo($"Set {processName} volume to {volumePercent}%", "AudioSessionService");
                         }
                     }
                 }
@@ -139,6 +145,22 @@ public class AudioSessionService : IDisposable
         {
             App.Logger.LogError($"Failed to set application volume for {processName}", ex, "AudioSessionService");
         }
+    }
+
+    public async Task<bool> SetApplicationVolumeAsync(string processName, double volumePercent)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                SetApplicationVolume(processName, volumePercent);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        });
     }
 
     private static string FormatApplicationName(string processName)
@@ -172,6 +194,20 @@ public class AudioSessionService : IDisposable
             : processName.Replace("_", " ").Replace("-", " ");
     }
 
+    private string? GetApplicationIconPath(uint processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById((int)processId);
+            return process.MainModule?.FileName;
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogWarning($"Failed to get executable path for PID {processId}: {ex.Message}", "AudioSessionService");
+            return null;
+        }
+    }
+
     public void Dispose()
     {
         App.Logger.LogInfo("AudioSessionService disposing", "AudioSessionService");
@@ -187,4 +223,5 @@ public class AudioSessionInfo
     public bool IsMuted { get; set; }
     public bool IsActive { get; set; }
     public AudioSessionControl? Session { get; set; }
+    public string? IconPath { get; set; }
 }

@@ -2,34 +2,34 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:VolumeKeeper">
-    
-    <Grid>
-        <NavigationView x:Name="NavigationViewControl" 
-                        PaneDisplayMode="Top"
-                        IsBackButtonVisible="Collapsed"
-                        IsSettingsVisible="False"
-                        SelectionChanged="NavigationView_SelectionChanged">
-            
-            <NavigationView.MenuItems>
-                <NavigationViewItem Tag="Home" Content="Home">
-                    <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Home"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Tag="Logs" Content="Logs">
-                    <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="List"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.MenuItems>
-            
-            <Frame x:Name="ContentFrame">
-                <Frame.ContentTransitions>
-                    <TransitionCollection>
-                        <NavigationThemeTransition/>
-                    </TransitionCollection>
-                </Frame.ContentTransitions>
-            </Frame>
-        </NavigationView>
-    </Grid>
+
+  <Grid>
+    <NavigationView x:Name="NavigationViewControl"
+                    PaneDisplayMode="Top"
+                    IsBackButtonVisible="Collapsed"
+                    IsSettingsVisible="False"
+                    SelectionChanged="NavigationView_SelectionChanged">
+
+      <NavigationView.MenuItems>
+        <NavigationViewItem Tag="Home" Content="Home">
+          <NavigationViewItem.Icon>
+            <SymbolIcon Symbol="Home" />
+          </NavigationViewItem.Icon>
+        </NavigationViewItem>
+        <NavigationViewItem Tag="Logs" Content="Logs">
+          <NavigationViewItem.Icon>
+            <SymbolIcon Symbol="List" />
+          </NavigationViewItem.Icon>
+        </NavigationViewItem>
+      </NavigationView.MenuItems>
+
+      <Frame x:Name="ContentFrame">
+        <Frame.ContentTransitions>
+          <TransitionCollection>
+            <NavigationThemeTransition />
+          </TransitionCollection>
+        </Frame.ContentTransitions>
+      </Frame>
+    </NavigationView>
+  </Grid>
 </Window>
