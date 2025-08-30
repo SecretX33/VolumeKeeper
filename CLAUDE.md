@@ -22,7 +22,7 @@ Follow these collaborative principles:
 
 #### Critical Thinking Phase
 - Reflect independently before proposing solutions
-- Consider implications within Windows/WPF constraints
+- Consider implications within Windows/WinUI 3 constraints
 - Identify potential issues with audio APIs and permissions
 - Document reasoning and assumptions
 
@@ -36,7 +36,7 @@ Follow these collaborative principles:
 - Focus solely on the specific task requested
 - Be explicit about what will and won't be changed
 - Separate suggestions from current work
-- Respect existing WPF/MVVM patterns
+- Respect existing WinUI 3/MVVM patterns
 
 ## Code Standards
 
@@ -217,7 +217,7 @@ Never use empty catch blocks or silent exception handling. The logging service p
 
 ## Current Status
 
-The project is in initial setup phase with basic WPF scaffolding. Next steps include:
+The project is in initial setup phase with basic WinUI 3 scaffolding. Next steps include:
 1. Adding NAudio NuGet package for audio management
 2. Implementing system tray functionality
 3. Creating the volume monitoring service
