@@ -80,7 +80,7 @@ public class VolumeMonitorService : IDisposable
     {
         try
         {
-            await _storageService.SetVolumeAsync(executableName, (int)Math.Round(volumePercentage));
+            await _storageService.SaveVolumeAsync(executableName, (int)Math.Round(volumePercentage));
             App.Logger.LogInfo($"Volume changed for {executableName}: {volumePercentage:F0}%", "VolumeMonitorService");
         }
         catch (Exception ex)

@@ -36,7 +36,8 @@
       <ToggleSwitch x:Name="AutoScrollToggle"
                     Header="Auto-scroll"
                     IsOn="True"
-                    Margin="16,0,0,0" />
+                    Margin="16,0,0,0"
+                    Toggled="AutoScrollToggle_Toggled" />
     </StackPanel>
 
     <!-- Log List -->

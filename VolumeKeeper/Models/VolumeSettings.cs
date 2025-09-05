@@ -12,6 +12,15 @@ public class VolumeSettings
     [JsonPropertyName("lastUpdated")]
     public DateTime LastUpdated { get; set; } = DateTime.Now;
 
+    [JsonPropertyName("autoRestoreEnabled")]
+    public bool AutoRestoreEnabled { get; set; } = true;
+
+    [JsonPropertyName("autoScrollLogsEnabled")]
+    public bool AutoScrollLogsEnabled { get; set; } = true;
+
+    [JsonPropertyName("lastVolumeBeforeMute")]
+    public ConcurrentDictionary<string, int> LastVolumeBeforeMute { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     public void SetVolume(string executableName, int volumePercentage)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(executableName);
