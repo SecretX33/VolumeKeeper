@@ -57,7 +57,6 @@ public sealed partial class LogsPage : Page
 
     private void ClearLogsButton_Click(object sender, RoutedEventArgs e)
     {
-        App.Logger.LogInfo("Logs cleared by user", "LogsPage");
         LogEntries.Clear();
         UpdateEmptyStateVisibility();
     }

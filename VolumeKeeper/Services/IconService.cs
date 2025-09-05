@@ -17,7 +17,7 @@ public class IconService
     public IconService()
     {
         _iconCacheDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "VolumeKeeper",
             "icons");
 

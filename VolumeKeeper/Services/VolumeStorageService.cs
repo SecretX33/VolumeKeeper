@@ -9,16 +9,15 @@ namespace VolumeKeeper.Services;
 
 public class VolumeStorageService
 {
-    private readonly string _settingsPath;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private volatile VolumeSettings? _cachedSettings;
 
-    public VolumeStorageService()
-    {
-        var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VolumeKeeper");
-        Directory.CreateDirectory(appDataPath);
-        _settingsPath = Path.Combine(appDataPath, "volume_settings.json");
-    }
+    private static readonly string SettingsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "VolumeKeeper",
+        "configs",
+        "volume_settings.json"
+    );
 
     public async Task<VolumeSettings> LoadSettingsAsync()
     {
@@ -34,13 +33,13 @@ public class VolumeStorageService
             if (_cachedSettings != null)
                 return _cachedSettings;
 
-            if (!File.Exists(_settingsPath))
+            if (!File.Exists(SettingsPath))
             {
                 _cachedSettings = new VolumeSettings();
                 return _cachedSettings;
             }
 
-            var json = await File.ReadAllTextAsync(_settingsPath);
+            var json = await File.ReadAllTextAsync(SettingsPath);
             _cachedSettings = JsonSerializer.Deserialize<VolumeSettings>(json) ?? new VolumeSettings();
             return _cachedSettings;
         }
@@ -63,7 +62,7 @@ public class VolumeStorageService
         {
             _cachedSettings = settings;
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(_settingsPath, json);
+            await File.WriteAllTextAsync(SettingsPath, json);
             App.Logger.LogInfo($"Volume settings saved successfully", "VolumeStorageService");
         }
         catch (Exception ex)

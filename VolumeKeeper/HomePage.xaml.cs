@@ -354,7 +354,7 @@ public sealed partial class HomePage : Page
 
     public void Dispose()
     {
-        _refreshTimer?.Stop();
+        _refreshTimer.Stop();
     }
 }
 
