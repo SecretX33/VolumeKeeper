@@ -54,7 +54,6 @@
         <TextBlock Text="Auto-restore volumes:"
                    VerticalAlignment="Center" />
         <ToggleSwitch x:Name="AutoRestoreToggle"
-                      IsOn="True"
                       Toggled="AutoRestoreToggle_Toggled" />
       </StackPanel>
     </Grid>
