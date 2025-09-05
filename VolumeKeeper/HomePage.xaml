@@ -75,8 +75,8 @@
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="200" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="200" />
               </Grid.ColumnDefinitions>
 
               <!-- App Icon -->
@@ -122,8 +122,30 @@
                 </StackPanel>
               </StackPanel>
 
-              <!-- Volume Slider -->
+              <!-- Actions -->
               <StackPanel Grid.Column="2"
+                          Orientation="Horizontal"
+                          Spacing="6"
+                          VerticalAlignment="Center"
+                          Margin="8,0,8,0">
+                <Button Click="SaveVolume_Click"
+                        CommandParameter="{x:Bind}"
+                        VerticalAlignment="Center"
+                        Visibility="{x:Bind SaveButtonVisibility, Mode=OneWay}"
+                        ToolTipService.ToolTip="Save volume">
+                  <SymbolIcon Symbol="Save" />
+                </Button>
+                <Button Click="RevertVolume_Click"
+                        CommandParameter="{x:Bind}"
+                        VerticalAlignment="Center"
+                        Visibility="{x:Bind RevertButtonVisibility, Mode=OneWay}"
+                        ToolTipService.ToolTip="Revert to saved volume">
+                  <SymbolIcon Symbol="Undo" />
+                </Button>
+              </StackPanel>
+
+              <!-- Volume Slider -->
+              <StackPanel Grid.Column="3"
                           Orientation="Horizontal"
                           Spacing="8"
                           VerticalAlignment="Center">
@@ -141,19 +163,10 @@
                         VerticalAlignment="Center"
                         ValueChanged="VolumeSlider_ValueChanged"
                         Tag="{x:Bind}" />
-                <TextBlock Text="{x:Bind Volume, Mode=OneWay}"
+                <TextBlock Text="{x:Bind VolumeDisplayText, Mode=OneWay}"
                            Width="30"
                            VerticalAlignment="Center" />
               </StackPanel>
-
-              <!-- Actions -->
-              <Button Grid.Column="3"
-                      Click="RemoveApplication_Click"
-                      CommandParameter="{x:Bind}"
-                      VerticalAlignment="Center"
-                      Margin="8,0,0,0">
-                <SymbolIcon Symbol="Delete" />
-              </Button>
             </Grid>
           </Border>
         </DataTemplate>
