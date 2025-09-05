@@ -288,18 +288,6 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void RemoveApplication_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
-            Applications.Remove(app);
-            UpdateEmptyStateVisibility();
-        } catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to remove application from list", ex, "HomePage");
-        }
-    }
 
     private void UpdateEmptyStateVisibility()
     {
@@ -313,26 +301,60 @@ public sealed partial class HomePage : Page
             if (sender is not Slider { Tag: ApplicationVolume app } || string.IsNullOrEmpty(app.ExecutableName)) return;
 
             var audioSessionManager = App.AudioSessionManager;
-            var storageService = App.VolumeStorageService;
-            if (audioSessionManager == null || storageService == null)
+            if (audioSessionManager == null)
             {
-                App.Logger.LogError("Audio session manager or storage service not initialized, cannot save volume of: " + app.ApplicationName);
+                App.Logger.LogError("Audio session manager not initialized, cannot change volume of: " + app.ApplicationName);
                 return;
             }
 
             var newVolume = (int)e.NewValue;
 
             // Update the audio session volume
-            if (!await audioSessionManager.SetSessionVolume(app.ExecutableName, newVolume)) return;
-
-            // Save to persistent storage
-            await storageService.SaveVolumeAsync(app.ExecutableName, newVolume);
-
-            // Update the UI to show the new saved volume
-            app.SavedVolume = newVolume;
+            await audioSessionManager.SetSessionVolume(app.ExecutableName, newVolume);
         } catch (Exception ex)
         {
             App.Logger.LogError("Failed to change volume", ex, "HomePage");
+        }
+    }
+
+    private async void SaveVolume_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
+            if (App.VolumeStorageService == null) return;
+
+            var currentVolume = (int)app.Volume;
+            await App.VolumeStorageService.SaveVolumeAsync(app.ExecutableName, currentVolume);
+            app.SavedVolume = currentVolume;
+
+            App.Logger.LogInfo($"Saved volume for {app.ApplicationName}: {currentVolume}%", "HomePage");
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to save volume", ex, "HomePage");
+        }
+    }
+
+    private async void RevertVolume_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
+            if (!app.SavedVolume.HasValue) return;
+
+            var audioSessionManager = App.AudioSessionManager;
+            if (audioSessionManager == null) return;
+
+            var savedVolume = app.SavedVolume.Value;
+            await audioSessionManager.SetSessionVolume(app.ExecutableName, savedVolume);
+            app.Volume = savedVolume;
+
+            App.Logger.LogInfo($"Reverted volume for {app.ApplicationName} to {savedVolume}%", "HomePage");
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to revert volume", ex, "HomePage");
         }
     }
 
@@ -407,6 +429,11 @@ public class ApplicationVolume : INotifyPropertyChanged
                 _volume = value;
                 OnPropertyChanged(nameof(Volume));
                 OnPropertyChanged(nameof(VolumeIcon));
+                OnPropertyChanged(nameof(VolumeDisplayText));
+                OnPropertyChanged(nameof(HasUnsavedChanges));
+                OnPropertyChanged(nameof(SaveButtonVisibility));
+                OnPropertyChanged(nameof(RevertButtonVisibility));
+                OnPropertyChanged(nameof(SavedVolumeDisplay));
             }
         }
     }
@@ -485,10 +512,20 @@ public class ApplicationVolume : INotifyPropertyChanged
             _savedVolume = value;
             OnPropertyChanged(nameof(SavedVolume));
             OnPropertyChanged(nameof(SavedVolumeDisplay));
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            OnPropertyChanged(nameof(SaveButtonVisibility));
+            OnPropertyChanged(nameof(RevertButtonVisibility));
         }
     }
 
-    public string SavedVolumeDisplay => SavedVolume.HasValue ? $"Saved: {SavedVolume}%" : "";
+    public bool HasUnsavedChanges => SavedVolume.HasValue && Math.Abs(SavedVolume.Value - Volume) > 1.0;
+
+    public string SavedVolumeDisplay => !SavedVolume.HasValue ? "No saved volume" : $"Saved: {SavedVolume}%";
+
+    public string VolumeDisplayText => $"{(int)Volume}%";
+
+    public Visibility SaveButtonVisibility => HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility RevertButtonVisibility => HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
 
     public Symbol VolumeIcon =>
         Volume == 0 ? Symbol.Mute : Symbol.Volume;
