@@ -34,9 +34,6 @@ public class VolumeMonitorService : IDisposable
 
             foreach (var session in sessions)
             {
-                if (string.IsNullOrEmpty(session.ExecutableName))
-                    continue;
-
                 var currentVolume = session.Volume;
 
                 if (_lastKnownVolumes.TryGetValue(session.ExecutableName, out var lastVolume))
@@ -96,9 +93,8 @@ public class VolumeMonitorService : IDisposable
             try
             {
                 var sessions = _audioSessionManager.GetAllSessions();
-                var validSessions = sessions.Where(session => !string.IsNullOrEmpty(session.ExecutableName));
 
-                foreach (var session in validSessions)
+                foreach (var session in sessions)
                 {
                     _lastKnownVolumes[session.ExecutableName] = session.Volume;
                 }
