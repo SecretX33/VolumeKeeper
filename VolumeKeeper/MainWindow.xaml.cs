@@ -1,8 +1,10 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
-using WinRT.VolumeKeeperVtableClasses;
+using Windows.Graphics;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using WinRT.Interop;
 
 namespace VolumeKeeper;
 
@@ -30,6 +32,13 @@ public sealed partial class MainWindow : Window
 
         // Track position changes
         this.Activated += MainWindow_Activated;
+
+        // Track window state changes
+        var presenter = AppWindow.Presenter as OverlappedPresenter;
+        if (presenter == null) return;
+
+        presenter.IsMaximizable = true;
+        presenter.IsMinimizable = true;
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -66,7 +75,15 @@ public sealed partial class MainWindow : Window
         var appWindow = this.AppWindow;
         if (appWindow == null) return;
 
-        var size = new Windows.Graphics.SizeInt32
+        // Apply maximize state if needed
+        var presenter = appWindow.Presenter as OverlappedPresenter;
+        if (_windowSettings.IsMaximized && presenter != null)
+        {
+            presenter.Maximize();
+            return;
+        }
+
+        var size = new SizeInt32
         {
             Width = (int)_windowSettings.Width,
             Height = (int)_windowSettings.Height
@@ -76,7 +93,7 @@ public sealed partial class MainWindow : Window
         // Set window position if we have saved values, otherwise center on screen
         if (!double.IsNaN(_windowSettings.X) && !double.IsNaN(_windowSettings.Y))
         {
-            var position = new Windows.Graphics.PointInt32
+            var position = new PointInt32
             {
                 X = (int)_windowSettings.X,
                 Y = (int)_windowSettings.Y
@@ -90,15 +107,15 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void CenterWindowOnScreen(Microsoft.UI.Windowing.AppWindow appWindow)
+    private void CenterWindowOnScreen(AppWindow appWindow)
     {
         // Get the primary display work area
-        var displayArea = Microsoft.UI.Windowing.DisplayArea.Primary;
+        var displayArea = DisplayArea.Primary;
         if (displayArea == null) return;
 
         var workArea = displayArea.WorkArea;
         var windowSize = appWindow.Size;
-        var centeredPosition = new Windows.Graphics.PointInt32
+        var centeredPosition = new PointInt32
         {
             X = (workArea.Width - windowSize.Width) / 2 + workArea.X,
             Y = (workArea.Height - windowSize.Height) / 2 + workArea.Y
@@ -113,10 +130,19 @@ public sealed partial class MainWindow : Window
         var appWindow = AppWindow;
         if (appWindow == null) return;
 
-        _windowSettings.X = appWindow.Position.X;
-        _windowSettings.Y = appWindow.Position.Y;
-        _windowSettings.Width = appWindow.Size.Width;
-        _windowSettings.Height = appWindow.Size.Height;
+        // Check if window is maximized
+        var presenter = appWindow.Presenter as OverlappedPresenter;
+        _windowSettings.IsMaximized = presenter?.State == OverlappedPresenterState.Maximized;
+
+        // Only save size and position if not maximized
+        if (!_windowSettings.IsMaximized)
+        {
+            _windowSettings.X = appWindow.Position.X;
+            _windowSettings.Y = appWindow.Position.Y;
+            _windowSettings.Width = appWindow.Size.Width;
+            _windowSettings.Height = appWindow.Size.Height;
+        }
+
         _windowSettings.Save();
     }
 
@@ -134,7 +160,7 @@ public sealed partial class MainWindow : Window
 
     void Hide()
     {
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var hwnd = WindowNative.GetWindowHandle(this);
         ShowWindow(hwnd, 0); // SW_HIDE
     }
 
