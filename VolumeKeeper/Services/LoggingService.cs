@@ -95,11 +95,11 @@ public class LoggingService : ILoggingService, IDisposable
         lock (_pendingFileWrites)
         {
             _pendingFileWrites.Enqueue(entry);
-        }
 
-        if (_pendingFileWrites.Count >= FileWriteBatchSize)
-        {
-            _ = Task.Run(async () => await FlushAsync());
+            if (_pendingFileWrites.Count >= FileWriteBatchSize)
+            {
+                _ = Task.Run(async () => await FlushAsync());
+            }
         }
     }
 

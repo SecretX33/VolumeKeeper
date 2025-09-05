@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using NAudio.CoreAudioApi;
-using NAudio.CoreAudioApi.Interfaces;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using NAudio.CoreAudioApi;
 
 namespace VolumeKeeper.Services;
 
@@ -21,9 +23,12 @@ public class AudioSession
 
 public class AudioSessionManager : IDisposable
 {
+    private const int VolumeDebounceDelayMs = 300;
     private readonly MMDeviceEnumerator _deviceEnumerator;
     private MMDevice? _defaultDevice;
     private SessionCollection? _sessions;
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _volumeDebounceTokens = new();
+    private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);
 
     public AudioSessionManager()
     {
@@ -107,7 +112,53 @@ public class AudioSessionManager : IDisposable
         }
     }
 
-    public bool SetSessionVolume(string executableName, float volumePercentage)
+    public Task<bool> SetSessionVolume(string executableName, int volumePercentage)
+    {
+        return Task.Run(async () =>
+        {
+            var cacheKey = executableName.ToLowerInvariant();
+
+            // Create new cancellation token for this debounce
+            var cts = _volumeDebounceTokens.AddOrUpdate(cacheKey, _ => new CancellationTokenSource(), (_, oldValue) =>
+            {
+                oldValue.Cancel();
+                oldValue.Dispose();
+                return new CancellationTokenSource();
+            });
+
+            try
+            {
+                // Wait for debounce period
+                await Task.Delay(VolumeDebounceDelayMs, cts.Token).ConfigureAwait(false);
+
+                // If not cancelled, set the volume
+                if (!cts.Token.IsCancellationRequested)
+                {
+                    await _volumeSetSemaphore.WaitAsync(cts.Token).ConfigureAwait(false);
+                    try
+                    {
+                        return SetSessionVolumeImmediate(executableName, volumePercentage);
+                    }
+                    finally
+                    {
+                        _volumeSetSemaphore.Release();
+                    }
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Debounce was cancelled, this is expected
+            }
+            catch (Exception ex)
+            {
+                App.Logger.LogError($"Error setting volume for {executableName}", ex, "AudioSessionManager");
+            }
+
+            return false;
+        });
+    }
+
+    public bool SetSessionVolumeImmediate(string executableName, int volumePercentage)
     {
         var sessions = GetAllSessions();
         var matchingSessions = sessions.Where(s =>
@@ -142,6 +193,15 @@ public class AudioSessionManager : IDisposable
 
     public void Dispose()
     {
+        // Clean up all debounce tokens
+        foreach (var kvp in _volumeDebounceTokens)
+        {
+            kvp.Value.Cancel();
+            kvp.Value.Dispose();
+        }
+        _volumeDebounceTokens.Clear();
+
+        _volumeSetSemaphore?.Dispose();
         _deviceEnumerator?.Dispose();
     }
 }

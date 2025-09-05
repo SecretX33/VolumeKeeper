@@ -195,15 +195,17 @@ public sealed partial class HomePage : Page
 
     private void VolumeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
-        if (sender is Slider slider && slider.Tag is ApplicationVolume app)
-        {
-            var newVolume = (float)e.NewValue;
+        if (sender is not Slider { Tag: ApplicationVolume app } || string.IsNullOrEmpty(app.ExecutableName)) return;
 
-            if (App.AudioSessionManager != null && !string.IsNullOrEmpty(app.ExecutableName))
-            {
-                App.AudioSessionManager.SetSessionVolume(app.ExecutableName, newVolume);
-            }
+        var audioSessionManager = App.AudioSessionManager;
+        if (audioSessionManager == null)
+        {
+            App.Logger.LogError("Audio session manager not initialized, cannot save volume of: " + app.ApplicationName);
+            return;
         }
+
+        var newVolume = (int)e.NewValue;
+        _ = audioSessionManager.SetSessionVolume(app.ExecutableName, newVolume);
     }
 
     private async void LoadApplicationIconAsync(ApplicationVolume app, string? iconPath)
@@ -353,12 +355,10 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
         get => _savedVolume;
         set
         {
-            if (_savedVolume != value)
-            {
-                _savedVolume = value;
-                OnPropertyChanged(nameof(SavedVolume));
-                OnPropertyChanged(nameof(SavedVolumeDisplay));
-            }
+            if (_savedVolume == value) return;
+            _savedVolume = value;
+            OnPropertyChanged(nameof(SavedVolume));
+            OnPropertyChanged(nameof(SavedVolumeDisplay));
         }
     }
 

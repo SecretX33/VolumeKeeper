@@ -11,7 +11,7 @@ public class VolumeStorageService
 {
     private readonly string _settingsPath;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
-    private VolumeSettings? _cachedSettings;
+    private volatile VolumeSettings? _cachedSettings;
 
     public VolumeStorageService()
     {
@@ -22,9 +22,15 @@ public class VolumeStorageService
 
     public async Task<VolumeSettings> LoadSettingsAsync()
     {
+        // First check if we have cached settings without acquiring the lock
+        var cached = _cachedSettings;
+        if (cached != null)
+            return cached;
+
         await _fileLock.WaitAsync();
         try
         {
+            // Double-check pattern: check again after acquiring the lock
             if (_cachedSettings != null)
                 return _cachedSettings;
 
