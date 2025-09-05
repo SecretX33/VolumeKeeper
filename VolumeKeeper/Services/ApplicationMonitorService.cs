@@ -138,32 +138,36 @@ public class ApplicationMonitorService : IDisposable
 
     public Task InitializeAsync()
     {
-        try
+        return Task.Run(() =>
         {
-            var processes = Process.GetProcesses();
-            foreach (var process in processes)
+            try
             {
-                try
+                var processes = Process.GetProcesses();
+                foreach (var process in processes)
                 {
-                    var executableName = GetExecutableName(process);
-                    if (!string.IsNullOrEmpty(executableName))
+                    try
                     {
-                        _knownProcesses[process.Id] = executableName;
+                        var executableName = GetExecutableName(process);
+                        if (!string.IsNullOrEmpty(executableName))
+                        {
+                            _knownProcesses[process.Id] = executableName;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        App.Logger.LogError($"Error processing process ID {process.Id}", ex,
+                            "ApplicationMonitorService");
                     }
                 }
-                catch (Exception ex)
-                {
-                    App.Logger.LogError($"Error processing process ID {process.Id}", ex, "ApplicationMonitorService");
-                }
+
+                App.Logger.LogInfo($"Application monitor initialized with {_knownProcesses.Count} known processes",
+                    "ApplicationMonitorService");
             }
-            App.Logger.LogInfo($"Application monitor initialized with {_knownProcesses.Count} known processes", "ApplicationMonitorService");
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to initialize application monitor", ex, "ApplicationMonitorService");
-        }
-        
-        return Task.CompletedTask;
+            catch (Exception ex)
+            {
+                App.Logger.LogError("Failed to initialize application monitor", ex, "ApplicationMonitorService");
+            }
+        });
     }
 
     public void Dispose()

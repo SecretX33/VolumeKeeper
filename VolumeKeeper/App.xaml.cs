@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using H.NotifyIcon;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Dispatching;
 using VolumeKeeper.Services;
+using WinRT.Interop;
 
 namespace VolumeKeeper;
 
@@ -35,7 +37,7 @@ public partial class App : Application
     {
         // Initialize logging service first
         _loggingService = new LoggingService(DispatcherQueue.GetForCurrentThread());
-        Logger.LogInfo("VolumeKeeper application starting");
+        Logger.LogDebug("VolumeKeeper initialization started");
 
         // Initialize volume management services
         await InitializeServicesAsync();
@@ -90,7 +92,7 @@ public partial class App : Application
             _mainWindow.Activate();
 
             // Get window handle and show window
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_mainWindow);
+            var hwnd = WindowNative.GetWindowHandle(_mainWindow);
             if (hwnd != IntPtr.Zero)
             {
                 ShowWindow(hwnd, 5); // SW_SHOW
@@ -98,7 +100,7 @@ public partial class App : Application
         }
     }
 
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
     private async Task InitializeServicesAsync()
@@ -116,10 +118,12 @@ public partial class App : Application
 
             // Initialize monitoring services
             _volumeMonitorService = new VolumeMonitorService(_audioSessionManager, _volumeStorageService);
-            await _volumeMonitorService.InitializeAsync();
-
             _applicationMonitorService = new ApplicationMonitorService();
-            await _applicationMonitorService.InitializeAsync();
+
+            await Task.WhenAll(
+                _volumeMonitorService.InitializeAsync(),
+                _applicationMonitorService.InitializeAsync()
+            );
 
             _volumeRestorationService = new VolumeRestorationService(
                 _audioSessionManager,

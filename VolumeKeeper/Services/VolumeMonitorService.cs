@@ -58,7 +58,8 @@ public class VolumeMonitorService : IDisposable
                 }
             }
 
-            var currentExecutables = new HashSet<string>(sessions.Select(s => s.ExecutableName), StringComparer.OrdinalIgnoreCase);
+            var currentExecutables =
+                new HashSet<string>(sessions.Select(s => s.ExecutableName), StringComparer.OrdinalIgnoreCase);
             var toRemove = _lastKnownVolumes.Keys.Where(k => !currentExecutables.Contains(k)).ToList();
             foreach (var key in toRemove)
             {
@@ -90,24 +91,26 @@ public class VolumeMonitorService : IDisposable
 
     public Task InitializeAsync()
     {
-        try
+        return Task.Run(() =>
         {
-            var sessions = _audioSessionManager.GetAllSessions();
-            foreach (var session in sessions)
+            try
             {
-                if (!string.IsNullOrEmpty(session.ExecutableName))
+                var sessions = _audioSessionManager.GetAllSessions();
+                var validSessions = sessions.Where(session => !string.IsNullOrEmpty(session.ExecutableName));
+
+                foreach (var session in validSessions)
                 {
                     _lastKnownVolumes[session.ExecutableName] = session.Volume;
                 }
+
+                App.Logger.LogInfo($"Volume monitor initialized with {_lastKnownVolumes.Count} active sessions",
+                    "VolumeMonitorService");
             }
-            App.Logger.LogInfo($"Volume monitor initialized with {_lastKnownVolumes.Count} active sessions", "VolumeMonitorService");
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to initialize volume monitor", ex, "VolumeMonitorService");
-        }
-        
-        return Task.CompletedTask;
+            catch (Exception ex)
+            {
+                App.Logger.LogError("Failed to initialize volume monitor", ex, "VolumeMonitorService");
+            }
+        });
     }
 
     public void Dispose()

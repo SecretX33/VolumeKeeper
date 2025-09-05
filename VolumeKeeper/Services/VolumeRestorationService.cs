@@ -8,12 +8,13 @@ namespace VolumeKeeper.Services;
 
 public class VolumeRestorationService : IDisposable
 {
+    private const int DelayBeforeRestoreMs = 500;
     private readonly AudioSessionManager _audioSessionManager;
     private readonly VolumeStorageService _storageService;
     private readonly ApplicationMonitorService _appMonitorService;
     private readonly ConcurrentDictionary<string, DateTime> _recentRestorations = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _cleanupTimer;
-    private readonly TimeSpan _restorationCooldown = TimeSpan.FromSeconds(10);
+    private readonly TimeSpan _restorationCooldown = TimeSpan.FromSeconds(1);
     private bool _isDisposed;
 
     public VolumeRestorationService(
@@ -42,52 +43,56 @@ public class VolumeRestorationService : IDisposable
             }
         }
 
-        await Task.Delay(500);
+        await Task.Delay(DelayBeforeRestoreMs);
 
-        await RestoreVolumeAsync(e.ExecutableName, e.ProcessId);
+        await RestoreVolumeAsync(e.ExecutableName);
     }
 
-    public async Task RestoreVolumeAsync(string executableName, int processId)
+    public Task RestoreVolumeAsync(string executableName)
     {
-        try
+        return Task.Run(async () =>
         {
-            var savedVolume = await _storageService.GetVolumeAsync(executableName);
-            if (savedVolume == null)
+            try
             {
-                App.Logger.LogInfo($"No saved volume found for {executableName}", "VolumeRestorationService");
-                return;
-            }
-
-            var maxAttempts = 10;
-            var attemptDelay = 500;
-            bool restored = false;
-
-            for (int attempt = 0; attempt < maxAttempts; attempt++)
-            {
-                if (_audioSessionManager.SetSessionVolume(executableName, savedVolume.Value))
+                var savedVolume = await _storageService.GetVolumeAsync(executableName);
+                if (savedVolume == null)
                 {
-                    _recentRestorations[executableName] = DateTime.UtcNow;
-                    App.Logger.LogInfo($"Volume restored for {executableName} to {savedVolume}% (attempt {attempt + 1})", "VolumeRestorationService");
-                    restored = true;
-                    break;
+                    App.Logger.LogDebug($"No saved volume found for {executableName}", "VolumeRestorationService");
+                    return;
                 }
 
-                if (attempt < maxAttempts - 1)
+                const int maxAttempts = 10;
+                var attemptDelay = 500;
+                bool restored = false;
+
+                for (int attempt = 0; attempt < maxAttempts; attempt++)
                 {
+                    if (_audioSessionManager.SetSessionVolumeImmediate(executableName, savedVolume.Value))
+                    {
+                        _recentRestorations[executableName] = DateTime.UtcNow;
+                        App.Logger.LogInfo($"Volume restored for {executableName} to {savedVolume}% (attempt {attempt + 1})",
+                            "VolumeRestorationService");
+                        restored = true;
+                        break;
+                    }
+
+                    if (attempt >= maxAttempts - 1) break;
+
                     await Task.Delay(attemptDelay);
                     attemptDelay = Math.Min(attemptDelay * 2, 5000);
                 }
-            }
 
-            if (!restored)
-            {
-                App.Logger.LogWarning($"Failed to restore volume for {executableName} after {maxAttempts} attempts", "VolumeRestorationService");
+                if (!restored)
+                {
+                    App.Logger.LogWarning($"Failed to restore volume for {executableName} after {maxAttempts} attempts",
+                        "VolumeRestorationService");
+                }
             }
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError($"Error restoring volume for {executableName}", ex, "VolumeRestorationService");
-        }
+            catch (Exception ex)
+            {
+                App.Logger.LogError($"Error restoring volume for {executableName}", ex, "VolumeRestorationService");
+            }
+        });
     }
 
     private void CleanupOldRestorations(object? state)
@@ -104,32 +109,36 @@ public class VolumeRestorationService : IDisposable
         }
     }
 
-    public async Task RestoreAllCurrentSessionsAsync()
+    public Task RestoreAllCurrentSessionsAsync()
     {
-        try
+        return Task.Run(async () =>
         {
-            var sessions = _audioSessionManager.GetAllSessions();
-            App.Logger.LogInfo($"Restoring volumes for {sessions.Count} active sessions", "VolumeRestorationService");
-
-            foreach (var session in sessions)
+            try
             {
-                if (!string.IsNullOrEmpty(session.ExecutableName))
+                var sessions = _audioSessionManager.GetAllSessions();
+                var validSessions = sessions.Where(s => !string.IsNullOrEmpty(s.ExecutableName));
+                App.Logger.LogInfo($"Restoring volumes for {sessions.Count} active sessions", "VolumeRestorationService");
+
+                foreach (var session in validSessions)
                 {
                     var savedVolume = await _storageService.GetVolumeAsync(session.ExecutableName);
-                    if (savedVolume != null && Math.Abs(session.Volume - savedVolume.Value) > 1)
+                    if (savedVolume == null || Math.Abs(session.Volume - savedVolume.Value) <= 1) continue;
+
+                    if (await _audioSessionManager.SetSessionVolume(session.ExecutableName, savedVolume.Value))
                     {
-                        if (_audioSessionManager.SetSessionVolume(session.ExecutableName, savedVolume.Value))
-                        {
-                            App.Logger.LogInfo($"Volume restored for {session.ExecutableName} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
-                        }
+                        App.Logger.LogInfo($"Volume restored for {session.ExecutableName} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
+                    }
+                    else
+                    {
+                        App.Logger.LogWarning($"Failed to restore volume for {session.ExecutableName}", "VolumeRestorationService");
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to restore volumes for current sessions", ex, "VolumeRestorationService");
-        }
+            catch (Exception ex)
+            {
+                App.Logger.LogError("Failed to restore volumes for current sessions", ex, "VolumeRestorationService");
+            }
+        });
     }
 
     public void Dispose()

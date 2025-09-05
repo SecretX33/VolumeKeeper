@@ -17,15 +17,15 @@ public sealed partial class LogsPage : Page
     {
         InitializeComponent();
         UpdateEmptyStateVisibility();
-        
+
         // Subscribe to collection changes
         LogEntries.CollectionChanged += (s, e) =>
         {
             UpdateEmptyStateVisibility();
-            
+
             if (AutoScrollToggle.IsOn && LogEntries.Count > 0)
             {
-                DispatcherQueue.TryEnqueue(() => 
+                DispatcherQueue.TryEnqueue(() =>
                 {
                     // Scroll to bottom (latest entry)
                     LogScrollViewer.ChangeView(null, LogScrollViewer.ScrollableHeight, null);
@@ -37,7 +37,6 @@ public sealed partial class LogsPage : Page
 
     private void ClearLogsButton_Click(object sender, RoutedEventArgs e)
     {
-        App.Logger.LogInfo("Logs cleared by user", "LogsPage");
         LogEntries.Clear();
         UpdateEmptyStateVisibility();
     }
