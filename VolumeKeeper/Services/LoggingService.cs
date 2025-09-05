@@ -12,6 +12,7 @@ namespace VolumeKeeper.Services;
 public interface ILoggingService
 {
     ObservableCollection<LogEntry> LogEntries { get; }
+    void LogDebug(string message, string? source = null);
     void LogInfo(string message, string? source = null);
     void LogWarning(string message, string? source = null);
     void LogError(string message, Exception? exception = null, string? source = null);
@@ -50,6 +51,11 @@ public class LoggingService : ILoggingService, IDisposable
         _flushTimer = new Timer(async _ => await FlushAsync(), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
 
         LogInfo("VolumeKeeper logging service started", "LoggingService");
+    }
+
+    public void LogDebug(string message, string? source = null)
+    {
+        Log(LogLevel.Debug, message, null, source);
     }
 
     public void LogInfo(string message, string? source = null)
