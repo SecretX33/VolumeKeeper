@@ -8,7 +8,6 @@ namespace VolumeKeeper.Services;
 
 public class VolumeRestorationService : IDisposable
 {
-    private const int DelayBeforeRestoreMs = 500;
     private readonly AudioSessionManager _audioSessionManager;
     private readonly VolumeStorageService _storageService;
     private readonly ApplicationMonitorService _appMonitorService;
@@ -34,6 +33,13 @@ public class VolumeRestorationService : IDisposable
         if (string.IsNullOrEmpty(e.ExecutableName))
             return;
 
+        var settings = await _storageService.GetSettingsAsync();
+        if (!settings.AutoRestoreEnabled)
+        {
+            App.Logger.LogDebug($"Auto-restore disabled, skipping volume restoration for {e.ExecutableName}", "VolumeRestorationService");
+            return;
+        }
+
         if (_recentRestorations.TryGetValue(e.ExecutableName, out var lastRestoration))
         {
             if (DateTime.UtcNow - lastRestoration < _restorationCooldown)
@@ -42,8 +48,6 @@ public class VolumeRestorationService : IDisposable
                 return;
             }
         }
-
-        await Task.Delay(DelayBeforeRestoreMs);
 
         await RestoreVolumeAsync(e.ExecutableName);
     }

@@ -17,6 +17,7 @@ public sealed partial class LogsPage : Page
     {
         InitializeComponent();
         UpdateEmptyStateVisibility();
+        LoadSettings();
 
         // Subscribe to collection changes
         LogEntries.CollectionChanged += (s, e) =>
@@ -34,9 +35,29 @@ public sealed partial class LogsPage : Page
         };
     }
 
+    private async void LoadSettings()
+    {
+        if (App.VolumeStorageService != null)
+        {
+            var settings = await App.VolumeStorageService.GetSettingsAsync();
+            AutoScrollToggle.IsOn = settings.AutoScrollLogsEnabled;
+        }
+    }
+
+    private async void AutoScrollToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (App.VolumeStorageService != null && sender is ToggleSwitch toggle)
+        {
+            var settings = await App.VolumeStorageService.GetSettingsAsync();
+            settings.AutoScrollLogsEnabled = toggle.IsOn;
+            await App.VolumeStorageService.SaveSettingsAsync(settings);
+        }
+    }
+
 
     private void ClearLogsButton_Click(object sender, RoutedEventArgs e)
     {
+        App.Logger.LogInfo("Logs cleared by user", "LogsPage");
         LogEntries.Clear();
         UpdateEmptyStateVisibility();
     }

@@ -76,7 +76,7 @@ public class VolumeStorageService
         }
     }
 
-    public async Task SetVolumeAsync(string executableName, int volumePercentage)
+    public async Task SaveVolumeAsync(string executableName, int volumePercentage)
     {
         var settings = await LoadSettingsAsync();
         settings.SetVolume(executableName, volumePercentage);
@@ -96,5 +96,19 @@ public class VolumeStorageService
         settings.RemoveVolume(executableName);
         await SaveSettingsAsync(settings);
         App.Logger.LogInfo($"Volume settings removed for {executableName}", "VolumeStorageService");
+    }
+
+    public async Task ClearAllVolumesAsync()
+    {
+        var settings = await LoadSettingsAsync();
+        settings.ApplicationVolumes.Clear();
+        settings.LastVolumeBeforeMute.Clear();
+        await SaveSettingsAsync(settings);
+        App.Logger.LogInfo("All volume settings cleared", "VolumeStorageService");
+    }
+
+    public async Task<VolumeSettings> GetSettingsAsync()
+    {
+        return await LoadSettingsAsync();
     }
 }

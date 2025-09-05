@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
+using System.Linq;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using System.Collections.ObjectModel;
-using System.Linq;
-using VolumeKeeper.Services;
-using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
+using VolumeKeeper.Services;
 
 namespace VolumeKeeper;
 
@@ -32,6 +34,20 @@ public sealed partial class HomePage : Page
 
         LoadAudioSessions();
         UpdateEmptyStateVisibility();
+        LoadSettings();
+    }
+
+    private async void LoadSettings()
+    {
+        try
+        {
+            if (App.VolumeStorageService == null) return;
+            var settings = await App.VolumeStorageService.GetSettingsAsync();
+            AutoRestoreToggle.IsOn = settings.AutoRestoreEnabled;
+        } catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to load settings", ex, "HomePage");
+        }
     }
 
     private async void LoadAudioSessions()
@@ -41,7 +57,7 @@ public sealed partial class HomePage : Page
             if (App.AudioSessionManager == null) return;
             var sessions = App.AudioSessionManager.GetAllSessions();
 
-            var sessionsWithSavedVolumes = new List<(Services.AudioSession session, int? savedVolume)>();
+            var sessionsWithSavedVolumes = new List<(AudioSession session, int? savedVolume)>();
 
             foreach (var session in sessions)
             {
@@ -57,7 +73,6 @@ public sealed partial class HomePage : Page
 
                 foreach (var (session, savedVolume) in sessionsWithSavedVolumes)
                 {
-
                     var app = new ApplicationVolume
                     {
                         ApplicationName = Path.GetFileNameWithoutExtension(session.ExecutableName),
@@ -98,8 +113,9 @@ public sealed partial class HomePage : Page
             var sessions = App.AudioSessionManager.GetAllSessions();
 
             // Get saved volumes for new sessions
-            var newSessions = sessions.Where(s => !Applications.Any(a => string.Equals(a.ExecutableName, s.ExecutableName, StringComparison.OrdinalIgnoreCase))).ToList();
-            var newSessionsWithVolumes = new List<(Services.AudioSession session, int? savedVolume)>();
+            var newSessions = sessions.Where(s =>
+                !Applications.Any(a => string.Equals(a.ExecutableName, s.ExecutableName, StringComparison.OrdinalIgnoreCase))).ToList();
+            var newSessionsWithVolumes = new List<(AudioSession session, int? savedVolume)>();
 
             foreach (var session in newSessions)
             {
@@ -114,7 +130,8 @@ public sealed partial class HomePage : Page
                 // Update existing applications
                 foreach (var app in Applications.ToList())
                 {
-                    var session = sessions.FirstOrDefault(s => string.Equals(s.ExecutableName, app.ExecutableName, StringComparison.OrdinalIgnoreCase));
+                    var session = sessions.FirstOrDefault(s =>
+                        string.Equals(s.ExecutableName, app.ExecutableName, StringComparison.OrdinalIgnoreCase));
                     if (session != null)
                     {
                         if (Math.Abs(app.Volume - session.Volume) > 1.0)
@@ -138,7 +155,9 @@ public sealed partial class HomePage : Page
                 // Add new applications
                 foreach (var (session, savedVolume) in newSessionsWithVolumes)
                 {
-                    App.Logger.LogInfo($"New audio session detected: {Path.GetFileNameWithoutExtension(session.ExecutableName)} (Volume: {session.Volume}%)", "HomePage");
+                    App.Logger.LogInfo(
+                        $"New audio session detected: {Path.GetFileNameWithoutExtension(session.ExecutableName)} (Volume: {session.Volume}%)",
+                        "HomePage");
 
                     var app = new ApplicationVolume
                     {
@@ -172,18 +191,113 @@ public sealed partial class HomePage : Page
         LoadAudioSessions();
     }
 
-    private void ClearAllButton_Click(object sender, RoutedEventArgs e)
+    private async void ClearAllButton_Click(object sender, RoutedEventArgs e)
     {
-        Applications.Clear();
-        UpdateEmptyStateVisibility();
+        try
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "Clear All Saved Volumes?",
+                Content =
+                    "This will remove all saved volume levels. Applications will no longer have their volumes automatically restored.",
+                PrimaryButtonText = "Clear All",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.XamlRoot,
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+
+            if (App.VolumeStorageService != null)
+            {
+                await App.VolumeStorageService.ClearAllVolumesAsync();
+            }
+
+            Applications.Clear();
+            UpdateEmptyStateVisibility();
+            App.Logger.LogInfo("All saved volume levels cleared", "HomePage");
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to clear all saved volumes", ex, "HomePage");
+        }
+    }
+
+    private async void AutoRestoreToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (App.VolumeStorageService == null || sender is not ToggleSwitch toggle) return;
+            var settings = await App.VolumeStorageService.GetSettingsAsync();
+            settings.AutoRestoreEnabled = toggle.IsOn;
+            await App.VolumeStorageService.SaveSettingsAsync(settings);
+            App.Logger.LogInfo($"Auto-restore {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to update auto-restore setting", ex, "HomePage");
+        }
+    }
+
+    private async void MuteToggle_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
+
+            var audioSessionManager = App.AudioSessionManager;
+            if (audioSessionManager == null || App.VolumeStorageService == null) return;
+
+            var settings = await App.VolumeStorageService.GetSettingsAsync();
+
+            if (app.Volume > 0)
+            {
+                // Store current volume before muting
+                settings.LastVolumeBeforeMute[app.ExecutableName.ToLowerInvariant()] = (int)app.Volume;
+                await App.VolumeStorageService.SaveSettingsAsync(settings);
+
+                // Mute
+                await audioSessionManager.SetSessionVolume(app.ExecutableName, 0);
+                app.Volume = 0;
+                App.Logger.LogInfo(
+                    $"Muted {app.ApplicationName} (saved volume: {settings.LastVolumeBeforeMute[app.ExecutableName.ToLowerInvariant()]}%)",
+                    "HomePage");
+            }
+            else
+            {
+                // Unmute - restore previous volume
+                if (settings.LastVolumeBeforeMute.TryGetValue(app.ExecutableName.ToLowerInvariant(), out var lastVolume))
+                {
+                    await audioSessionManager.SetSessionVolume(app.ExecutableName, lastVolume);
+                    app.Volume = lastVolume;
+                    App.Logger.LogInfo($"Unmuted {app.ApplicationName} to {lastVolume}%", "HomePage");
+                }
+                else
+                {
+                    // No saved volume, restore to 50%
+                    await audioSessionManager.SetSessionVolume(app.ExecutableName, 50);
+                    app.Volume = 50;
+                    App.Logger.LogInfo($"Unmuted {app.ApplicationName} to 50% (no saved volume)", "HomePage");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError($"Failed to toggle mute for application", ex, "HomePage");
+        }
     }
 
     private void RemoveApplication_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button button && button.CommandParameter is ApplicationVolume app)
+        try
         {
+            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
             Applications.Remove(app);
             UpdateEmptyStateVisibility();
+        } catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to remove application from list", ex, "HomePage");
         }
     }
 
@@ -193,19 +307,33 @@ public sealed partial class HomePage : Page
         ApplicationListView.Visibility = Applications.Any() ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void VolumeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    private async void VolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        if (sender is not Slider { Tag: ApplicationVolume app } || string.IsNullOrEmpty(app.ExecutableName)) return;
+        try {
+            if (sender is not Slider { Tag: ApplicationVolume app } || string.IsNullOrEmpty(app.ExecutableName)) return;
 
-        var audioSessionManager = App.AudioSessionManager;
-        if (audioSessionManager == null)
+            var audioSessionManager = App.AudioSessionManager;
+            var storageService = App.VolumeStorageService;
+            if (audioSessionManager == null || storageService == null)
+            {
+                App.Logger.LogError("Audio session manager or storage service not initialized, cannot save volume of: " + app.ApplicationName);
+                return;
+            }
+
+            var newVolume = (int)e.NewValue;
+
+            // Update the audio session volume
+            if (!await audioSessionManager.SetSessionVolume(app.ExecutableName, newVolume)) return;
+
+            // Save to persistent storage
+            await storageService.SaveVolumeAsync(app.ExecutableName, newVolume);
+
+            // Update the UI to show the new saved volume
+            app.SavedVolume = newVolume;
+        } catch (Exception ex)
         {
-            App.Logger.LogError("Audio session manager not initialized, cannot save volume of: " + app.ApplicationName);
-            return;
+            App.Logger.LogError("Failed to change volume", ex, "HomePage");
         }
-
-        var newVolume = (int)e.NewValue;
-        _ = audioSessionManager.SetSessionVolume(app.ExecutableName, newVolume);
     }
 
     private async void LoadApplicationIconAsync(ApplicationVolume app, string? iconPath)
@@ -215,10 +343,7 @@ public sealed partial class HomePage : Page
             var icon = await _iconService.GetApplicationIconAsync(iconPath, app.ProcessName);
             if (icon != null)
             {
-                _dispatcherQueue.TryEnqueue(() =>
-                {
-                    app.Icon = icon;
-                });
+                _dispatcherQueue.TryEnqueue(() => { app.Icon = icon; });
             }
         }
         catch (Exception ex)
@@ -233,7 +358,7 @@ public sealed partial class HomePage : Page
     }
 }
 
-public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
+public class ApplicationVolume : INotifyPropertyChanged
 {
     private string _applicationName = string.Empty;
     private string _processName = string.Empty;
@@ -281,6 +406,7 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
             {
                 _volume = value;
                 OnPropertyChanged(nameof(Volume));
+                OnPropertyChanged(nameof(VolumeIcon));
             }
         }
     }
@@ -364,10 +490,13 @@ public class ApplicationVolume : System.ComponentModel.INotifyPropertyChanged
 
     public string SavedVolumeDisplay => SavedVolume.HasValue ? $"Saved: {SavedVolume}%" : "";
 
-    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    public Symbol VolumeIcon =>
+        Volume == 0 ? Symbol.Mute : Symbol.Volume;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     protected virtual void OnPropertyChanged(string propertyName)
     {
-        PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
