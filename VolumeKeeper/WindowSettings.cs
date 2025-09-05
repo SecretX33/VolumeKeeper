@@ -15,7 +15,8 @@ public class WindowSettings
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "VolumeKeeper",
-        "window-settings.json"
+        "configs",
+        "window_settings.json"
     );
 
     public static WindowSettings Load()

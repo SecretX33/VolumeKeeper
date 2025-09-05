@@ -41,9 +41,10 @@ public class LoggingService : ILoggingService, IDisposable
         _fileWriteSemaphore = new SemaphoreSlim(1, 1);
 
         var logDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "VolumeKeeper",
-            "logs");
+            "logs"
+        );
 
         Directory.CreateDirectory(logDirectory);
         _logFilePath = Path.Combine(logDirectory, $"volumekeeper_{DateTime.Now:yyyyMMdd}.log");
