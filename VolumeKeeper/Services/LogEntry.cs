@@ -7,6 +7,7 @@ namespace VolumeKeeper.Services;
 
 public enum LogLevel
 {
+    Debug,
     Info,
     Warning,
     Error
@@ -26,6 +27,7 @@ public class LogEntry
     // UI properties for LogsPage binding
     public Symbol IconSymbol => Level switch
     {
+        LogLevel.Debug => Symbol.Repair,
         LogLevel.Info => Symbol.Important,
         LogLevel.Warning => Symbol.ReportHacked,
         LogLevel.Error => Symbol.Cancel,
@@ -38,6 +40,7 @@ public class LogEntry
     {
         var color = level switch
         {
+            LogLevel.Debug => Color.FromArgb(255, 128, 128, 128),
             LogLevel.Info => Color.FromArgb(255, 0, 120, 212),
             LogLevel.Warning => Color.FromArgb(255, 255, 185, 0),
             LogLevel.Error => Color.FromArgb(255, 232, 17, 35),

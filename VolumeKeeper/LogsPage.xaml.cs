@@ -27,8 +27,8 @@ public sealed partial class LogsPage : Page
             {
                 DispatcherQueue.TryEnqueue(() =>
                 {
-                    // Scroll to bottom (latest entry)
-                    LogScrollViewer.ChangeView(null, LogScrollViewer.ScrollableHeight, null);
+                    // Scroll to top (latest entry)
+                    LogScrollViewer.ChangeView(null, 0, null);
                 });
             }
         };
