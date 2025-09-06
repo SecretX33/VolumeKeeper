@@ -42,10 +42,14 @@ jobs:
         Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT", "/DIR=C:\InnoSetup" -Wait
 
         # Create installer script
+        # Extract version from csproj
+        $versionLine = Get-Content "VolumeKeeper/VolumeKeeper.csproj" | Select-String "<Version>"
+        $appVersion = $versionLine -replace '.*<Version>(.*)</Version>.*', '$1'
+        
         $script = @"
         [Setup]
         AppName=VolumeKeeper
-        AppVersion=1.0.0
+        AppVersion=$appVersion
         DefaultDirName={autopf}\VolumeKeeper
         DefaultGroupName=VolumeKeeper
         OutputDir=.\installer

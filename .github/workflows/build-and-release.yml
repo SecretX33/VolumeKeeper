@@ -13,8 +13,12 @@ on:
           - build and release (force)
           - build only
       version:
-        description: 'Release version (e.g., 1.0.0)'
-        required: true
+        description: Release version (e.g. 1.0.0, empty to use version from .csproj)
+        required: false
+        type: string
+      release_name:
+        description: Release name (e.g. v1.2.5, empty to generate one automatically)
+        required: false
         type: string
 
 jobs:
@@ -64,23 +68,42 @@ jobs:
         mv "./artifacts/installer-x64/VolumeKeeper-Setup.exe" "./artifacts/VolumeKeeper-Setup-x64.exe"
         mv "./artifacts/installer-x86/VolumeKeeper-Setup.exe" "./artifacts/VolumeKeeper-Setup-x86.exe"
 
+    - name: Extract version
+      id: version
+      run: |
+        version="${{ inputs.version }}"
+        if [ -z "$version" ]; then
+          version=$(grep '<Version>' VolumeKeeper/VolumeKeeper.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/' | head -1)
+        fi
+        echo "Version to release: $version"
+        echo "version=$version" >> $GITHUB_OUTPUT
+
+    - name: Set release name
+      id: release_name
+      run: |
+        release_name="${{ inputs.release_name }}"
+        if [ -z "$release_name" ]; then
+          release_name="v${{ steps.version.outputs.version }}"
+        fi
+        echo "Release name: $release_name"
+        echo "release_name=$release_name" >> $GITHUB_OUTPUT
+
     - name: Delete existing tag and release (only forced releases)
       if: inputs.build_mode == 'build and release (force)'
       run: |
         echo "Deleting tag and release..."
-        echo "Tag name: ${{ steps.version.outputs.version }}"
-        echo "Release name: ${{ steps.release_name.outputs.release_name }}"
-        gh release delete ${{ steps.version.outputs.version }} -y --cleanup-tag
+        echo "Tag name: ${{ steps.release_name.outputs.release_name }}"
+        gh release delete ${{ steps.release_name.outputs.release_name }} -y --cleanup-tag || true
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create Release
       uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
       with:
-        tag_name: v${{ inputs.version }}
-        name: VolumeKeeper v${{ inputs.version }}
+        tag_name: ${{ steps.release_name.outputs.release_name }}
+        name: VolumeKeeper ${{ steps.release_name.outputs.release_name }}
         body: |
-          ## VolumeKeeper v${{ inputs.version }}
+          ## VolumeKeeper v${{ steps.version.outputs.version }}
 
           ### Downloads
 
