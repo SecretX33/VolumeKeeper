@@ -115,10 +115,6 @@ jobs:
 
           ### Downloads
 
-#          #### Installers (Recommended)
-#          - **VolumeKeeper-Setup-x64.exe** - Installer for 64-bit Windows
-#          - **VolumeKeeper-Setup-x86.exe** - Installer for 32-bit Windows
-
           #### Portable Versions
           - **VolumeKeeper-x64.exe** - Portable executable for 64-bit Windows
           - **VolumeKeeper-x86.exe** - Portable executable for 32-bit Windows
