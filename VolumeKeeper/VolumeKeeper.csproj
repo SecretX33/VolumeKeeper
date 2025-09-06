@@ -12,7 +12,8 @@
         <UseWinUI>true</UseWinUI>
         <WindowsPackageType>None</WindowsPackageType>
         <EnableMsixTooling>true</EnableMsixTooling>
-        <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+        <WindowsAppSDKSelfContained Condition="'$(Configuration)' == 'Debug'">false</WindowsAppSDKSelfContained>
+        <WindowsAppSDKSelfContained Condition="'$(Configuration)' == 'Release'">true</WindowsAppSDKSelfContained>
     </PropertyGroup>
 
     <ItemGroup>

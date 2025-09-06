@@ -1,0 +1,92 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        arch: [x64, x86]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5.0.0
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: |
+        dotnet publish VolumeKeeper/VolumeKeeper.csproj `
+          --configuration Release `
+          --runtime win-${{ matrix.arch }} `
+          --output ./publish/${{ matrix.arch }} `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:PublishReadyToRun=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:EnableCompressionInSingleFile=true
+
+    - name: Create Installer
+      run: |
+        # Download and extract Inno Setup
+        Invoke-WebRequest -Uri "https://files.jrsoftware.org/is/6/innosetup-6.3.3.exe" -OutFile "innosetup.exe"
+        Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT", "/DIR=C:\InnoSetup" -Wait
+
+        # Create installer script
+        $script = @"
+        [Setup]
+        AppName=VolumeKeeper
+        AppVersion=1.0.0
+        DefaultDirName={autopf}\VolumeKeeper
+        DefaultGroupName=VolumeKeeper
+        OutputDir=.\installer
+        OutputBaseFilename=VolumeKeeper-Setup
+        Compression=lzma2
+        SolidCompression=yes
+        ArchitecturesAllowed=${{ matrix.arch == 'x64' && 'x64compatible' || 'x86' }}
+        ArchitecturesInstallIn64BitMode=${{ matrix.arch == 'x64' && 'x64' || '' }}
+        UninstallDisplayIcon={app}\VolumeKeeper.exe
+        PrivilegesRequired=admin
+
+        [Files]
+        Source: ".\publish\${{ matrix.arch }}\VolumeKeeper.exe"; DestDir: "{app}"; Flags: ignoreversion
+
+        [Icons]
+        Name: "{group}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"
+        Name: "{group}\Uninstall VolumeKeeper"; Filename: "{uninstallexe}"
+        Name: "{commondesktop}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Tasks: desktopicon
+        Name: "{commonstartup}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Tasks: startupicon
+
+        [Tasks]
+        Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"
+        Name: "startupicon"; Description: "Start automatically with Windows"; GroupDescription: "Startup:"
+
+        [Run]
+        Filename: "{app}\VolumeKeeper.exe"; Description: "Launch VolumeKeeper"; Flags: nowait postinstall skipifsilent
+        "@
+
+        $script | Out-File -FilePath "installer-script.iss" -Encoding UTF8
+
+        # Build installer
+        & "C:\InnoSetup\ISCC.exe" "installer-script.iss"
+
+    - name: Upload Portable Artifact
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: VolumeKeeper-win-${{ matrix.arch }}
+        path: ./publish/${{ matrix.arch }}/VolumeKeeper.exe
+
+    - name: Upload Installer Artifact
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: VolumeKeeper-installer-${{ matrix.arch }}
+        path: ./installer/VolumeKeeper-Setup.exe
