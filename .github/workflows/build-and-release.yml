@@ -57,24 +57,24 @@ jobs:
         name: VolumeKeeper-win-x86
         path: ./artifacts/x86
 
-    - name: Download x64 installer artifact
-      uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
-      with:
-        name: VolumeKeeper-installer-x64
-        path: ./artifacts/installer-x64
-
-    - name: Download x86 installer artifact
-      uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
-      with:
-        name: VolumeKeeper-installer-x86
-        path: ./artifacts/installer-x86
+#    - name: Download x64 installer artifact
+#      uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+#      with:
+#        name: VolumeKeeper-installer-x64
+#        path: ./artifacts/installer-x64
+#
+#    - name: Download x86 installer artifact
+#      uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+#      with:
+#        name: VolumeKeeper-installer-x86
+#        path: ./artifacts/installer-x86
 
     - name: Rename files
       run: |
         mv "./artifacts/x64/VolumeKeeper.exe" "./artifacts/VolumeKeeper-x64.exe"
         mv "./artifacts/x86/VolumeKeeper.exe" "./artifacts/VolumeKeeper-x86.exe"
-        mv "./artifacts/installer-x64/VolumeKeeper-Setup.exe" "./artifacts/VolumeKeeper-Setup-x64.exe"
-        mv "./artifacts/installer-x86/VolumeKeeper-Setup.exe" "./artifacts/VolumeKeeper-Setup-x86.exe"
+#        mv "./artifacts/installer-x64/VolumeKeeper-Setup.exe" "./artifacts/VolumeKeeper-Setup-x64.exe"
+#        mv "./artifacts/installer-x86/VolumeKeeper-Setup.exe" "./artifacts/VolumeKeeper-Setup-x86.exe"
 
     - name: Extract version
       id: version
@@ -115,9 +115,9 @@ jobs:
 
           ### Downloads
 
-          #### Installers (Recommended)
-          - **VolumeKeeper-Setup-x64.exe** - Installer for 64-bit Windows
-          - **VolumeKeeper-Setup-x86.exe** - Installer for 32-bit Windows
+#          #### Installers (Recommended)
+#          - **VolumeKeeper-Setup-x64.exe** - Installer for 64-bit Windows
+#          - **VolumeKeeper-Setup-x86.exe** - Installer for 32-bit Windows
 
           #### Portable Versions
           - **VolumeKeeper-x64.exe** - Portable executable for 64-bit Windows
@@ -135,5 +135,5 @@ jobs:
         files: |
           ./artifacts/VolumeKeeper-x64.exe
           ./artifacts/VolumeKeeper-x86.exe
-          ./artifacts/VolumeKeeper-Setup-x64.exe
-          ./artifacts/VolumeKeeper-Setup-x86.exe
+#          ./artifacts/VolumeKeeper-Setup-x64.exe
+#          ./artifacts/VolumeKeeper-Setup-x86.exe
