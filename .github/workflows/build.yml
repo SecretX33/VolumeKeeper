@@ -2,16 +2,26 @@ name: Build
 
 on:
   workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Target architecture'
+        type: choice
+        required: true
+        default: x64
+        options:
+          - x64
+          - x86
   workflow_call:
+    inputs:
+      arch:
+        description: 'Target architecture'
+        required: true
+        type: string
 
 jobs:
   build:
-    name: Build
+    name: Build ${{ inputs.arch }}
     runs-on: windows-latest
-
-    strategy:
-      matrix:
-        arch: [x64, x86]
 
     steps:
     - name: Checkout code
@@ -28,8 +38,8 @@ jobs:
       run: |
         dotnet publish VolumeKeeper/VolumeKeeper.csproj `
           --configuration Release `
-          --runtime win-${{ matrix.arch }} `
-          --output ./publish/${{ matrix.arch }} `
+          --runtime win-${{ inputs.arch }} `
+          --output ./publish/${{ inputs.arch }} `
           --self-contained true `
           -p:PublishSingleFile=true `
           -p:PublishReadyToRun=true `
@@ -57,8 +67,8 @@ jobs:
         OutputBaseFilename=VolumeKeeper-Setup
         Compression=lzma2
         SolidCompression=yes
-        ArchitecturesAllowed=${{ matrix.arch == 'x64' && 'x64compatible' || 'x86' }}
-        ArchitecturesInstallIn64BitMode=${{ matrix.arch == 'x64' && 'x64' || '' }}
+        ArchitecturesAllowed=${{ inputs.arch == 'x64' && 'x64compatible' || 'x86' }}
+        ArchitecturesInstallIn64BitMode=${{ inputs.arch == 'x64' && 'x64' || '' }}
         UninstallDisplayIcon={app}\VolumeKeeper.exe
         PrivilegesRequired=admin
 
@@ -87,11 +97,11 @@ jobs:
     - name: Upload Portable Artifact
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
-        name: VolumeKeeper-win-${{ matrix.arch }}
-        path: ./publish/${{ matrix.arch }}/VolumeKeeper.exe
+        name: VolumeKeeper-win-${{ inputs.arch }}
+        path: ./publish/${{ inputs.arch }}/VolumeKeeper.exe
 
     - name: Upload Installer Artifact
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
-        name: VolumeKeeper-installer-${{ matrix.arch }}
+        name: VolumeKeeper-installer-${{ inputs.arch }}
         path: ./installer/VolumeKeeper-Setup.exe
