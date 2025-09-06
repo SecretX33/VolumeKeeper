@@ -6,13 +6,19 @@
         <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
         <RootNamespace>VolumeKeeper</RootNamespace>
         <ApplicationManifest>app.manifest</ApplicationManifest>
-        <Platforms>x64;ARM64</Platforms>
-        <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+        <Platforms>x32;x64;ARM64</Platforms>
+        <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
         <Nullable>enable</Nullable>
         <UseWinUI>true</UseWinUI>
         <WindowsPackageType>None</WindowsPackageType>
         <EnableMsixTooling>true</EnableMsixTooling>
-        <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+        <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+        <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
+        <WindowsAppSDKSelfContained Condition="'$(Configuration)' == 'Debug'">false</WindowsAppSDKSelfContained>
+        <WindowsAppSDKSelfContained Condition="'$(Configuration)' == 'Release'">true</WindowsAppSDKSelfContained>
+        <Version>0.1.0</Version>
+        <AssemblyVersion>0.1.0</AssemblyVersion>
+        <FileVersion>0.1.0.0</FileVersion>
     </PropertyGroup>
 
     <ItemGroup>

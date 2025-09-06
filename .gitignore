@@ -479,3 +479,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# User-specific files
+/docs/innosetup

@@ -1,0 +1,215 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Target architecture'
+        type: choice
+        required: true
+        default: x64
+        options:
+          - x64
+          - x86
+      version:
+        description: Release version (e.g. 1.0.0, empty to use version from .csproj)
+        required: false
+        type: string
+      enable_compression:
+        description: Enable installer LZMA2 compression
+        type: choice
+        required: true
+        default: false
+        options:
+          - true
+          - false
+  workflow_call:
+    inputs:
+      arch:
+        description: 'Target architecture'
+        required: true
+        type: string
+      version:
+        description: Release version (e.g. 1.0.0, empty to use version from .csproj)
+        required: false
+        type: string
+      enable_compression:
+        description: Enable installer LZMA2 compression
+        required: false
+        type: string
+        default: true
+
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+jobs:
+  build_variables:
+    runs-on: ubuntu-latest
+    name: Prepare build variables
+    outputs:
+      app_version: ${{ steps.version.outputs.version }}
+      installer_filename: ${{ steps.installer.outputs.installer_filename }}
+      installer_filename_with_extension: ${{ steps.installer.outputs.installer_filename_with_extension }}
+      portable_filename: ${{ steps.installer.outputs.portable_filename }}
+      portable_filename_with_extension: ${{ steps.installer.outputs.portable_filename_with_extension }}
+      arch_allowed: ${{ steps.arch.outputs.allowed }}
+      arch_install_mode: ${{ steps.arch.outputs.install_mode }}
+      installer_input_dir: ${{ steps.output_dir.outputs.installer_input_dir }}
+      installer_output_dir: ${{ steps.output_dir.outputs.installer_output_dir }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+    - name: Extract version
+      id: version
+      run: |
+        version="${{ inputs.version }}"
+        if [ -z "$version" ]; then
+          version=$(grep '<Version>' VolumeKeeper/VolumeKeeper.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/' | head -1)
+        fi
+        echo "Version: $version"
+        echo "version=$version" >> $GITHUB_OUTPUT
+
+    - name: Set installer filename
+      id: installer
+      run: |
+        installer_filename="VolumeKeeper-Setup-${{ inputs.arch }}"
+        echo "Installer filename: $installer_filename"
+        echo "installer_filename=$installer_filename" >> $GITHUB_OUTPUT
+
+        installer_filename_with_extension="${installer_filename}.exe"
+        echo "Installer filename with extension: $installer_filename_with_extension"
+        echo "installer_filename_with_extension=$installer_filename_with_extension" >> $GITHUB_OUTPUT
+
+        portable_filename="VolumeKeeper-${{ inputs.arch }}.zip"
+        echo "Portable filename: $portable_filename"
+        echo "portable_filename=$portable_filename" >> $GITHUB_OUTPUT
+
+        portable_filename_with_extension="VolumeKeeper-${{ inputs.arch }}.zip"
+        echo "Portable filename with extension: $portable_filename_with_extension"
+        echo "portable_filename_with_extension=$portable_filename_with_extension" >> $GITHUB_OUTPUT
+
+    - name: Set architecture values
+      id: arch
+      run: |
+        allowed=x86compatible
+        install_mode=
+        if [ "${{ inputs.arch }}" = "x64" ]; then
+          allowed=x64compatible
+          install_mode=x64compatible
+        fi
+        echo "Allowed: $allowed"
+        echo "Install mode: $install_mode"
+        echo "allowed=$allowed" >> $GITHUB_OUTPUT
+        echo "install_mode=$install_mode" >> $GITHUB_OUTPUT
+
+    - name: Set output directory
+      id: output_dir
+      run: |
+        installer_input_dir="./build/installer/${{ inputs.arch }}"
+        echo "Install input directory: $installer_input_dir"
+        echo "installer_input_dir=$installer_input_dir" >> $GITHUB_OUTPUT
+
+        installer_output_dir="./build/installer"
+        echo "Install output directory: $installer_output_dir"
+        echo "installer_output_dir=$installer_output_dir" >> $GITHUB_OUTPUT
+
+
+    - name: Generate installer script
+      run: |
+        compression_mode=none
+        enable_solid_compression=no
+        if [ "${{ inputs.enable_compression }}" = "true" ]; then
+          compression_mode=lzma2/max
+          enable_solid_compression=yes
+        fi
+        installer_input_dir="${{ steps.output_dir.outputs.installer_input_dir }}"
+        installer_input_dir="${installer_input_dir//\//\\}"
+
+        # Process the template
+        content=$(cat scripts/inno.iss)
+        content="${content//\{\{APP_VERSION\}\}/${{ steps.version.outputs.version }}}"
+        content="${content//\{\{INSTALLER_BASE_FILENAME\}\}/${{ steps.installer.outputs.installer_filename }}}"
+        content="${content//\{\{ARCHITECTURES_ALLOWED\}\}/${{ steps.arch.outputs.allowed }}}"
+        content="${content//\{\{ARCHITECTURES_INSTALL_IN_64BIT_MODE\}\}/${{ steps.arch.outputs.install_mode }}}"
+        content="${content//\{\{ARCH\}\}/${{ inputs.arch }}}"
+        content="${content//\{\{OUTPUT_DIR\}\}/${{ steps.output_dir.outputs.installer_output_dir }}}"
+        content="${content//\{\{COMPRESSION_MODE\}\}/$compression_mode}"
+        content="${content//\{\{ENABLE_SOLID_COMPRESSION\}\}/$enable_solid_compression}"
+        content="${content//\{\{SOURCE_DIR\}\}/$installer_input_dir}"
+        echo "$content" > installer-script-${{ inputs.arch }}.iss
+        echo "Generated installer script:"
+        echo "----------------------------------------"
+        echo "$content"
+
+    - name: Upload installer script
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: installer-script-${{ inputs.arch }}
+        path: installer-script-${{ inputs.arch }}.iss
+        retention-days: 1
+
+  build:
+    name: Build for ${{ inputs.arch }}
+    runs-on: windows-latest
+    needs: build_variables
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+    - name: Download installer script
+      uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+      with:
+        name: installer-script-${{ inputs.arch }}
+        path: .
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5.0.0
+      with:
+        dotnet-version: '9.0.x'
+        cache: true
+        cache-dependency-path: VolumeKeeper/packages.lock.json
+
+    - name: Restore dependencies
+      run: dotnet restore --locked-mode -p:PublishReadyToRun=true
+
+    - name: Build application
+      run: |
+        dotnet publish VolumeKeeper/VolumeKeeper.csproj `
+          --no-restore `
+          --configuration Release `
+          --runtime win-${{ inputs.arch }} `
+          --output ${{ needs.build_variables.outputs.installer_input_dir }} `
+          --self-contained true `
+          -p:PublishReadyToRun=true
+
+    - name: Create portable zip
+      run: |
+        $portable_filename="${{ needs.build_variables.outputs.portable_filename }}"
+        New-Item -ItemType Directory -Force -Path ./artifacts
+        New-Item -ItemType Directory -Force -Path ./temp/$portable_filename
+        Copy-Item -Path ${{ needs.build_variables.outputs.installer_input_dir }}/* -Destination ./temp/$portable_filename -Recurse
+        Compress-Archive -Path ./temp/$portable_filename -DestinationPath ./artifacts/${{ needs.build_variables.outputs.portable_filename_with_extension }}
+        Remove-Item -Path ./temp/$portable_filename -Recurse -Force
+
+    - name: Compile .ISS to .EXE Installer
+      uses: Minionguyjpro/Inno-Setup-Action@36abc9fdddc244a69f4895566fa5b2d8d5854e43  # v1.2.7
+      with:
+        path: installer-script-${{ inputs.arch }}.iss
+
+    - name: Move installer to artifacts folder
+      run: |
+        Move-Item ${{ needs.build_variables.outputs.installer_output_dir }}/${{ needs.build_variables.outputs.installer_filename_with_extension }} ./artifacts/${{ needs.build_variables.outputs.installer_filename_with_extension }}
+
+    - name: Create artifact zip
+      run: |
+        Compress-Archive -Path ./artifacts/* -DestinationPath ./VolumeKeeper-${{ inputs.arch }}.zip
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: VolumeKeeper-${{ inputs.arch }}
+        path: ./VolumeKeeper-${{ inputs.arch }}.zip
+        if-no-files-found: error
