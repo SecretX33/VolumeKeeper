@@ -86,27 +86,24 @@ public class VolumeMonitorService : IDisposable
         }
     }
 
-    public Task InitializeAsync()
+    public void Initialize()
     {
-        return Task.Run(() =>
+        try
         {
-            try
-            {
-                var sessions = _audioSessionManager.GetAllSessions();
+            var sessions = _audioSessionManager.GetAllSessions();
 
-                foreach (var session in sessions)
-                {
-                    _lastKnownVolumes[session.ExecutableName] = session.Volume;
-                }
-
-                App.Logger.LogInfo($"Volume monitor initialized with {_lastKnownVolumes.Count} active sessions",
-                    "VolumeMonitorService");
-            }
-            catch (Exception ex)
+            foreach (var session in sessions)
             {
-                App.Logger.LogError("Failed to initialize volume monitor", ex, "VolumeMonitorService");
+                _lastKnownVolumes[session.ExecutableName] = session.Volume;
             }
-        });
+
+            App.Logger.LogInfo($"Volume monitor initialized with {_lastKnownVolumes.Count} active sessions",
+                "VolumeMonitorService");
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to initialize volume monitor", ex, "VolumeMonitorService");
+        }
     }
 
     public void Dispose()

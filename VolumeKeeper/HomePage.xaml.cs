@@ -230,9 +230,11 @@ public sealed partial class HomePage : Page
         {
             if (App.VolumeStorageService == null || sender is not ToggleSwitch toggle) return;
             var settings = await App.VolumeStorageService.GetSettingsAsync();
+            if (settings.AutoRestoreEnabled == toggle.IsOn) return;
+
             settings.AutoRestoreEnabled = toggle.IsOn;
             await App.VolumeStorageService.SaveSettingsAsync(settings);
-            App.Logger.LogInfo($"Auto-restore {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
+            App.Logger.LogInfo($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
         }
         catch (Exception ex)
         {

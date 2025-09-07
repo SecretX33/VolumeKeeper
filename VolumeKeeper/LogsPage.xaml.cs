@@ -1,17 +1,14 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using System;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Linq;
-using Windows.UI;
-using VolumeKeeper.Services;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using VolumeKeeper.Models.Log;
 
 namespace VolumeKeeper;
 
 public sealed partial class LogsPage : Page
 {
-    public ObservableCollection<Services.LogEntry> LogEntries => App.Logger.LogEntries;
+    public ObservableCollection<LogEntry> LogEntries => App.Logger.LogEntries;
 
     public LogsPage()
     {

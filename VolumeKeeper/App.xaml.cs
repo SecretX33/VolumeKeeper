@@ -131,17 +131,18 @@ public partial class App : Application
             _applicationMonitorService = new ApplicationMonitorService();
 
             await Task.WhenAll(
-                _volumeMonitorService.InitializeAsync(),
-                _applicationMonitorService.InitializeAsync()
+                Task.Run(() => _volumeMonitorService.Initialize()),
+                Task.Run(() => _applicationMonitorService.Initialize())
             );
 
             _volumeRestorationService = new VolumeRestorationService(
                 _audioSessionManager,
                 _volumeStorageService,
-                _applicationMonitorService);
+                _applicationMonitorService
+            );
 
             // Restore volumes for currently running applications
-            _ = _volumeRestorationService.RestoreAllCurrentSessionsAsync();
+            _ = Task.Run(() => _volumeRestorationService.RestoreAllCurrentSessionsAsync());
 
             Logger.LogInfo("All services initialized successfully");
         }

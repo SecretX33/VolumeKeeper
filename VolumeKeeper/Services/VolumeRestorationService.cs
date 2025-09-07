@@ -30,73 +30,75 @@ public class VolumeRestorationService : IDisposable
 
     private async void OnApplicationLaunched(object? sender, ApplicationLaunchEventArgs e)
     {
-        if (string.IsNullOrEmpty(e.ExecutableName))
-            return;
+        try {
+            if (string.IsNullOrEmpty(e.ExecutableName))
+                return;
 
-        var settings = await _storageService.GetSettingsAsync();
-        if (!settings.AutoRestoreEnabled)
-        {
-            App.Logger.LogDebug($"Auto-restore disabled, skipping volume restoration for {e.ExecutableName}", "VolumeRestorationService");
-            return;
-        }
-
-        if (_recentRestorations.TryGetValue(e.ExecutableName, out var lastRestoration))
-        {
-            if (DateTime.UtcNow - lastRestoration < _restorationCooldown)
+            var settings = await _storageService.GetSettingsAsync().ConfigureAwait(false);
+            if (!settings.AutoRestoreEnabled)
             {
-                App.Logger.LogInfo($"Skipping volume restoration for {e.ExecutableName} (cooldown active)", "VolumeRestorationService");
+                App.Logger.LogDebug($"Auto-restore disabled, skipping volume restoration for {e.ExecutableName}", "VolumeRestorationService");
                 return;
             }
-        }
 
-        await RestoreVolumeAsync(e.ExecutableName);
-    }
-
-    public Task RestoreVolumeAsync(string executableName)
-    {
-        return Task.Run(async () =>
-        {
-            try
+            if (_recentRestorations.TryGetValue(e.ExecutableName, out var lastRestoration))
             {
-                var savedVolume = await _storageService.GetVolumeAsync(executableName);
-                if (savedVolume == null)
+                if (DateTime.UtcNow - lastRestoration < _restorationCooldown)
                 {
-                    App.Logger.LogDebug($"No saved volume found for {executableName}", "VolumeRestorationService");
+                    App.Logger.LogInfo($"Skipping volume restoration for {e.ExecutableName} (cooldown active)", "VolumeRestorationService");
                     return;
                 }
-
-                const int maxAttempts = 10;
-                var attemptDelay = 500;
-                bool restored = false;
-
-                for (int attempt = 0; attempt < maxAttempts; attempt++)
-                {
-                    if (_audioSessionManager.SetSessionVolumeImmediate(executableName, savedVolume.Value))
-                    {
-                        _recentRestorations[executableName] = DateTime.UtcNow;
-                        App.Logger.LogInfo($"Volume restored for {executableName} to {savedVolume}% (attempt {attempt + 1})",
-                            "VolumeRestorationService");
-                        restored = true;
-                        break;
-                    }
-
-                    if (attempt >= maxAttempts - 1) break;
-
-                    await Task.Delay(attemptDelay);
-                    attemptDelay = Math.Min(attemptDelay * 2, 5000);
-                }
-
-                if (!restored)
-                {
-                    App.Logger.LogWarning($"Failed to restore volume for {executableName} after {maxAttempts} attempts",
-                        "VolumeRestorationService");
-                }
             }
-            catch (Exception ex)
+
+            await Task.Run(() => RestoreVolumeAsync(e.ExecutableName));
+        } catch (Exception ex)
+        {
+            App.Logger.LogError($"Error handling application launch for {e.ExecutableName}", ex, "VolumeRestorationService");
+        }
+    }
+
+    private async Task RestoreVolumeAsync(string executableName)
+    {
+        try
+        {
+            var savedVolume = await _storageService.GetVolumeAsync(executableName);
+            if (savedVolume == null)
             {
-                App.Logger.LogError($"Error restoring volume for {executableName}", ex, "VolumeRestorationService");
+                App.Logger.LogDebug($"No saved volume found for {executableName}", "VolumeRestorationService");
+                return;
             }
-        });
+
+            const int maxAttempts = 10;
+            var attemptDelay = 500;
+            bool restored = false;
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                if (_audioSessionManager.SetSessionVolumeImmediate(executableName, savedVolume.Value))
+                {
+                    _recentRestorations[executableName] = DateTime.UtcNow;
+                    App.Logger.LogInfo($"Volume restored for {executableName} to {savedVolume}% (attempt {attempt + 1})",
+                        "VolumeRestorationService");
+                    restored = true;
+                    break;
+                }
+
+                if (attempt >= maxAttempts - 1) break;
+
+                await Task.Delay(attemptDelay);
+                attemptDelay = Math.Min(attemptDelay * 2, 5000);
+            }
+
+            if (!restored)
+            {
+                App.Logger.LogWarning($"Failed to restore volume for {executableName} after {maxAttempts} attempts",
+                    "VolumeRestorationService");
+            }
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError($"Error restoring volume for {executableName}", ex, "VolumeRestorationService");
+        }
     }
 
     private void CleanupOldRestorations(object? state)
@@ -113,36 +115,33 @@ public class VolumeRestorationService : IDisposable
         }
     }
 
-    public Task RestoreAllCurrentSessionsAsync()
+    public async Task RestoreAllCurrentSessionsAsync()
     {
-        return Task.Run(async () =>
+        try
         {
-            try
+            var sessions = _audioSessionManager.GetAllSessions();
+            var validSessions = sessions.Where(s => !string.IsNullOrEmpty(s.ExecutableName));
+            App.Logger.LogInfo($"Restoring volumes for {sessions.Count} active sessions", "VolumeRestorationService");
+
+            foreach (var session in validSessions)
             {
-                var sessions = _audioSessionManager.GetAllSessions();
-                var validSessions = sessions.Where(s => !string.IsNullOrEmpty(s.ExecutableName));
-                App.Logger.LogInfo($"Restoring volumes for {sessions.Count} active sessions", "VolumeRestorationService");
+                var savedVolume = await _storageService.GetVolumeAsync(session.ExecutableName);
+                if (savedVolume == null || Math.Abs(session.Volume - savedVolume.Value) <= 1) continue;
 
-                foreach (var session in validSessions)
+                if (await _audioSessionManager.SetSessionVolume(session.ExecutableName, savedVolume.Value))
                 {
-                    var savedVolume = await _storageService.GetVolumeAsync(session.ExecutableName);
-                    if (savedVolume == null || Math.Abs(session.Volume - savedVolume.Value) <= 1) continue;
-
-                    if (await _audioSessionManager.SetSessionVolume(session.ExecutableName, savedVolume.Value))
-                    {
-                        App.Logger.LogInfo($"Volume restored for {session.ExecutableName} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
-                    }
-                    else
-                    {
-                        App.Logger.LogWarning($"Failed to restore volume for {session.ExecutableName}", "VolumeRestorationService");
-                    }
+                    App.Logger.LogInfo($"Volume restored for {session.ExecutableName} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
+                }
+                else
+                {
+                    App.Logger.LogWarning($"Failed to restore volume for {session.ExecutableName}", "VolumeRestorationService");
                 }
             }
-            catch (Exception ex)
-            {
-                App.Logger.LogError("Failed to restore volumes for current sessions", ex, "VolumeRestorationService");
-            }
-        });
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to restore volumes for current sessions", ex, "VolumeRestorationService");
+        }
     }
 
     public void Dispose()

@@ -21,7 +21,7 @@ public class ApplicationMonitorService : IDisposable
     private readonly ConcurrentDictionary<int, string> _knownProcesses = new();
     private readonly Timer _pollTimer;
     private readonly SemaphoreSlim _pollLock = new(1, 1);
-    private ManagementEventWatcher? _processWatcher;
+    private volatile ManagementEventWatcher? _processWatcher;
     private volatile bool _isDisposed;
 
     public event EventHandler<ApplicationLaunchEventArgs>? ApplicationLaunched;
@@ -96,7 +96,7 @@ public class ApplicationMonitorService : IDisposable
             }
 
             var currentIds = new HashSet<int>(currentProcesses.Select(p => p.Id));
-            var toRemove = _knownProcesses.Keys.Where(id => !currentIds.Contains(id)).ToList();
+            var toRemove = _knownProcesses.Keys.Where(id => !currentIds.Contains(id));
             foreach (var id in toRemove)
             {
                 _knownProcesses.TryRemove(id, out _);
@@ -136,38 +136,35 @@ public class ApplicationMonitorService : IDisposable
         });
     }
 
-    public Task InitializeAsync()
+    public void Initialize()
     {
-        return Task.Run(() =>
+        try
         {
-            try
+            var processes = Process.GetProcesses();
+            foreach (var process in processes)
             {
-                var processes = Process.GetProcesses();
-                foreach (var process in processes)
+                try
                 {
-                    try
+                    var executableName = GetExecutableName(process);
+                    if (!string.IsNullOrEmpty(executableName))
                     {
-                        var executableName = GetExecutableName(process);
-                        if (!string.IsNullOrEmpty(executableName))
-                        {
-                            _knownProcesses[process.Id] = executableName;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        App.Logger.LogError($"Error processing process ID {process.Id}", ex,
-                            "ApplicationMonitorService");
+                        _knownProcesses[process.Id] = executableName;
                     }
                 }
+                catch (Exception ex)
+                {
+                    App.Logger.LogError($"Error processing process ID {process.Id}", ex,
+                        "ApplicationMonitorService");
+                }
+            }
 
-                App.Logger.LogInfo($"Application monitor initialized with {_knownProcesses.Count} known processes",
-                    "ApplicationMonitorService");
-            }
-            catch (Exception ex)
-            {
-                App.Logger.LogError("Failed to initialize application monitor", ex, "ApplicationMonitorService");
-            }
-        });
+            App.Logger.LogInfo($"Application monitor initialized with {_knownProcesses.Count} known processes",
+                "ApplicationMonitorService");
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogError("Failed to initialize application monitor", ex, "ApplicationMonitorService");
+        }
     }
 
     public void Dispose()

@@ -1,19 +1,11 @@
 using System;
+using Windows.UI;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Windows.UI;
 
-namespace VolumeKeeper.Services;
+namespace VolumeKeeper.Models.Log;
 
-public enum LogLevel
-{
-    Debug,
-    Info,
-    Warning,
-    Error
-}
-
-public class LogEntry
+public record LogEntry
 {
     public DateTime Timestamp { get; set; }
     public LogLevel Level { get; set; }
@@ -23,7 +15,7 @@ public class LogEntry
 
     public string FormattedTime => Timestamp.ToString("HH:mm:ss");
     public string FormattedDate => Timestamp.ToString("yyyy-MM-dd HH:mm:ss");
-    
+
     // UI properties for LogsPage binding
     public Symbol IconSymbol => Level switch
     {

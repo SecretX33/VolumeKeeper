@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
+using VolumeKeeper.Models.Log;
 
 namespace VolumeKeeper.Services;
 
@@ -165,7 +166,7 @@ public class LoggingService : ILoggingService, IDisposable
         {
             if (!line.Contains("LoggingService") && !line.Contains("Log("))
             {
-                var methodStart = line.IndexOf(" at ") + 4;
+                var methodStart = line.IndexOf(" at ", StringComparison.Ordinal) + 4;
                 if (methodStart > 3)
                 {
                     var methodEnd = line.IndexOf('(', methodStart);
