@@ -12,6 +12,7 @@ SolidCompression=no
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+SetupIconFile=..\docs\icons\app_icon.ico
 UninstallDisplayIcon={app}\VolumeKeeper.exe
 UninstallDisplayName=VolumeKeeper
 LicenseFile=..\LICENSE
@@ -21,7 +22,6 @@ Source: "..\VolumeKeeper\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish\
 
 [Icons]
 Name: "{group}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"
-Name: "{group}\Uninstall VolumeKeeper"; Filename: "{uninstallexe}"
 Name: "{commondesktop}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Tasks: desktopicon
 Name: "{commonstartup}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Tasks: startupicon
 

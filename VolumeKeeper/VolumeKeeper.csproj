@@ -6,6 +6,7 @@
         <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
         <RootNamespace>VolumeKeeper</RootNamespace>
         <ApplicationManifest>app.manifest</ApplicationManifest>
+        <ApplicationIcon>Assets\VolumeKeeper.ico</ApplicationIcon>
         <Platforms>x32;x64;ARM64</Platforms>
         <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
         <Nullable>enable</Nullable>

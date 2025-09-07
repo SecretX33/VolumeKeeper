@@ -12,6 +12,7 @@ SolidCompression={{ENABLE_SOLID_COMPRESSION}}
 PrivilegesRequired=admin
 ArchitecturesAllowed={{ARCHITECTURES_ALLOWED}}
 ArchitecturesInstallIn64BitMode={{ARCHITECTURES_INSTALL_IN_64BIT_MODE}}
+SetupIconFile=.\docs\icons\app_icon.ico
 UninstallDisplayIcon={app}\VolumeKeeper.exe
 UninstallDisplayName=VolumeKeeper
 LicenseFile=.\LICENSE
