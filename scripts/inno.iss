@@ -23,7 +23,7 @@ Source: "{{SOURCE_DIR}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdir
 [Icons]
 Name: "{group}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"
 Name: "{commondesktop}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Tasks: desktopicon
-Name: "{commonstartup}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Tasks: startupicon
+Name: "{commonstartup}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Parameters: "--minimized"; Tasks: startupicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"

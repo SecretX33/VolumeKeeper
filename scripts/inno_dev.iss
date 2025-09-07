@@ -23,7 +23,7 @@ Source: "..\VolumeKeeper\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish\
 [Icons]
 Name: "{group}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"
 Name: "{commondesktop}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Tasks: desktopicon
-Name: "{commonstartup}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Tasks: startupicon
+Name: "{commonstartup}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"; Parameters: "--minimized"; Tasks: startupicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"

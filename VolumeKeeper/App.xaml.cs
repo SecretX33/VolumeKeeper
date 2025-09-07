@@ -16,6 +16,7 @@ namespace VolumeKeeper;
 public partial class App : Application
 {
     private MainWindow? _mainWindow;
+    private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
     private static LoggingService? _loggingService;
     private AudioSessionManager? _audioSessionManager;
@@ -39,16 +40,29 @@ public partial class App : Application
             // Initialize logging service first
             _loggingService = new LoggingService(DispatcherQueue.GetForCurrentThread());
             Logger.LogDebug("VolumeKeeper initialization started");
+            ParseCommandLineArgs();
 
             // Initialize volume management services
             await InitializeServicesAsync();
 
             InitializeTrayIcon();
-            ShowMainWindow();
+            if (!_startMinimized) ShowMainWindow();
         } catch (Exception ex)
         {
             Logger.LogError("Unhandled exception during application launch", ex, "App");
             ExitApplication();
+        }
+    }
+
+    private void ParseCommandLineArgs()
+    {
+        var commandLineArgs = Environment.GetCommandLineArgs();
+        _startMinimized = Array.Exists(commandLineArgs, arg =>
+            arg.Equals("--minimized", StringComparison.OrdinalIgnoreCase));
+
+        if (_startMinimized)
+        {
+            Logger.LogDebug("Starting in minimized mode");
         }
     }
 
