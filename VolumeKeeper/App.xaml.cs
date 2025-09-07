@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -7,8 +8,10 @@ using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using VolumeKeeper.Services;
 using WinRT.Interop;
+using Application = Microsoft.UI.Xaml.Application;
 
 namespace VolumeKeeper;
 
@@ -22,8 +25,6 @@ public partial class App : Application
     private VolumeMonitorService? _volumeMonitorService;
     private ApplicationMonitorService? _applicationMonitorService;
     private VolumeRestorationService? _volumeRestorationService;
-
-    public bool HasTrayIcon => _trayIcon != null;
     public static ILoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
     public static AudioSessionManager? AudioSessionManager { get; private set; }
     public static VolumeStorageService? VolumeStorageService { get; private set; }
@@ -44,38 +45,23 @@ public partial class App : Application
 
         _mainWindow = new MainWindow();
 
-        CreateTrayIcon();
+        InitializeTrayIcon();
 
         _mainWindow.Activate();
     }
 
-    private void CreateTrayIcon()
+    private void InitializeTrayIcon()
     {
-        try
-        {
-            _trayIcon = new TaskbarIcon();
-            _trayIcon.ToolTipText = "VolumeKeeper";
+        try {
+            var openWindowCommand = (XamlUICommand)Resources["OpenWindowCommand"];
+            openWindowCommand.ExecuteRequested += OpenWindowCommand_ExecuteRequested;
 
-            // Create a simple icon using System.Drawing
-            _trayIcon.Icon = CreateSimpleIcon();
+            var exitApplicationCommand = (XamlUICommand)Resources["ExitApplicationCommand"];
+            exitApplicationCommand.ExecuteRequested += ExitApplicationCommand_ExecuteRequested;
 
-            var contextMenu = new MenuFlyout();
-
-            var openItem = new MenuFlyoutItem { Text = "Open VolumeKeeper" };
-            openItem.Click += (_, _) => ShowMainWindow();
-            contextMenu.Items.Add(openItem);
-
-            contextMenu.Items.Add(new MenuFlyoutSeparator());
-
-            var exitItem = new MenuFlyoutItem { Text = "Exit" };
-            exitItem.Click += (_, _) => ExitApplication();
-            contextMenu.Items.Add(exitItem);
-
-            _trayIcon.ContextFlyout = contextMenu;
-            _trayIcon.LeftClickCommand = new RelayCommand(ShowMainWindow);
-
-            // Make sure the icon is visible
-            _trayIcon.Visibility = Visibility.Visible;
+            _trayIcon = (TaskbarIcon)Resources["TrayIcon"];
+            _trayIcon.Icon = Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location);
+            _trayIcon.ForceCreate();
         }
         catch (Exception ex)
         {
@@ -85,18 +71,26 @@ public partial class App : Application
         }
     }
 
+    private void OpenWindowCommand_ExecuteRequested(object? _, ExecuteRequestedEventArgs args)
+    {
+        ShowMainWindow();
+    }
+
+    private void ExitApplicationCommand_ExecuteRequested(object? _, ExecuteRequestedEventArgs args)
+    {
+        ExitApplication();
+    }
+
     private void ShowMainWindow()
     {
-        if (_mainWindow != null)
-        {
-            _mainWindow.Activate();
+        if (_mainWindow == null) return;
+        _mainWindow.Activate();
 
-            // Get window handle and show window
-            var hwnd = WindowNative.GetWindowHandle(_mainWindow);
-            if (hwnd != IntPtr.Zero)
-            {
-                ShowWindow(hwnd, 5); // SW_SHOW
-            }
+        // Get window handle and show window
+        var hwnd = WindowNative.GetWindowHandle(_mainWindow);
+        if (hwnd != IntPtr.Zero)
+        {
+            ShowWindow(hwnd, 5); // SW_SHOW
         }
     }
 
@@ -107,7 +101,7 @@ public partial class App : Application
     {
         try
         {
-            Logger.LogInfo("Initializing volume management services");
+            Logger.LogDebug("Initializing volume management services");
 
             // Initialize core services
             _audioSessionManager = new AudioSessionManager();
@@ -131,7 +125,7 @@ public partial class App : Application
                 _applicationMonitorService);
 
             // Restore volumes for currently running applications
-            await _volumeRestorationService.RestoreAllCurrentSessionsAsync();
+            _ = _volumeRestorationService.RestoreAllCurrentSessionsAsync();
 
             Logger.LogInfo("All services initialized successfully");
         }
@@ -143,62 +137,24 @@ public partial class App : Application
 
     private void ExitApplication()
     {
-        Logger.LogInfo("VolumeKeeper application shutting down");
+        Logger.LogDebug("VolumeKeeper application shutting down");
 
-        // Dispose services
-        _volumeMonitorService?.Dispose();
-        _applicationMonitorService?.Dispose();
-        _volumeRestorationService?.Dispose();
-        _audioSessionManager?.Dispose();
-
-        _trayIcon?.Dispose();
-        _mainWindow?.Close();
-        _loggingService?.Dispose();
-        Environment.Exit(0);
-    }
-
-    private Icon CreateSimpleIcon()
-    {
-        // Create a simple 16x16 icon with a volume symbol
-        var bitmap = new Bitmap(16, 16);
-        using (var graphics = Graphics.FromImage(bitmap))
+        try
         {
-            graphics.Clear(Color.Transparent);
+            _volumeMonitorService?.Dispose();
+            _applicationMonitorService?.Dispose();
+            _volumeRestorationService?.Dispose();
+            _audioSessionManager?.Dispose();
 
-            // Draw a simple speaker shape
-            using (var brush = new SolidBrush(Color.White))
-            {
-                // Speaker base
-                graphics.FillRectangle(brush, 2, 6, 4, 4);
-                // Speaker cone
-                graphics.FillPolygon(brush, new Point[] {
-                    new Point(6, 4), new Point(6, 12), new Point(10, 14), new Point(10, 2)
-                });
-                // Sound waves
-                graphics.DrawArc(new Pen(Color.White, 1), 11, 5, 4, 6, -30, 60);
-            }
+            _trayIcon?.Dispose();
+            _mainWindow?.Close();
+            _loggingService?.Dispose();
         }
-
-        return Icon.FromHandle(bitmap.GetHicon());
+        finally
+        {
+            Environment.Exit(0);
+        }
     }
+
 }
 
-public partial class RelayCommand : ICommand
-{
-    private readonly Action _execute;
-
-    public RelayCommand(Action execute)
-    {
-        _execute = execute;
-    }
-
-    public event EventHandler? CanExecuteChanged
-    {
-        add { }
-        remove { }
-    }
-
-    public bool CanExecute(object? parameter) => true;
-
-    public void Execute(object? parameter) => _execute();
-}

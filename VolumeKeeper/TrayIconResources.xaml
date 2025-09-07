@@ -1,0 +1,40 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:tb="using:H.NotifyIcon"
+    >
+    <XamlUICommand
+        x:Key="OpenWindowCommand"
+        Label="Open VolumeKeeper"
+        Description="Show the VolumeKeeper window"
+        >
+        <XamlUICommand.IconSource>
+            <SymbolIconSource Symbol="OpenPane" />
+        </XamlUICommand.IconSource>
+    </XamlUICommand>
+    <XamlUICommand
+        x:Key="ExitApplicationCommand"
+        Label="Exit"
+        Description="Close VolumeKeeper"
+        >
+        <XamlUICommand.IconSource>
+            <SymbolIconSource Symbol="ClosePane" />
+        </XamlUICommand.IconSource>
+    </XamlUICommand>
+    <tb:TaskbarIcon
+        x:Key="TrayIcon"
+        Visibility="Visible"
+        ToolTipText="VolumeKeeper"
+        ContextMenuMode="SecondWindow"
+        LeftClickCommand="{StaticResource OpenWindowCommand}"
+        NoLeftClickDelay="True"
+        >
+        <tb:TaskbarIcon.ContextFlyout>
+            <MenuFlyout>
+                <MenuFlyoutItem Command="{StaticResource OpenWindowCommand}" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Command="{StaticResource ExitApplicationCommand}" />
+            </MenuFlyout>
+        </tb:TaskbarIcon.ContextFlyout>
+    </tb:TaskbarIcon>
+</ResourceDictionary>
