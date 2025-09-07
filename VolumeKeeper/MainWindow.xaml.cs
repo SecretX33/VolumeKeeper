@@ -1,18 +1,13 @@
-﻿using System;
-using System.Runtime.InteropServices;
-using Windows.Graphics;
+﻿using Windows.Graphics;
+using H.NotifyIcon;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using WinRT.Interop;
 
 namespace VolumeKeeper;
 
 public sealed partial class MainWindow : Window
 {
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hwnd, int nCmdShow);
-
     private WindowSettings _windowSettings = null!;
 
     public MainWindow()
@@ -29,9 +24,7 @@ public sealed partial class MainWindow : Window
 
         Closed += MainWindow_Closed;
         SizeChanged += MainWindow_SizeChanged;
-
-        // Track position changes
-        this.Activated += MainWindow_Activated;
+        Activated += MainWindow_Activated;
 
         // Track window state changes
         var presenter = AppWindow.Presenter as OverlappedPresenter;
@@ -72,7 +65,7 @@ public sealed partial class MainWindow : Window
         _windowSettings = WindowSettings.Load();
 
         // Set window size using AppWindow
-        var appWindow = this.AppWindow;
+        var appWindow = AppWindow;
         if (appWindow == null) return;
 
         // Apply maximize state if needed
@@ -158,16 +151,11 @@ public sealed partial class MainWindow : Window
         SaveWindowSettings();
     }
 
-    void Hide()
-    {
-        var hwnd = WindowNative.GetWindowHandle(this);
-        ShowWindow(hwnd, 0); // SW_HIDE
-    }
-
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        args.Handled = true;
+        this.Hide();
         SaveWindowSettings();
-        Application.Current.Exit();
     }
 
 }

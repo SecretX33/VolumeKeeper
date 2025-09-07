@@ -3,14 +3,12 @@ using System.Drawing;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using System.Windows.Input;
 using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using VolumeKeeper.Interop;
 using VolumeKeeper.Services;
-using WinRT.Interop;
 using Application = Microsoft.UI.Xaml.Application;
 
 namespace VolumeKeeper;
@@ -36,18 +34,22 @@ public partial class App : Application
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
-        // Initialize logging service first
-        _loggingService = new LoggingService(DispatcherQueue.GetForCurrentThread());
-        Logger.LogDebug("VolumeKeeper initialization started");
+        try
+        {
+            // Initialize logging service first
+            _loggingService = new LoggingService(DispatcherQueue.GetForCurrentThread());
+            Logger.LogDebug("VolumeKeeper initialization started");
 
-        // Initialize volume management services
-        await InitializeServicesAsync();
+            // Initialize volume management services
+            await InitializeServicesAsync();
 
-        _mainWindow = new MainWindow();
-
-        InitializeTrayIcon();
-
-        _mainWindow.Activate();
+            InitializeTrayIcon();
+            ShowMainWindow();
+        } catch (Exception ex)
+        {
+            Logger.LogError("Unhandled exception during application launch", ex, "App");
+            ExitApplication();
+        }
     }
 
     private void InitializeTrayIcon()
@@ -83,19 +85,19 @@ public partial class App : Application
 
     private void ShowMainWindow()
     {
-        if (_mainWindow == null) return;
-        _mainWindow.Activate();
-
-        // Get window handle and show window
-        var hwnd = WindowNative.GetWindowHandle(_mainWindow);
-        if (hwnd != IntPtr.Zero)
+        try
         {
-            ShowWindow(hwnd, 5); // SW_SHOW
+            if (_mainWindow == null)
+            {
+                _mainWindow = new MainWindow();
+            }
+            _mainWindow.ShowAndFocus();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("Failed to show main window", ex, "App");
         }
     }
-
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
     private async Task InitializeServicesAsync()
     {
@@ -139,20 +141,26 @@ public partial class App : Application
     {
         Logger.LogDebug("VolumeKeeper application shutting down");
 
+        // Ensure the application closes even if some services hang during disposal
+        Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            Environment.Exit(0);
+        });
+
         try
         {
+            _mainWindow?.Close();
             _volumeMonitorService?.Dispose();
             _applicationMonitorService?.Dispose();
             _volumeRestorationService?.Dispose();
             _audioSessionManager?.Dispose();
-
             _trayIcon?.Dispose();
-            _mainWindow?.Close();
             _loggingService?.Dispose();
         }
         finally
         {
-            Environment.Exit(0);
+            Current.Exit();
         }
     }
 

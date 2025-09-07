@@ -22,7 +22,7 @@ public class ApplicationMonitorService : IDisposable
     private readonly Timer _pollTimer;
     private readonly SemaphoreSlim _pollLock = new(1, 1);
     private ManagementEventWatcher? _processWatcher;
-    private bool _isDisposed;
+    private volatile bool _isDisposed;
 
     public event EventHandler<ApplicationLaunchEventArgs>? ApplicationLaunched;
 

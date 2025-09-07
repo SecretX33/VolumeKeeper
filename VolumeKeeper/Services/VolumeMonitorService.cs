@@ -14,7 +14,7 @@ public class VolumeMonitorService : IDisposable
     private readonly ConcurrentDictionary<string, float> _lastKnownVolumes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _pollTimer;
     private readonly SemaphoreSlim _pollLock = new(1, 1);
-    private bool _isDisposed;
+    private volatile bool _isDisposed;
 
     public VolumeMonitorService(AudioSessionManager audioSessionManager, VolumeStorageService storageService)
     {
@@ -115,7 +115,7 @@ public class VolumeMonitorService : IDisposable
             return;
 
         _isDisposed = true;
-        _pollTimer?.Dispose();
-        _pollLock?.Dispose();
+        _pollTimer.Dispose();
+        _pollLock.Dispose();
     }
 }

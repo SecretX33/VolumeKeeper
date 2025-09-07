@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media.Imaging;
+using VolumeKeeper.Interop;
 
 namespace VolumeKeeper.Services;
 
@@ -80,12 +81,8 @@ public class IconService
             try
             {
                 // Extract the icon from the executable
-                var hIcon = ExtractIcon(IntPtr.Zero, filePath, 0);
-                if (hIcon != IntPtr.Zero)
-                {
-                    var icon = Icon.FromHandle(hIcon);
-                    return icon;
-                }
+                var icon = NativeMethods.ExtractIconFromFile(filePath);
+                return icon;
             }
             catch (Exception ex)
             {
@@ -139,9 +136,6 @@ public class IconService
             return bitmapImage;
         });
     }
-
-    [DllImport("shell32.dll", CharSet = CharSet.Auto)]
-    private static extern IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
 
     public void ClearCache()
     {

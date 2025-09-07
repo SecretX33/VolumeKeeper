@@ -14,7 +14,7 @@ public class VolumeRestorationService : IDisposable
     private readonly ConcurrentDictionary<string, DateTime> _recentRestorations = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _cleanupTimer;
     private readonly TimeSpan _restorationCooldown = TimeSpan.FromSeconds(1);
-    private bool _isDisposed;
+    private volatile bool _isDisposed;
 
     public VolumeRestorationService(
         AudioSessionManager audioSessionManager,

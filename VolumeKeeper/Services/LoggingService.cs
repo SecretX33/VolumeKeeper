@@ -29,7 +29,7 @@ public class LoggingService : ILoggingService, IDisposable
     private readonly Timer _flushTimer;
     private const int MaxInMemoryEntries = 1000;
     private const int FileWriteBatchSize = 50;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public ObservableCollection<LogEntry> LogEntries => _logEntries;
 
@@ -88,12 +88,13 @@ public class LoggingService : ILoggingService, IDisposable
             Details = details,
             Source = source ?? GetCallerSource()
         };
+        LogToConsole(entry);
 
         _dispatcherQueue.TryEnqueue(() =>
         {
             _logEntries.Insert(0, entry); // Insert at beginning for newest-first order
 
-            if (_logEntries.Count > MaxInMemoryEntries)
+            while (_logEntries.Count > MaxInMemoryEntries)
             {
                 _logEntries.RemoveAt(_logEntries.Count - 1); // Remove oldest (last) entry
             }
@@ -108,6 +109,19 @@ public class LoggingService : ILoggingService, IDisposable
                 _ = Task.Run(async () => await FlushAsync());
             }
         }
+    }
+
+    private static void LogToConsole(LogEntry entry)
+    {
+        Console.Out.WriteLine("{0} [{1}] [{2}] {3}{4}",
+            [
+                entry.FormattedDate,
+                entry.Level,
+                entry.Source ?? "Unknown",
+                entry.Message,
+                entry.Details != null ? $" | Details: {entry.Details}" : "",
+            ]
+        );
     }
 
     public async Task FlushAsync()
@@ -174,9 +188,9 @@ public class LoggingService : ILoggingService, IDisposable
         if (_disposed) return;
 
         _disposed = true;
-        _flushTimer?.Dispose();
-        FlushAsync().Wait(TimeSpan.FromSeconds(2));
-        _fileWriteSemaphore?.Dispose();
+        _flushTimer.Dispose();
+        FlushAsync().Wait(TimeSpan.FromSeconds(1));
+        _fileWriteSemaphore.Dispose();
 
         LogInfo("VolumeKeeper logging service stopped", "LoggingService");
     }
