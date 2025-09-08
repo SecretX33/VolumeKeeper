@@ -50,7 +50,7 @@ jobs:
     - name: Download artifact
       uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
       with:
-        path: ./artifacts
+        path: ./artifacts/temp
         pattern: VolumeKeeper-*
 
     - name: Extract artifacts
@@ -60,7 +60,14 @@ jobs:
         echo "=== Current folder (before extracting) ==="
         pwd
         ls -la
-        for zip in ./*/*.zip; do mv -v "$zip" ./; done
+        echo "=== Current temp folder (before extracting) ==="
+        ls -la temp
+
+        for zip in ./temp/*/*.zip; do unzip "$zip"; done
+
+        echo "=== Current folder (during extraction) ==="
+        ls -la
+        rm -r ./temp
 
         find . -type f -empty -print -delete -o -type d -empty -print -delete
         echo "=== Current folder (after extracting) ==="
