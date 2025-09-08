@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Drawing;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
@@ -19,14 +18,16 @@ public partial class App : Application
     private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
     private static LoggingService? _loggingService;
-    private AudioSessionManager? _audioSessionManager;
-    private VolumeStorageService? _volumeStorageService;
+    private static AudioSessionManager? _audioSessionManager;
+    private static VolumeStorageService? _volumeStorageService;
+    private static WindowSettingsService? _windowSettingsService;
     private VolumeMonitorService? _volumeMonitorService;
     private ApplicationMonitorService? _applicationMonitorService;
     private VolumeRestorationService? _volumeRestorationService;
     public static ILoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
-    public static AudioSessionManager? AudioSessionManager { get; private set; }
-    public static VolumeStorageService? VolumeStorageService { get; private set; }
+    public static AudioSessionManager AudioSessionManager => _audioSessionManager ?? throw new InvalidOperationException("Audio session manager not initialized");
+    public static VolumeStorageService VolumeStorageService => _volumeStorageService ?? throw new InvalidOperationException("Volume storage service not initialized");
+    public static WindowSettingsService WindowSettingsService => _windowSettingsService ?? throw new InvalidOperationException("Window settings service not initialized");
 
     public App()
     {
@@ -121,18 +122,17 @@ public partial class App : Application
 
             // Initialize core services
             _audioSessionManager = new AudioSessionManager();
-            AudioSessionManager = _audioSessionManager;
-
             _volumeStorageService = new VolumeStorageService();
-            VolumeStorageService = _volumeStorageService;
+            _windowSettingsService = new WindowSettingsService();
 
             // Initialize monitoring services
             _volumeMonitorService = new VolumeMonitorService(_audioSessionManager, _volumeStorageService);
             _applicationMonitorService = new ApplicationMonitorService();
 
             await Task.WhenAll(
-                Task.Run(() => _volumeMonitorService.Initialize()),
-                Task.Run(() => _applicationMonitorService.Initialize())
+                Task.Run(_windowSettingsService.InitializeAsync),
+                Task.Run(_volumeMonitorService.Initialize),
+                Task.Run(_applicationMonitorService.Initialize)
             );
 
             _volumeRestorationService = new VolumeRestorationService(
@@ -142,7 +142,7 @@ public partial class App : Application
             );
 
             // Restore volumes for currently running applications
-            _ = Task.Run(() => _volumeRestorationService.RestoreAllCurrentSessionsAsync());
+            _ = Task.Run(_volumeRestorationService.RestoreAllCurrentSessionsAsync);
 
             Logger.LogInfo("All services initialized successfully");
         }

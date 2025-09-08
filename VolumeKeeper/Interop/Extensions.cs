@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using Microsoft.UI.Xaml;
 
 namespace VolumeKeeper.Interop;
@@ -18,5 +19,13 @@ public static class Extensions
         {
             window.DispatcherQueue.TryEnqueue(() => NativeMethods.ShowAndFocus(window));
         }
+    }
+
+    public static TValue? GetOrNull<TKey, TValue>(
+        this ConcurrentDictionary<TKey, TValue> dict,
+        TKey key
+    ) where TKey : notnull where TValue : class
+    {
+        return dict.TryGetValue(key, out var value) ? value : null;
     }
 }

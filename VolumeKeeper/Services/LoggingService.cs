@@ -107,7 +107,7 @@ public class LoggingService : ILoggingService, IDisposable
 
             if (_pendingFileWrites.Count >= FileWriteBatchSize)
             {
-                _ = Task.Run(async () => await FlushAsync());
+                _ = Task.Run(FlushAsync);
             }
         }
     }

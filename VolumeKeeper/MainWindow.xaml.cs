@@ -3,12 +3,13 @@ using H.NotifyIcon;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using VolumeKeeper.Models;
 
 namespace VolumeKeeper;
 
 public sealed partial class MainWindow : Window
 {
-    private WindowSettings _windowSettings = null!;
+    private const WindowId WindowId = Models.WindowId.Main;
 
     public MainWindow()
     {
@@ -25,13 +26,6 @@ public sealed partial class MainWindow : Window
         Closed += MainWindow_Closed;
         SizeChanged += MainWindow_SizeChanged;
         Activated += MainWindow_Activated;
-
-        // Track window state changes
-        var presenter = AppWindow.Presenter as OverlappedPresenter;
-        if (presenter == null) return;
-
-        presenter.IsMaximizable = true;
-        presenter.IsMinimizable = true;
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -62,34 +56,33 @@ public sealed partial class MainWindow : Window
 
     private void LoadWindowSettings()
     {
-        _windowSettings = WindowSettings.Load();
-
-        // Set window size using AppWindow
         var appWindow = AppWindow;
         if (appWindow == null) return;
 
+        var windowSettings = App.WindowSettingsService.Get(WindowId);
+
         // Apply maximize state if needed
         var presenter = appWindow.Presenter as OverlappedPresenter;
-        if (_windowSettings.IsMaximized && presenter != null)
+        if (presenter != null)
         {
-            presenter.Maximize();
-            return;
+            presenter.IsMaximizable = true;
+            presenter.IsMinimizable = true;
         }
 
         var size = new SizeInt32
         {
-            Width = (int)_windowSettings.Width,
-            Height = (int)_windowSettings.Height
+            Width = (int)windowSettings.Width,
+            Height = (int)windowSettings.Height
         };
         appWindow.Resize(size);
 
         // Set window position if we have saved values, otherwise center on screen
-        if (!double.IsNaN(_windowSettings.X) && !double.IsNaN(_windowSettings.Y))
+        if (windowSettings is { X: not null, Y: not null })
         {
             var position = new PointInt32
             {
-                X = (int)_windowSettings.X,
-                Y = (int)_windowSettings.Y
+                X = (int)windowSettings.X,
+                Y = (int)windowSettings.Y
             };
             appWindow.Move(position);
         }
@@ -97,6 +90,11 @@ public sealed partial class MainWindow : Window
         {
             // Center the window on the primary display
             CenterWindowOnScreen(appWindow);
+        }
+
+        if (presenter != null && windowSettings.IsMaximized)
+        {
+            presenter.Maximize();
         }
     }
 
@@ -117,37 +115,38 @@ public sealed partial class MainWindow : Window
         appWindow.Move(centeredPosition);
     }
 
-    private void SaveWindowSettings()
+    private void SaveWindowSettings(bool saveImmediately = false)
     {
         // Get current window state using AppWindow
         var appWindow = AppWindow;
         if (appWindow == null) return;
 
+        var windowSettings = App.WindowSettingsService.Get(WindowId);
+
         // Check if window is maximized
         var presenter = appWindow.Presenter as OverlappedPresenter;
-        _windowSettings.IsMaximized = presenter?.State == OverlappedPresenterState.Maximized;
+        var isMaximized = presenter?.State == OverlappedPresenterState.Maximized;
 
         // Only save size and position if not maximized
-        if (!_windowSettings.IsMaximized)
-        {
-            _windowSettings.X = appWindow.Position.X;
-            _windowSettings.Y = appWindow.Position.Y;
-            _windowSettings.Width = appWindow.Size.Width;
-            _windowSettings.Height = appWindow.Size.Height;
-        }
+        var newWindowSettings = new WindowSettings(
+            X: !isMaximized ? appWindow.Position.X : windowSettings.X,
+            Y: !isMaximized ? appWindow.Position.Y : windowSettings.Y,
+            Width: !isMaximized ? appWindow.ClientSize.Width : windowSettings.Width,
+            Height: !isMaximized ? appWindow.ClientSize.Height : windowSettings.Height,
+            IsMaximized: isMaximized
+        );
+        if (windowSettings == newWindowSettings) return;
 
-        _windowSettings.Save();
+        App.WindowSettingsService.SetAndSave(WindowId, newWindowSettings, saveImmediately);
     }
 
     private void MainWindow_SizeChanged(object sender, WindowSizeChangedEventArgs args)
     {
-        // Save size changes with a small delay to avoid excessive saves during dragging
         SaveWindowSettings();
     }
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
-        // Save position when window is activated (after moving)
         SaveWindowSettings();
     }
 
@@ -155,7 +154,7 @@ public sealed partial class MainWindow : Window
     {
         args.Handled = true;
         this.Hide();
-        SaveWindowSettings();
+        SaveWindowSettings(true);
     }
 
 }
