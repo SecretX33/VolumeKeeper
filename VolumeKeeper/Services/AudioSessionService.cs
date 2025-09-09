@@ -2,11 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
-using System.Threading.Tasks;
-using System.Drawing;
-using System.IO;
+using VolumeKeeper.Models;
 
 namespace VolumeKeeper.Services;
 
@@ -210,15 +209,4 @@ public partial class AudioSessionService : IDisposable
         App.Logger.LogInfo("AudioSessionService disposing", "AudioSessionService");
         _deviceEnumerator?.Dispose();
     }
-}
-
-public class AudioSessionInfo
-{
-    public string ApplicationName { get; set; } = string.Empty;
-    public string ProcessName { get; set; } = string.Empty;
-    public double Volume { get; set; }
-    public bool IsMuted { get; set; }
-    public bool IsActive { get; set; }
-    public AudioSessionControl? Session { get; set; }
-    public string? IconPath { get; set; }
 }

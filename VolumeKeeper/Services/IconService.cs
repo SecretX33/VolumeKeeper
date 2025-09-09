@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media.Imaging;
-using VolumeKeeper.Interop;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
@@ -50,13 +49,12 @@ public class IconService
             else
             {
                 // Extract icon from executable
-                var icon = await ExtractIconAsync(executablePath);
+                using var icon = await ExtractIconAsync(executablePath);
                 if (icon != null)
                 {
                     // Save to file cache
                     await SaveIconToCacheAsync(icon, cacheFilePath);
                     bitmapImage = await ConvertIconToBitmapImageAsync(icon);
-                    icon.Dispose();
                 }
             }
 

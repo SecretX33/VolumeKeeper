@@ -1,22 +1,23 @@
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using H.NotifyIcon.Core;
 using Microsoft.UI.Xaml;
 using WinRT.Interop;
 
-namespace VolumeKeeper.Interop;
+namespace VolumeKeeper.Util;
 
-internal static class NativeMethods
+internal static partial class NativeMethods
 {
-    [DllImport("shell32.dll", CharSet = CharSet.Auto)]
-    private static extern IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
+    [LibraryImport("shell32.dll", EntryPoint = "ExtractIconW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
 
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, ShowWindowCommand nCmdShow);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(IntPtr hWnd, ShowWindowCommand nCmdShow);
 
-    [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetForegroundWindow(IntPtr hWnd);
 
     private enum ShowWindowCommand
     {

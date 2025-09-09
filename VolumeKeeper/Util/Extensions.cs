@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using Microsoft.UI.Xaml;
-using VolumeKeeper.Interop;
 
 namespace VolumeKeeper.Util;
 

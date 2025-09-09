@@ -15,6 +15,7 @@
         <EnableMsixTooling>true</EnableMsixTooling>
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <WindowsAppSDKSelfContained Condition="'$(Configuration)' == 'Debug'">false</WindowsAppSDKSelfContained>
         <WindowsAppSDKSelfContained Condition="'$(Configuration)' == 'Release'">true</WindowsAppSDKSelfContained>
         <Version>0.1.0</Version>
