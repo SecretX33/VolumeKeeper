@@ -14,7 +14,7 @@ public class WindowSettingsService
     private static readonly TimeSpan NormalSaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly ConcurrentDictionary<WindowId, WindowSettings> _cachedSettings = new();
-    private volatile AtomicReference<CancellationTokenSource?> _saveDebounceTokenSource = new(null);
+    private readonly AtomicReference<CancellationTokenSource?> _saveDebounceTokenSource = new(null);
 
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -67,15 +67,17 @@ public class WindowSettingsService
             try
             {
                 await Task.Delay(saveDelay, cancellationToken).ConfigureAwait(false);
+                if (cancellationToken.IsCancellationRequested) return;
 
-                if (!cancellationToken.IsCancellationRequested)
-                {
-                    await SaveSettingsToDiskAsync(cancellationToken).ConfigureAwait(false);
-                }
+                await SaveSettingsToDiskAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
                 // Expected when debounce is cancelled
+            }
+            finally
+            {
+                _saveDebounceTokenSource.CompareAndSet(cancellationTokenSource, null);
             }
         }, cancellationToken);
     }
