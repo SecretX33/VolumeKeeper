@@ -6,8 +6,9 @@ using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
-using VolumeKeeper.Interop;
 using VolumeKeeper.Services;
+using VolumeKeeper.Util;
+using static VolumeKeeper.Util.Util;
 using Application = Microsoft.UI.Xaml.Application;
 
 namespace VolumeKeeper;
@@ -166,12 +167,14 @@ public partial class App : Application
         try
         {
             _mainWindow?.Close();
-            _volumeMonitorService?.Dispose();
-            _applicationMonitorService?.Dispose();
-            _volumeRestorationService?.Dispose();
-            _audioSessionManager?.Dispose();
-            _trayIcon?.Dispose();
-            _loggingService?.Dispose();
+            DisposeAll(
+                _volumeMonitorService,
+                _applicationMonitorService,
+                _volumeRestorationService,
+                _audioSessionManager,
+                _trayIcon,
+                _loggingService
+            );
         }
         finally
         {

@@ -59,13 +59,13 @@ public class WindowSettingsService
 
         Task.Run(async () =>
         {
-            if (oldCancellationTokenSource != null)
-            {
-                await oldCancellationTokenSource.CancelAsync().ConfigureAwait(false);
-            }
-
             try
             {
+                if (oldCancellationTokenSource != null)
+                {
+                    await oldCancellationTokenSource.CancelAsync().ConfigureAwait(false);
+                }
+
                 await Task.Delay(saveDelay, cancellationToken).ConfigureAwait(false);
                 if (cancellationToken.IsCancellationRequested) return;
 
@@ -78,6 +78,7 @@ public class WindowSettingsService
             finally
             {
                 _saveDebounceTokenSource.CompareAndSet(cancellationTokenSource, null);
+                cancellationTokenSource.Dispose();
             }
         }, cancellationToken);
     }

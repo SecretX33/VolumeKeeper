@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using Microsoft.UI.Xaml;
+using VolumeKeeper.Interop;
 
-namespace VolumeKeeper.Interop;
+namespace VolumeKeeper.Util;
 
 public static class Extensions
 {

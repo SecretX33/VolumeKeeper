@@ -7,6 +7,7 @@ using System.Linq;
 using System.Management;
 using System.Threading;
 using System.Threading.Tasks;
+using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services;
 
@@ -174,8 +175,10 @@ public class ApplicationMonitorService : IDisposable
 
         _isDisposed = true;
         _processWatcher?.Stop();
-        _processWatcher?.Dispose();
-        _pollTimer?.Dispose();
-        _pollLock?.Dispose();
+        DisposeAll(
+            _processWatcher,
+            _pollTimer,
+            _pollLock
+        );
     }
 }
