@@ -46,18 +46,23 @@ public class WindowSettingsService
     public void SetAndSave(WindowId windowId, WindowSettings settings, bool saveImmediately = true)
     {
         Set(windowId, settings);
-        ScheduleSave(saveImmediately ? TimeSpan.Zero : NormalSaveDelay);
+        var task = ScheduleSave(saveImmediately ? TimeSpan.Zero : NormalSaveDelay);
+        if (saveImmediately)
+        {
+            // Await immediately to ensure save is done before proceeding
+            task.GetAwaiter().GetResult();
+        }
     }
 
     // Debounce save operations to avoid excessive disk writes
     // If multiple calls happen within 2 seconds, only the last one will trigger a save
-    private void ScheduleSave(TimeSpan saveDelay)
+    private Task ScheduleSave(TimeSpan saveDelay)
     {
         var cancellationTokenSource = new CancellationTokenSource();
         var oldCancellationTokenSource = _saveDebounceTokenSource.GetAndSet(cancellationTokenSource);
         var cancellationToken = cancellationTokenSource.Token;
 
-        Task.Run(async () =>
+        return Task.Run(async () =>
         {
             try
             {

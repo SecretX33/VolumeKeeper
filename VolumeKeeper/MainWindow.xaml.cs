@@ -14,18 +14,12 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-
         Title = "VolumeKeeper";
         ExtendsContentIntoTitleBar = true;
-
         LoadWindowSettings();
-
         NavigationViewControl.SelectedItem = NavigationViewControl.MenuItems[0];
-        NavigateToPage("Home");
-
         Closed += MainWindow_Closed;
-        SizeChanged += MainWindow_SizeChanged;
-        Activated += MainWindow_Activated;
+        NavigateToPage("Home");
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -138,16 +132,6 @@ public sealed partial class MainWindow : Window
         if (windowSettings == newWindowSettings) return;
 
         App.WindowSettingsService.SetAndSave(WindowId, newWindowSettings, saveImmediately);
-    }
-
-    private void MainWindow_SizeChanged(object sender, WindowSizeChangedEventArgs args)
-    {
-        SaveWindowSettings();
-    }
-
-    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
-    {
-        SaveWindowSettings();
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
