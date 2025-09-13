@@ -155,6 +155,6 @@ public class VolumeRestorationService : IDisposable
 
         _isDisposed = true;
         _appMonitorService.ApplicationLaunched -= OnApplicationLaunched;
-        _cleanupTimer?.Dispose();
+        _cleanupTimer.Dispose();
     }
 }

@@ -25,14 +25,14 @@ public partial class App : Application
     private static VolumeSettingsManager? _volumeConfigurationManager;
     private static AudioSessionManager? _audioSessionManager;
     private static VolumeStorageService? _volumeStorageService;
-    private static WindowSettingsManager? _windowSettingsService;
+    private static WindowSettingsManager? _windowSettingsManager;
     private VolumeMonitorService? _volumeMonitorService;
     private ApplicationMonitorService? _applicationMonitorService;
     private VolumeRestorationService? _volumeRestorationService;
     public static ILoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
     public static AudioSessionManager AudioSessionManager => _audioSessionManager ?? throw new InvalidOperationException("Audio session manager not initialized");
     public static VolumeStorageService VolumeStorageService => _volumeStorageService ?? throw new InvalidOperationException("Volume storage service not initialized");
-    public static WindowSettingsManager WindowSettingsManager => _windowSettingsService ?? throw new InvalidOperationException("Window settings service not initialized");
+    public static WindowSettingsManager WindowSettingsManager => _windowSettingsManager ?? throw new InvalidOperationException("Window settings service not initialized");
 
     public App()
     {
@@ -129,18 +129,18 @@ public partial class App : Application
             _processDataManager = new ProcessDataManager();
             _audioSessionDataManager = new AudioSessionDataManager();
             _volumeConfigurationManager = new VolumeSettingsManager();
+            _windowSettingsManager = new WindowSettingsManager();
 
             // Initialize core services with managers
             _audioSessionManager = new AudioSessionManager(_audioSessionDataManager);
             _volumeStorageService = new VolumeStorageService(_volumeConfigurationManager);
-            _windowSettingsService = new WindowSettingsManager();
 
             // Initialize monitoring services with managers
             _volumeMonitorService = new VolumeMonitorService(_audioSessionDataManager, _volumeConfigurationManager);
             _applicationMonitorService = new ApplicationMonitorService(_processDataManager);
 
             await Task.WhenAll(
-                Task.Run(_windowSettingsService.InitializeAsync),
+                Task.Run(_windowSettingsManager.InitializeAsync),
                 Task.Run(_volumeMonitorService.Initialize),
                 Task.Run(_applicationMonitorService.Initialize)
             );
