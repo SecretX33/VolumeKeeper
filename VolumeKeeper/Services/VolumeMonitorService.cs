@@ -11,16 +11,16 @@ namespace VolumeKeeper.Services;
 public class VolumeMonitorService : IDisposable
 {
     private readonly AudioSessionDataManager _sessionDataManager;
-    private readonly VolumeConfigurationManager _configurationManager;
+    private readonly VolumeSettingsManager _settingsManager;
     private readonly ConcurrentDictionary<string, float> _lastKnownVolumes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _pollTimer;
     private readonly SemaphoreSlim _pollLock = new(1, 1);
     private volatile bool _isDisposed;
 
-    public VolumeMonitorService(AudioSessionDataManager sessionDataManager, VolumeConfigurationManager configurationManager)
+    public VolumeMonitorService(AudioSessionDataManager sessionDataManager, VolumeSettingsManager settingsManager)
     {
         _sessionDataManager = sessionDataManager;
-        _configurationManager = configurationManager;
+        _settingsManager = settingsManager;
         _pollTimer = new Timer(PollVolumeChanges, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
     }
 
@@ -48,7 +48,7 @@ public class VolumeMonitorService : IDisposable
                 else
                 {
                     _lastKnownVolumes[session.ExecutableName] = currentVolume;
-                    var savedVolume = await _configurationManager.GetVolumeAsync(session.ExecutableName);
+                    var savedVolume = await _settingsManager.GetVolumeAsync(session.ExecutableName);
                     if (savedVolume == null)
                     {
                         await SaveVolumeChange(session.ExecutableName, currentVolume);
@@ -78,7 +78,7 @@ public class VolumeMonitorService : IDisposable
     {
         try
         {
-            await _configurationManager.SetVolumeAsync(executableName, (int)Math.Round(volumePercentage));
+            await _settingsManager.SetVolumeAsync(executableName, (int)Math.Round(volumePercentage));
             App.Logger.LogInfo($"Volume changed for {executableName}: {volumePercentage:F0}%", "VolumeMonitorService");
         }
         catch (Exception ex)

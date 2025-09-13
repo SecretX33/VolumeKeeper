@@ -6,16 +6,16 @@ namespace VolumeKeeper.Services;
 
 public class VolumeStorageService
 {
-    private readonly VolumeConfigurationManager _configurationManager;
+    private readonly VolumeSettingsManager _settingsManager;
 
-    public VolumeStorageService(VolumeConfigurationManager configurationManager)
+    public VolumeStorageService(VolumeSettingsManager settingsManager)
     {
-        _configurationManager = configurationManager;
+        _settingsManager = settingsManager;
     }
 
     public async Task<VolumeSettings> LoadSettingsAsync()
     {
-        return await _configurationManager.GetSettingsAsync();
+        return await _settingsManager.GetSettingsAsync();
     }
 
     public async Task SaveSettingsAsync(VolumeSettings settings)
@@ -27,29 +27,29 @@ public class VolumeStorageService
 
     public async Task SaveVolumeAsync(string executableName, int volumePercentage)
     {
-        await _configurationManager.SetVolumeAsync(executableName, volumePercentage);
+        await _settingsManager.SetVolumeAsync(executableName, volumePercentage);
         App.Logger.LogInfo($"Volume set for {executableName}: {volumePercentage}%", "VolumeStorageService");
     }
 
     public async Task<int?> GetVolumeAsync(string executableName)
     {
-        return await _configurationManager.GetVolumeAsync(executableName);
+        return await _settingsManager.GetVolumeAsync(executableName);
     }
 
     public async Task RemoveVolumeAsync(string executableName)
     {
-        await _configurationManager.RemoveVolumeAsync(executableName);
+        await _settingsManager.RemoveVolumeAsync(executableName);
         App.Logger.LogInfo($"Volume settings removed for {executableName}", "VolumeStorageService");
     }
 
     public async Task ClearAllVolumesAsync()
     {
-        await _configurationManager.ClearAllConfigurationsAsync();
+        await _settingsManager.ClearAllConfigurationsAsync();
         App.Logger.LogInfo("All volume settings cleared", "VolumeStorageService");
     }
 
     public async Task<VolumeSettings> GetSettingsAsync()
     {
-        return await _configurationManager.GetSettingsAsync();
+        return await _settingsManager.GetSettingsAsync();
     }
 }

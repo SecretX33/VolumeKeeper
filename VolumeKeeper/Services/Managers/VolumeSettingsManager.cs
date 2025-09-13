@@ -8,7 +8,7 @@ using VolumeKeeper.Models;
 
 namespace VolumeKeeper.Services.Managers;
 
-public class VolumeConfigurationManager
+public class VolumeSettingsManager
 {
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private volatile VolumeSettings? _cachedSettings;

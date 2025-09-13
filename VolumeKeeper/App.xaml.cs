@@ -22,7 +22,7 @@ public partial class App : Application
     private static LoggingService? _loggingService;
     private static ProcessDataManager? _processDataManager;
     private static AudioSessionDataManager? _audioSessionDataManager;
-    private static VolumeConfigurationManager? _volumeConfigurationManager;
+    private static VolumeSettingsManager? _volumeConfigurationManager;
     private static AudioSessionManager? _audioSessionManager;
     private static VolumeStorageService? _volumeStorageService;
     private static WindowSettingsManager? _windowSettingsService;
@@ -128,7 +128,7 @@ public partial class App : Application
             // Initialize data managers
             _processDataManager = new ProcessDataManager();
             _audioSessionDataManager = new AudioSessionDataManager();
-            _volumeConfigurationManager = new VolumeConfigurationManager();
+            _volumeConfigurationManager = new VolumeSettingsManager();
 
             // Initialize core services with managers
             _audioSessionManager = new AudioSessionManager(_audioSessionDataManager);
