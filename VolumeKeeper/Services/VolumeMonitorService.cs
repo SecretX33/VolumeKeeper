@@ -4,22 +4,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper.Services;
 
 public class VolumeMonitorService : IDisposable
 {
-    private readonly AudioSessionManager _audioSessionManager;
-    private readonly VolumeStorageService _storageService;
+    private readonly AudioSessionDataManager _sessionDataManager;
+    private readonly VolumeConfigurationManager _configurationManager;
     private readonly ConcurrentDictionary<string, float> _lastKnownVolumes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _pollTimer;
     private readonly SemaphoreSlim _pollLock = new(1, 1);
     private volatile bool _isDisposed;
 
-    public VolumeMonitorService(AudioSessionManager audioSessionManager, VolumeStorageService storageService)
+    public VolumeMonitorService(AudioSessionDataManager sessionDataManager, VolumeConfigurationManager configurationManager)
     {
-        _audioSessionManager = audioSessionManager;
-        _storageService = storageService;
+        _sessionDataManager = sessionDataManager;
+        _configurationManager = configurationManager;
         _pollTimer = new Timer(PollVolumeChanges, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
     }
 
@@ -30,7 +31,7 @@ public class VolumeMonitorService : IDisposable
 
         try
         {
-            var sessions = _audioSessionManager.GetAllSessions();
+            var sessions = _sessionDataManager.GetAllSessions();
 
             foreach (var session in sessions)
             {
@@ -47,7 +48,7 @@ public class VolumeMonitorService : IDisposable
                 else
                 {
                     _lastKnownVolumes[session.ExecutableName] = currentVolume;
-                    var savedVolume = await _storageService.GetVolumeAsync(session.ExecutableName);
+                    var savedVolume = await _configurationManager.GetVolumeAsync(session.ExecutableName);
                     if (savedVolume == null)
                     {
                         await SaveVolumeChange(session.ExecutableName, currentVolume);
@@ -77,7 +78,7 @@ public class VolumeMonitorService : IDisposable
     {
         try
         {
-            await _storageService.SaveVolumeAsync(executableName, (int)Math.Round(volumePercentage));
+            await _configurationManager.SetVolumeAsync(executableName, (int)Math.Round(volumePercentage));
             App.Logger.LogInfo($"Volume changed for {executableName}: {volumePercentage:F0}%", "VolumeMonitorService");
         }
         catch (Exception ex)
@@ -90,7 +91,7 @@ public class VolumeMonitorService : IDisposable
     {
         try
         {
-            var sessions = _audioSessionManager.GetAllSessions();
+            var sessions = _sessionDataManager.GetAllSessions();
 
             foreach (var session in sessions)
             {
@@ -108,9 +109,7 @@ public class VolumeMonitorService : IDisposable
 
     public void Dispose()
     {
-        if (_isDisposed)
-            return;
-
+        if (_isDisposed) return;
         _isDisposed = true;
         _pollTimer.Dispose();
         _pollLock.Dispose();

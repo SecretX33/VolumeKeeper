@@ -7,6 +7,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using VolumeKeeper.Services;
+using VolumeKeeper.Services.Managers;
 using VolumeKeeper.Util;
 using static VolumeKeeper.Util.Util;
 using Application = Microsoft.UI.Xaml.Application;
@@ -19,16 +20,19 @@ public partial class App : Application
     private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
     private static LoggingService? _loggingService;
+    private static ProcessDataManager? _processDataManager;
+    private static AudioSessionDataManager? _audioSessionDataManager;
+    private static VolumeConfigurationManager? _volumeConfigurationManager;
     private static AudioSessionManager? _audioSessionManager;
     private static VolumeStorageService? _volumeStorageService;
-    private static WindowSettingsService? _windowSettingsService;
+    private static WindowSettingsManager? _windowSettingsService;
     private VolumeMonitorService? _volumeMonitorService;
     private ApplicationMonitorService? _applicationMonitorService;
     private VolumeRestorationService? _volumeRestorationService;
     public static ILoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
     public static AudioSessionManager AudioSessionManager => _audioSessionManager ?? throw new InvalidOperationException("Audio session manager not initialized");
     public static VolumeStorageService VolumeStorageService => _volumeStorageService ?? throw new InvalidOperationException("Volume storage service not initialized");
-    public static WindowSettingsService WindowSettingsService => _windowSettingsService ?? throw new InvalidOperationException("Window settings service not initialized");
+    public static WindowSettingsManager WindowSettingsManager => _windowSettingsService ?? throw new InvalidOperationException("Window settings service not initialized");
 
     public App()
     {
@@ -121,14 +125,19 @@ public partial class App : Application
         {
             Logger.LogDebug("Initializing volume management services");
 
-            // Initialize core services
-            _audioSessionManager = new AudioSessionManager();
-            _volumeStorageService = new VolumeStorageService();
-            _windowSettingsService = new WindowSettingsService();
+            // Initialize data managers
+            _processDataManager = new ProcessDataManager();
+            _audioSessionDataManager = new AudioSessionDataManager();
+            _volumeConfigurationManager = new VolumeConfigurationManager();
 
-            // Initialize monitoring services
-            _volumeMonitorService = new VolumeMonitorService(_audioSessionManager, _volumeStorageService);
-            _applicationMonitorService = new ApplicationMonitorService();
+            // Initialize core services with managers
+            _audioSessionManager = new AudioSessionManager(_audioSessionDataManager);
+            _volumeStorageService = new VolumeStorageService(_volumeConfigurationManager);
+            _windowSettingsService = new WindowSettingsManager();
+
+            // Initialize monitoring services with managers
+            _volumeMonitorService = new VolumeMonitorService(_audioSessionDataManager, _volumeConfigurationManager);
+            _applicationMonitorService = new ApplicationMonitorService(_processDataManager);
 
             await Task.WhenAll(
                 Task.Run(_windowSettingsService.InitializeAsync),
@@ -138,7 +147,8 @@ public partial class App : Application
 
             _volumeRestorationService = new VolumeRestorationService(
                 _audioSessionManager,
-                _volumeStorageService,
+                _audioSessionDataManager,
+                _volumeConfigurationManager,
                 _applicationMonitorService
             );
 
@@ -172,6 +182,7 @@ public partial class App : Application
                 _applicationMonitorService,
                 _volumeRestorationService,
                 _audioSessionManager,
+                _audioSessionDataManager,
                 _trayIcon,
                 _loggingService
             );

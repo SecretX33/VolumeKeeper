@@ -1,12 +1,11 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management;
 using System.Threading;
-using System.Threading.Tasks;
+using VolumeKeeper.Services.Managers;
 using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services;
@@ -19,7 +18,7 @@ public class ApplicationLaunchEventArgs : EventArgs
 
 public class ApplicationMonitorService : IDisposable
 {
-    private readonly ConcurrentDictionary<int, string> _knownProcesses = new();
+    private readonly ProcessDataManager _processDataManager;
     private readonly Timer _pollTimer;
     private readonly SemaphoreSlim _pollLock = new(1, 1);
     private volatile ManagementEventWatcher? _processWatcher;
@@ -27,8 +26,9 @@ public class ApplicationMonitorService : IDisposable
 
     public event EventHandler<ApplicationLaunchEventArgs>? ApplicationLaunched;
 
-    public ApplicationMonitorService()
+    public ApplicationMonitorService(ProcessDataManager processDataManager)
     {
+        _processDataManager = processDataManager;
         _pollTimer = new Timer(PollForNewProcesses, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
         InitializeWmiWatcher();
     }
@@ -56,9 +56,9 @@ public class ApplicationMonitorService : IDisposable
             var processName = e.NewEvent.Properties["ProcessName"].Value?.ToString();
             var processId = Convert.ToInt32(e.NewEvent.Properties["ProcessID"].Value);
 
-            if (!string.IsNullOrEmpty(processName) && !_knownProcesses.ContainsKey(processId))
+            if (!string.IsNullOrEmpty(processName) && !_processDataManager.IsProcessKnown(processId))
             {
-                _knownProcesses[processId] = processName;
+                _processDataManager.AddProcess(processId, processName);
                 OnApplicationLaunched(processName, processId);
             }
         }
@@ -81,12 +81,12 @@ public class ApplicationMonitorService : IDisposable
             {
                 try
                 {
-                    if (_knownProcesses.ContainsKey(process.Id) || string.IsNullOrEmpty(process.ProcessName)) continue;
+                    if (_processDataManager.IsProcessKnown(process.Id) || string.IsNullOrEmpty(process.ProcessName)) continue;
 
                     var executableName = GetExecutableName(process);
                     if (!string.IsNullOrEmpty(executableName))
                     {
-                        _knownProcesses[process.Id] = executableName;
+                        _processDataManager.AddProcess(process.Id, executableName);
                         OnApplicationLaunched(executableName, process.Id);
                     }
                 }
@@ -97,11 +97,9 @@ public class ApplicationMonitorService : IDisposable
             }
 
             var currentIds = new HashSet<int>(currentProcesses.Select(p => p.Id));
-            var toRemove = _knownProcesses.Keys.Where(id => !currentIds.Contains(id));
-            foreach (var id in toRemove)
-            {
-                _knownProcesses.TryRemove(id, out _);
-            }
+            var allKnownProcesses = _processDataManager.GetAllProcesses();
+            var toRemove = allKnownProcesses.Keys.Where(id => !currentIds.Contains(id));
+            _processDataManager.RemoveProcesses(toRemove);
         }
         catch (Exception ex)
         {
@@ -149,7 +147,7 @@ public class ApplicationMonitorService : IDisposable
                     var executableName = GetExecutableName(process);
                     if (!string.IsNullOrEmpty(executableName))
                     {
-                        _knownProcesses[process.Id] = executableName;
+                        _processDataManager.AddProcess(process.Id, executableName);
                     }
                 }
                 catch (Exception ex)
@@ -159,7 +157,7 @@ public class ApplicationMonitorService : IDisposable
                 }
             }
 
-            App.Logger.LogInfo($"Application monitor initialized with {_knownProcesses.Count} known processes",
+            App.Logger.LogInfo($"Application monitor initialized with {_processDataManager.Count} known processes",
                 "ApplicationMonitorService");
         }
         catch (Exception ex)

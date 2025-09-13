@@ -9,7 +9,7 @@ using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
-public class WindowSettingsService
+public class WindowSettingsManager
 {
     private static readonly TimeSpan NormalSaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
@@ -41,7 +41,7 @@ public class WindowSettingsService
 
     public WindowSettings Get(WindowId windowId) => _cachedSettings.GetOrAdd(windowId, _ => new WindowSettings());
 
-    public void Set(WindowId windowId, WindowSettings settings) => _cachedSettings[windowId] = settings;
+    private void Set(WindowId windowId, WindowSettings settings) => _cachedSettings[windowId] = settings;
 
     public void SetAndSave(WindowId windowId, WindowSettings settings, bool saveImmediately = true)
     {

@@ -3,13 +3,15 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper.Services;
 
 public class VolumeRestorationService : IDisposable
 {
     private readonly AudioSessionManager _audioSessionManager;
-    private readonly VolumeStorageService _storageService;
+    private readonly AudioSessionDataManager _sessionDataManager;
+    private readonly VolumeConfigurationManager _configurationManager;
     private readonly ApplicationMonitorService _appMonitorService;
     private readonly ConcurrentDictionary<string, DateTime> _recentRestorations = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _cleanupTimer;
@@ -18,11 +20,13 @@ public class VolumeRestorationService : IDisposable
 
     public VolumeRestorationService(
         AudioSessionManager audioSessionManager,
-        VolumeStorageService storageService,
+        AudioSessionDataManager sessionDataManager,
+        VolumeConfigurationManager configurationManager,
         ApplicationMonitorService appMonitorService)
     {
         _audioSessionManager = audioSessionManager;
-        _storageService = storageService;
+        _sessionDataManager = sessionDataManager;
+        _configurationManager = configurationManager;
         _appMonitorService = appMonitorService;
         _appMonitorService.ApplicationLaunched += OnApplicationLaunched;
         _cleanupTimer = new Timer(CleanupOldRestorations, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
@@ -34,7 +38,7 @@ public class VolumeRestorationService : IDisposable
             if (string.IsNullOrEmpty(e.ExecutableName))
                 return;
 
-            var settings = await _storageService.GetSettingsAsync().ConfigureAwait(false);
+            var settings = await _configurationManager.GetSettingsAsync().ConfigureAwait(false);
             if (!settings.AutoRestoreEnabled)
             {
                 App.Logger.LogDebug($"Auto-restore disabled, skipping volume restoration for {e.ExecutableName}", "VolumeRestorationService");
@@ -61,7 +65,7 @@ public class VolumeRestorationService : IDisposable
     {
         try
         {
-            var savedVolume = await _storageService.GetVolumeAsync(executableName);
+            var savedVolume = await _configurationManager.GetVolumeAsync(executableName);
             if (savedVolume == null)
             {
                 App.Logger.LogDebug($"No saved volume found for {executableName}", "VolumeRestorationService");
@@ -119,13 +123,13 @@ public class VolumeRestorationService : IDisposable
     {
         try
         {
-            var sessions = _audioSessionManager.GetAllSessions();
+            var sessions = _sessionDataManager.GetAllSessions();
             var validSessions = sessions.Where(s => !string.IsNullOrEmpty(s.ExecutableName));
             App.Logger.LogInfo($"Restoring volumes for {sessions.Count} active sessions", "VolumeRestorationService");
 
             foreach (var session in validSessions)
             {
-                var savedVolume = await _storageService.GetVolumeAsync(session.ExecutableName);
+                var savedVolume = await _configurationManager.GetVolumeAsync(session.ExecutableName);
                 if (savedVolume == null || Math.Abs(session.Volume - savedVolume.Value) <= 1) continue;
 
                 if (await _audioSessionManager.SetSessionVolume(session.ExecutableName, savedVolume.Value))
