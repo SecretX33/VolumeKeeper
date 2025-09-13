@@ -5,13 +5,16 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using VolumeKeeper.Models;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services.Managers;
 
 public class VolumeSettingsManager
 {
+    private static readonly TimeSpan NormalSaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
-    private volatile VolumeSettings? _cachedSettings;
+    private readonly AtomicReference<VolumeSettings> _cachedSettings = new(new VolumeSettings());
+    private readonly AtomicReference<CancellationTokenSource?> _saveDebounceTokenSource = new(null);
 
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -20,179 +23,90 @@ public class VolumeSettingsManager
         "volume_settings.json"
     );
 
-    public async Task<bool> SetVolumeAsync(string executableName, int volumePercentage)
+    public async void InitializeAsync()
     {
-        if (string.IsNullOrWhiteSpace(executableName))
-            return false;
-
-        if (volumePercentage is < 0 or > 100)
-            return false;
-
-        var settings = await LoadSettingsAsync();
-        settings.SetVolume(executableName, volumePercentage);
-        await SaveSettingsAsync(settings);
-        return true;
+        try {
+            var json = await File.ReadAllTextAsync(SettingsPath).ConfigureAwait(false);
+            var parsedValue = JsonSerializer.Deserialize<VolumeSettings>(json);
+            if (parsedValue == null) return;
+            _cachedSettings.Set(parsedValue);
+        } catch (Exception ex) {
+            App.Logger.LogError("Failed to initialize volume settings", ex, "VolumeSettingsManager");
+        }
     }
 
-    public async Task<int?> GetVolumeAsync(string executableName)
+    private VolumeSettings Get() => _cachedSettings.Get();
+
+    private void Set(VolumeSettings settings) => _cachedSettings.Set(settings);
+
+    public void SetAndSave(VolumeSettings settings, bool saveImmediately = true)
     {
-        if (string.IsNullOrWhiteSpace(executableName))
-            return null;
-
-        var settings = await LoadSettingsAsync();
-        return settings.GetVolume(executableName);
-    }
-
-    public async Task<bool> RemoveVolumeAsync(string executableName)
-    {
-        if (string.IsNullOrWhiteSpace(executableName))
-            return false;
-
-        var settings = await LoadSettingsAsync();
-        settings.RemoveVolume(executableName);
-        await SaveSettingsAsync(settings);
-        return true;
-    }
-
-    public async Task<IReadOnlyDictionary<string, int>> GetAllConfigurationsAsync()
-    {
-        var settings = await LoadSettingsAsync();
-        return new Dictionary<string, int>(settings.ApplicationVolumes);
-    }
-
-    public async Task<bool> SetMuteStateAsync(string executableName, int lastVolumeBeforeMute)
-    {
-        if (string.IsNullOrWhiteSpace(executableName))
-            return false;
-
-        var settings = await LoadSettingsAsync();
-        settings.LastVolumeBeforeMute[executableName.ToLowerInvariant()] = lastVolumeBeforeMute;
-        await SaveSettingsAsync(settings);
-        return true;
-    }
-
-    public async Task<int?> GetLastVolumeBeforeMuteAsync(string executableName)
-    {
-        if (string.IsNullOrWhiteSpace(executableName))
-            return null;
-
-        var settings = await LoadSettingsAsync();
-        return settings.LastVolumeBeforeMute.TryGetValue(executableName.ToLowerInvariant(), out var volume)
-            ? volume
-            : null;
-    }
-
-    public async Task ClearMuteStateAsync(string executableName)
-    {
-        if (string.IsNullOrWhiteSpace(executableName))
-            return;
-
-        var settings = await LoadSettingsAsync();
-        settings.LastVolumeBeforeMute.TryRemove(executableName.ToLowerInvariant(), out _);
-        await SaveSettingsAsync(settings);
-    }
-
-    public async Task ClearAllConfigurationsAsync()
-    {
-        var settings = await LoadSettingsAsync();
-        settings.ApplicationVolumes.Clear();
-        settings.LastVolumeBeforeMute.Clear();
-        await SaveSettingsAsync(settings);
-    }
-
-    public async Task<bool> GetAutoRestoreEnabledAsync()
-    {
-        var settings = await LoadSettingsAsync();
-        return settings.AutoRestoreEnabled;
-    }
-
-    public async Task SetAutoRestoreEnabledAsync(bool enabled)
-    {
-        var settings = await LoadSettingsAsync();
-        settings.AutoRestoreEnabled = enabled;
-        await SaveSettingsAsync(settings);
-    }
-
-    public async Task<bool> GetAutoScrollLogsEnabledAsync()
-    {
-        var settings = await LoadSettingsAsync();
-        return settings.AutoScrollLogsEnabled;
-    }
-
-    public async Task SetAutoScrollLogsEnabledAsync(bool enabled)
-    {
-        var settings = await LoadSettingsAsync();
-        settings.AutoScrollLogsEnabled = enabled;
-        await SaveSettingsAsync(settings);
-    }
-
-    public async Task<VolumeSettings> GetSettingsAsync()
-    {
-        return await LoadSettingsAsync();
-    }
-
-    private async Task<VolumeSettings> LoadSettingsAsync()
-    {
-        var cached = _cachedSettings;
-        if (cached != null)
-            return cached;
-
-        await _fileLock.WaitAsync();
-        try
+        Set(settings);
+        var task = ScheduleSave(saveImmediately ? TimeSpan.Zero : NormalSaveDelay);
+        if (saveImmediately)
         {
-            if (_cachedSettings != null)
-                return _cachedSettings;
+            // Await immediately to ensure save is done before proceeding
+            task.GetAwaiter().GetResult();
+        }
+    }
 
-            if (!File.Exists(SettingsPath))
+    // Debounce save operations to avoid excessive disk writes
+    // If multiple calls happen within 2 seconds, only the last one will trigger a save
+    private Task ScheduleSave(TimeSpan saveDelay)
+    {
+        var cancellationTokenSource = new CancellationTokenSource();
+        var oldCancellationTokenSource = _saveDebounceTokenSource.GetAndSet(cancellationTokenSource);
+        var cancellationToken = cancellationTokenSource.Token;
+
+        return Task.Run(async () =>
+        {
+            try
             {
-                _cachedSettings = new VolumeSettings();
-                return _cachedSettings;
-            }
+                if (oldCancellationTokenSource != null)
+                {
+                    await oldCancellationTokenSource.CancelAsync().ConfigureAwait(false);
+                }
 
-            var json = await File.ReadAllTextAsync(SettingsPath);
-            _cachedSettings = JsonSerializer.Deserialize<VolumeSettings>(json) ?? new VolumeSettings();
-            return _cachedSettings;
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to load volume settings", ex, "VolumeConfigurationManager");
-            _cachedSettings = new VolumeSettings();
-            return _cachedSettings;
-        }
-        finally
-        {
-            _fileLock.Release();
-        }
+                await Task.Delay(saveDelay, cancellationToken).ConfigureAwait(false);
+                if (cancellationToken.IsCancellationRequested) return;
+
+                await SaveSettingsToDiskAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when debounce is cancelled
+            }
+            finally
+            {
+                _saveDebounceTokenSource.CompareAndSet(cancellationTokenSource, null);
+                cancellationTokenSource.Dispose();
+            }
+        }, cancellationToken);
     }
 
-    public async Task SaveSettingsAsync(VolumeSettings settings)
+    private async Task SaveSettingsToDiskAsync(CancellationToken cancellationToken)
     {
-        await _fileLock.WaitAsync();
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        // Lock has been acquired, do NOT cancel from this point on
         try
         {
-            _cachedSettings = settings;
-
             var directory = Path.GetDirectoryName(SettingsPath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            if (directory != null && !Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
             }
 
-            var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(SettingsPath, json);
+            var json = JsonSerializer.Serialize(_cachedSettings, new JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(SettingsPath, json).ConfigureAwait(false);
+            App.Logger.LogInfo("Volume settings saved successfully", "VolumeSettingsManager");
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to save volume settings", ex, "VolumeConfigurationManager");
+            App.Logger.LogError("Failed to save volume settings", ex, "VolumeSettingsManager");
         }
         finally
         {
             _fileLock.Release();
         }
-    }
-
-    public void InvalidateCache()
-    {
-        _cachedSettings = null;
     }
 }
