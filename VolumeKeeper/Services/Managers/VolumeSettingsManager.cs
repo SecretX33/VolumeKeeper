@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using VolumeKeeper.Models;
 using VolumeKeeper.Util;
+using VolumeKeeper.Util.Converter;
 
 namespace VolumeKeeper.Services.Managers;
 
@@ -15,7 +16,10 @@ public class VolumeSettingsManager
     private static readonly TimeSpan NormalSaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly AtomicReference<CancellationTokenSource?> _saveDebounceTokenSource = new(null);
-
+    private readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        WriteIndented = true
+    };
     private readonly ConcurrentDictionary<string, int> _applicationVolumes = new();
     private readonly ConcurrentDictionary<string, int> _applicationLastVolumeBeforeMute = new();
     private volatile bool _autoRestoreEnabled = true;
@@ -23,6 +27,11 @@ public class VolumeSettingsManager
 
     public bool AutoRestoreEnabled => _autoRestoreEnabled;
     public bool AutoScrollLogsEnabled => _autoScrollLogsEnabled;
+
+    public VolumeSettingsManager()
+    {
+        _jsonSerializerOptions.Converters.Add(new ApplicationIdJsonConverter());
+    }
 
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -35,7 +44,7 @@ public class VolumeSettingsManager
     {
         try {
             var json = await File.ReadAllTextAsync(SettingsPath).ConfigureAwait(false);
-            var parsedValue = JsonSerializer.Deserialize<VolumeSettings>(json);
+            var parsedValue = JsonSerializer.Deserialize<VolumeSettings>(json, _jsonSerializerOptions);
             if (parsedValue == null) return;
 
             foreach (var config in parsedValue.ApplicationVolumes)
@@ -145,7 +154,7 @@ public class VolumeSettingsManager
                 AutoScrollLogsEnabled = _autoScrollLogsEnabled,
             };
 
-            var json = JsonSerializer.Serialize(settingsToSave, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(settingsToSave, _jsonSerializerOptions);
             await File.WriteAllTextAsync(SettingsPath, json).ConfigureAwait(false);
             App.Logger.LogInfo("Volume settings saved successfully", "VolumeSettingsManager");
         }

@@ -15,10 +15,25 @@ public record VolumeSettings {
 
 public record ApplicationVolumeConfig(
     string Name,
+    string Path,
     ApplicationNameMatchType NameMatchType,
     int Volume,
     int? LastVolumeBeforeMute = null
 );
+
+public abstract record VolumeApplicationId
+{
+    public ApplicationNameMatchType NameMatchType { get; }
+
+    protected VolumeApplicationId(ApplicationNameMatchType nameMatchType)
+    {
+        NameMatchType = nameMatchType;
+    }
+}
+
+public record NamedVolumeApplicationId(string Name) : VolumeApplicationId(ApplicationNameMatchType.Name);
+
+public record PathVolumeApplicationId(string Path) : VolumeApplicationId(ApplicationNameMatchType.Path);
 
 public enum ApplicationNameMatchType
 {
