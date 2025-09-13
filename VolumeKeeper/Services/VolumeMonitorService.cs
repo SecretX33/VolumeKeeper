@@ -10,16 +10,16 @@ namespace VolumeKeeper.Services;
 
 public class VolumeMonitorService : IDisposable
 {
-    private readonly AudioSessionDataManager _sessionDataManager;
+    private readonly AudioSessionManager _sessionManager;
     private readonly VolumeSettingsManager _settingsManager;
     private readonly ConcurrentDictionary<string, float> _lastKnownVolumes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _pollTimer;
     private readonly SemaphoreSlim _pollLock = new(1, 1);
     private volatile bool _isDisposed;
 
-    public VolumeMonitorService(AudioSessionDataManager sessionDataManager, VolumeSettingsManager settingsManager)
+    public VolumeMonitorService(AudioSessionManager sessionManager, VolumeSettingsManager settingsManager)
     {
-        _sessionDataManager = sessionDataManager;
+        _sessionManager = sessionManager;
         _settingsManager = settingsManager;
         _pollTimer = new Timer(PollVolumeChanges, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
     }
@@ -31,7 +31,7 @@ public class VolumeMonitorService : IDisposable
 
         try
         {
-            var sessions = _sessionDataManager.GetAllSessions();
+            var sessions = await _sessionManager.GetAllSessionsAsync();
 
             foreach (var session in sessions)
             {
@@ -91,7 +91,7 @@ public class VolumeMonitorService : IDisposable
     {
         try
         {
-            var sessions = _sessionDataManager.GetAllSessions();
+            var sessions = _sessionManager.GetAllSessionsAsync().GetAwaiter().GetResult();
 
             foreach (var session in sessions)
             {

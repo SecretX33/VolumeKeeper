@@ -42,8 +42,7 @@ public sealed partial class HomePage : Page
     {
         try
         {
-            if (App.VolumeStorageService == null) return;
-            var settings = await App.VolumeStorageService.GetSettingsAsync();
+            var settings = await App.VolumeSettingsManager.GetSettingsAsync();
             AutoRestoreToggle.IsOn = settings.AutoRestoreEnabled;
         } catch (Exception ex)
         {
@@ -55,15 +54,14 @@ public sealed partial class HomePage : Page
     {
         try
         {
-            if (App.AudioSessionManager == null) return;
-            var sessions = App.AudioSessionManager.GetAllSessions();
+            var sessions = await App.AudioSessionManager.GetAllSessionsAsync();
 
             var sessionsWithSavedVolumes = new List<(AudioSession session, int? savedVolume)>();
 
             foreach (var session in sessions)
             {
-                var savedVolume = App.VolumeStorageService != null
-                    ? await App.VolumeStorageService.GetVolumeAsync(session.ExecutableName)
+                var savedVolume = App.VolumeSettingsManager != null
+                    ? await App.VolumeSettingsManager.GetVolumeAsync(session.ExecutableName)
                     : null;
                 sessionsWithSavedVolumes.Add((session, savedVolume));
             }
@@ -110,8 +108,7 @@ public sealed partial class HomePage : Page
     {
         try
         {
-            if (App.AudioSessionManager == null) return;
-            var sessions = App.AudioSessionManager.GetAllSessions();
+            var sessions = await App.AudioSessionManager.GetAllSessionsAsync();
 
             // Get saved volumes for new sessions
             var newSessions = sessions.Where(s =>
@@ -120,8 +117,8 @@ public sealed partial class HomePage : Page
 
             foreach (var session in newSessions)
             {
-                var savedVolume = App.VolumeStorageService != null
-                    ? await App.VolumeStorageService.GetVolumeAsync(session.ExecutableName)
+                var savedVolume = App.VolumeSettingsManager != null
+                    ? await App.VolumeSettingsManager.GetVolumeAsync(session.ExecutableName)
                     : null;
                 newSessionsWithVolumes.Add((session, savedVolume));
             }
@@ -210,10 +207,7 @@ public sealed partial class HomePage : Page
             var result = await dialog.ShowAsync();
             if (result != ContentDialogResult.Primary) return;
 
-            if (App.VolumeStorageService != null)
-            {
-                await App.VolumeStorageService.ClearAllVolumesAsync();
-            }
+            await App.VolumeSettingsManager.ClearAllConfigurationsAsync();
 
             Applications.Clear();
             UpdateEmptyStateVisibility();
@@ -229,12 +223,12 @@ public sealed partial class HomePage : Page
     {
         try
         {
-            if (App.VolumeStorageService == null || sender is not ToggleSwitch toggle) return;
-            var settings = await App.VolumeStorageService.GetSettingsAsync();
+            if (sender is not ToggleSwitch toggle) return;
+            var settings = await App.VolumeSettingsManager.GetSettingsAsync();
             if (settings.AutoRestoreEnabled == toggle.IsOn) return;
 
             settings.AutoRestoreEnabled = toggle.IsOn;
-            await App.VolumeStorageService.SaveSettingsAsync(settings);
+            await App.VolumeSettingsManager.SaveSettingsAsync(settings);
             App.Logger.LogInfo($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
         }
         catch (Exception ex)
@@ -249,19 +243,18 @@ public sealed partial class HomePage : Page
         {
             if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
 
-            var audioSessionManager = App.AudioSessionManager;
-            if (audioSessionManager == null || App.VolumeStorageService == null) return;
+            var volumeSettingsService = App.AudioSessionService;
 
-            var settings = await App.VolumeStorageService.GetSettingsAsync();
+            var settings = await App.VolumeSettingsManager.GetSettingsAsync();
 
             if (app.Volume > 0)
             {
                 // Store current volume before muting
                 settings.LastVolumeBeforeMute[app.ExecutableName.ToLowerInvariant()] = (int)app.Volume;
-                await App.VolumeStorageService.SaveSettingsAsync(settings);
+                await App.VolumeSettingsManager.SaveSettingsAsync(settings);
 
                 // Mute
-                await audioSessionManager.SetSessionVolume(app.ExecutableName, 0);
+                await volumeSettingsService.SetSessionVolume(app.ExecutableName, 0);
                 app.Volume = 0;
                 App.Logger.LogInfo(
                     $"Muted {app.ApplicationName} (saved volume: {settings.LastVolumeBeforeMute[app.ExecutableName.ToLowerInvariant()]}%)",
@@ -272,14 +265,14 @@ public sealed partial class HomePage : Page
                 // Unmute - restore previous volume
                 if (settings.LastVolumeBeforeMute.TryGetValue(app.ExecutableName.ToLowerInvariant(), out var lastVolume))
                 {
-                    await audioSessionManager.SetSessionVolume(app.ExecutableName, lastVolume);
+                    await volumeSettingsService.SetSessionVolume(app.ExecutableName, lastVolume);
                     app.Volume = lastVolume;
                     App.Logger.LogInfo($"Unmuted {app.ApplicationName} to {lastVolume}%", "HomePage");
                 }
                 else
                 {
                     // No saved volume, restore to 50%
-                    await audioSessionManager.SetSessionVolume(app.ExecutableName, 50);
+                    await volumeSettingsService.SetSessionVolume(app.ExecutableName, 50);
                     app.Volume = 50;
                     App.Logger.LogInfo($"Unmuted {app.ApplicationName} to 50% (no saved volume)", "HomePage");
                 }
@@ -303,17 +296,12 @@ public sealed partial class HomePage : Page
         try {
             if (sender is not Slider { Tag: ApplicationVolume app } || string.IsNullOrEmpty(app.ExecutableName)) return;
 
-            var audioSessionManager = App.AudioSessionManager;
-            if (audioSessionManager == null)
-            {
-                App.Logger.LogError("Audio session manager not initialized, cannot change volume of: " + app.ApplicationName);
-                return;
-            }
-
             var newVolume = (int)e.NewValue;
 
+            var volumeSettingsManager = App.VolumeSettingsManager;
+
             // Update the audio session volume
-            await audioSessionManager.SetSessionVolume(app.ExecutableName, newVolume);
+            await volumeSettingsManager.SetVolumeAsync(app.ExecutableName, newVolume);
         } catch (Exception ex)
         {
             App.Logger.LogError("Failed to change volume", ex, "HomePage");
@@ -325,10 +313,9 @@ public sealed partial class HomePage : Page
         try
         {
             if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
-            if (App.VolumeStorageService == null) return;
 
             var currentVolume = (int)app.Volume;
-            await App.VolumeStorageService.SaveVolumeAsync(app.ExecutableName, currentVolume);
+            await App.VolumeSettingsManager.SetVolumeAsync(app.ExecutableName, currentVolume);
             app.SavedVolume = currentVolume;
 
             App.Logger.LogInfo($"Saved volume for {app.ApplicationName}: {currentVolume}%", "HomePage");
@@ -346,11 +333,10 @@ public sealed partial class HomePage : Page
             if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
             if (!app.SavedVolume.HasValue) return;
 
-            var audioSessionManager = App.AudioSessionManager;
-            if (audioSessionManager == null) return;
+            var audioSessionService = App.AudioSessionService;
 
             var savedVolume = app.SavedVolume.Value;
-            await audioSessionManager.SetSessionVolume(app.ExecutableName, savedVolume);
+            await audioSessionService.SetSessionVolume(app.ExecutableName, savedVolume);
             app.Volume = savedVolume;
 
             App.Logger.LogInfo($"Reverted volume for {app.ApplicationName} to {savedVolume}%", "HomePage");

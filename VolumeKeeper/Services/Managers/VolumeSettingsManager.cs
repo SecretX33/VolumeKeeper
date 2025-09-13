@@ -165,7 +165,7 @@ public class VolumeSettingsManager
         }
     }
 
-    private async Task SaveSettingsAsync(VolumeSettings settings)
+    public async Task SaveSettingsAsync(VolumeSettings settings)
     {
         await _fileLock.WaitAsync();
         try

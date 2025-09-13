@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using VolumeKeeper.Models;
 using VolumeKeeper.Util;
 
-namespace VolumeKeeper.Services;
+namespace VolumeKeeper.Services.Managers;
 
 public class WindowSettingsManager
 {

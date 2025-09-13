@@ -34,21 +34,17 @@ public sealed partial class LogsPage : Page
 
     private async void LoadSettings()
     {
-        if (App.VolumeStorageService != null)
-        {
-            var settings = await App.VolumeStorageService.GetSettingsAsync();
-            AutoScrollToggle.IsOn = settings.AutoScrollLogsEnabled;
-        }
+        var settings = await App.VolumeSettingsManager.GetSettingsAsync();
+        AutoScrollToggle.IsOn = settings.AutoScrollLogsEnabled;
     }
 
     private async void AutoScrollToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (App.VolumeStorageService != null && sender is ToggleSwitch toggle)
-        {
-            var settings = await App.VolumeStorageService.GetSettingsAsync();
-            settings.AutoScrollLogsEnabled = toggle.IsOn;
-            await App.VolumeStorageService.SaveSettingsAsync(settings);
-        }
+        if (sender is not ToggleSwitch toggle) return;
+
+        var settings = await App.VolumeSettingsManager.GetSettingsAsync();
+        settings.AutoScrollLogsEnabled = toggle.IsOn;
+        await App.VolumeSettingsManager.SaveSettingsAsync(settings);
     }
 
 

@@ -12,7 +12,7 @@ using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services.Managers;
 
-public partial class AudioSessionDataManager : IDisposable
+public partial class AudioSessionManager : IDisposable
 {
     private readonly MMDeviceEnumerator _deviceEnumerator;
     private readonly AtomicReference<MMDevice?> _defaultDevice = new(null);
@@ -22,7 +22,7 @@ public partial class AudioSessionDataManager : IDisposable
     private List<AudioSession>? _cachedSessions;
     private DateTime _cacheExpiry = DateTime.MinValue;
 
-    public AudioSessionDataManager()
+    public AudioSessionManager()
     {
         _deviceEnumerator = new MMDeviceEnumerator();
         RefreshDevice();
@@ -47,11 +47,6 @@ public partial class AudioSessionDataManager : IDisposable
         {
             _cacheLock.Release();
         }
-    }
-
-    public List<AudioSession> GetAllSessions()
-    {
-        return GetAllSessionsAsync().GetAwaiter().GetResult();
     }
 
     public async Task<List<AudioSession>> GetSessionsByExecutableAsync(string executableName)
