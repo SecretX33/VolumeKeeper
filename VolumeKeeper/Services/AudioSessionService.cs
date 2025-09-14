@@ -10,7 +10,7 @@ using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services;
 
-public class AudioSessionService : IDisposable
+public partial class AudioSessionService : IDisposable
 {
     private const int VolumeDebounceDelayMs = 300;
     private readonly AudioSessionManager _sessionManager;

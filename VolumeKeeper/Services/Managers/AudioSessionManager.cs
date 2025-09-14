@@ -31,7 +31,7 @@ public partial class AudioSessionManager : IDisposable
 
     public async Task<List<AudioSession>> GetAllSessionsAsync()
     {
-        await _cacheLock.WaitAsync();
+        await _cacheLock.WaitAsync().ConfigureAwait(false);
         try
         {
             if (_cachedSessions != null && DateTime.UtcNow < _cacheExpiry)
@@ -159,7 +159,10 @@ public partial class AudioSessionManager : IDisposable
                 return null;
 
             using var process = Process.GetProcessById(processId);
-            var executableName = Path.GetFileName(process.MainModule?.FileName ?? process.ProcessName);
+            var fullPath = process.MainModule?.FileName;
+            var executableName = Path.GetFileName(fullPath ?? process.ProcessName);
+
+            App.Logger.LogDebug($"Found audio session: PID={processId}, Name={executableName}, Path={fullPath}");
 
             if (!executableName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             {
@@ -171,6 +174,7 @@ public partial class AudioSessionManager : IDisposable
                 ProcessId = processId,
                 ProcessName = process.ProcessName,
                 ExecutableName = executableName,
+                ExecutablePath = fullPath,
                 Volume = simpleVolume.Volume * 100,
                 IsMuted = simpleVolume.Mute,
                 IconPath = sessionControl.IconPath ?? string.Empty,

@@ -8,7 +8,7 @@ using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
-public class VolumeRestorationService : IDisposable
+public partial class VolumeRestorationService : IDisposable
 {
     private readonly AudioSessionService _audioSessionService;
     private readonly AudioSessionManager _sessionManager;
@@ -130,7 +130,7 @@ public class VolumeRestorationService : IDisposable
 
             foreach (var session in validSessions)
             {
-                var savedVolume = await _settingsManager.GetVolumeAsync(session.ExecutableName);
+                var savedVolume = _settingsManager.GetVolume(session.VolumeId);
                 if (savedVolume == null || Math.Abs(session.Volume - savedVolume.Value) <= 1) continue;
 
                 if (await _audioSessionService.SetSessionVolume(session.ExecutableName, savedVolume.Value))

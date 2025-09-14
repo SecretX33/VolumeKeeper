@@ -168,7 +168,7 @@ public partial class App : Application
         // Ensure the application closes even if some services hang during disposal
         Task.Run(async () =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(2));
+            await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
             Environment.Exit(0);
         });
 

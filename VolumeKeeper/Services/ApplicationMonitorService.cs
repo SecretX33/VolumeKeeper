@@ -15,7 +15,7 @@ public class ApplicationLaunchEventArgs : EventArgs
     public int ProcessId { get; init; }
 }
 
-public class ApplicationMonitorService : IDisposable
+public partial class ApplicationMonitorService : IDisposable
 {
     private readonly ProcessDataManager _processDataManager;
     private readonly AtomicReference<bool> _isDisposed = new(false);

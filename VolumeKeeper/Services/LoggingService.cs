@@ -21,7 +21,7 @@ public interface ILoggingService
     Task FlushAsync();
 }
 
-public class LoggingService : ILoggingService, IDisposable
+public partial class LoggingService : ILoggingService, IDisposable
 {
     private readonly ObservableCollection<LogEntry> _logEntries;
     private readonly Queue<LogEntry> _pendingFileWrites;
@@ -138,7 +138,7 @@ public class LoggingService : ILoggingService, IDisposable
             _pendingFileWrites.Clear();
         }
 
-        await _fileWriteSemaphore.WaitAsync();
+        await _fileWriteSemaphore.WaitAsync().ConfigureAwait(false);
         try
         {
             var lines = entriesToWrite.Select(entry =>

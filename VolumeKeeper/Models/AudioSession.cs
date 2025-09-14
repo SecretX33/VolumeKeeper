@@ -12,4 +12,8 @@ public class AudioSession
     public bool IsMuted { get; set; }
     public string IconPath { get; set; } = string.Empty;
     public AudioSessionControl SessionControl { get; set; } = null!;
+
+    public VolumeApplicationId VolumeId => ExecutablePath != null
+        ? new PathVolumeApplicationId(ExecutablePath)
+        : new NamedVolumeApplicationId(ExecutableName);
 }
