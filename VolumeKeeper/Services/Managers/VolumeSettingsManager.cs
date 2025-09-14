@@ -65,7 +65,9 @@ public class VolumeSettingsManager
         }
     }
 
-    public int? GetVolume(VolumeApplicationId id) => _applicationVolumes.GetOrNullValue(id);
+    public int? GetVolume(VolumeApplicationId id) => id.GetAllVariants()
+        .Select(_applicationVolumes.GetOrNullValue)
+        .First(it => it != null);
 
     public void SetVolumeAndSave(VolumeApplicationId id, int value)
     {

@@ -50,6 +50,14 @@ public partial class AudioSessionManager : IDisposable
         }
     }
 
+    public async Task<List<AudioSession>> GetSessionsById(VolumeApplicationId volumeApplicationId)
+    {
+        var allSessions = await GetAllSessionsAsync();
+        return volumeApplicationId.GetAllVariants()
+            .SelectMany(id => allSessions.Where(session => session.AppId == id))
+            .ToList();
+    }
+
     public async Task<List<AudioSession>> GetSessionsByExecutableAsync(string executableName)
     {
         if (string.IsNullOrWhiteSpace(executableName))

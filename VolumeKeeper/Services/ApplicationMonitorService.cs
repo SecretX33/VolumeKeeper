@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using VolumeKeeper.Models;
 using VolumeKeeper.Services.Managers;
 using VolumeKeeper.Services.Strategies.ProcessMonitoring;
 using VolumeKeeper.Util;
@@ -12,7 +13,12 @@ namespace VolumeKeeper.Services;
 public class ApplicationLaunchEventArgs : EventArgs
 {
     public string ExecutableName { get; init; } = string.Empty;
+    public string? ExecutablePath { get; init; } = null;
     public int ProcessId { get; init; }
+
+    public VolumeApplicationId AppId => !string.IsNullOrWhiteSpace(ExecutablePath)
+        ? new PathVolumeApplicationId(ExecutablePath)
+        : new NamedVolumeApplicationId(ExecutableName);
 }
 
 public partial class ApplicationMonitorService : IDisposable

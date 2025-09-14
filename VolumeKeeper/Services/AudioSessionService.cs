@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VolumeKeeper.Models;
 using VolumeKeeper.Services.Managers;
 using VolumeKeeper.Util;
 using static VolumeKeeper.Util.Util;
@@ -14,7 +15,7 @@ public partial class AudioSessionService : IDisposable
 {
     private const int VolumeDebounceDelayMs = 300;
     private readonly AudioSessionManager _sessionManager;
-    private readonly ConcurrentDictionary<string, CancellationTokenSource> _volumeDebounceTokens = new();
+    private readonly ConcurrentDictionary<VolumeApplicationId, CancellationTokenSource> _volumeDebounceTokens = new();
     private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
@@ -23,14 +24,12 @@ public partial class AudioSessionService : IDisposable
         _sessionManager = sessionManager;
     }
 
-    public Task<bool> SetSessionVolume(string executableName, int volumePercentage)
+    public Task<bool> SetSessionVolume(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
         return Task.Run(async () =>
         {
-            var cacheKey = executableName.ToLowerInvariant();
-
             // Create new cancellation token for this debounce
-            using var cancellationTokenSource = _volumeDebounceTokens.AddOrUpdate(cacheKey, _ => new CancellationTokenSource(), (_, oldValue) =>
+            using var cancellationTokenSource = _volumeDebounceTokens.AddOrUpdate(volumeApplicationId, _ => new CancellationTokenSource(), (_, oldValue) =>
             {
                 oldValue.Cancel();
                 return new CancellationTokenSource();
@@ -49,7 +48,7 @@ public partial class AudioSessionService : IDisposable
                     await _volumeSetSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
-                        return SetSessionVolumeImmediate(executableName, volumePercentage);
+                        return await SetSessionVolumeImmediate(volumeApplicationId, volumePercentage);
                     }
                     finally
                     {
@@ -63,20 +62,20 @@ public partial class AudioSessionService : IDisposable
             }
             catch (Exception ex)
             {
-                App.Logger.LogError($"Error setting volume for {executableName}", ex, "AudioSessionManager");
+                App.Logger.LogError($"Error setting volume for {volumeApplicationId}", ex, "AudioSessionManager");
             }
             finally
             {
-                _volumeDebounceTokens.TryRemove(new KeyValuePair<string, CancellationTokenSource>(cacheKey, cancellationTokenSource));
+                _volumeDebounceTokens.TryRemove(new KeyValuePair<VolumeApplicationId, CancellationTokenSource>(volumeApplicationId, cancellationTokenSource));
             }
 
             return false;
         });
     }
 
-    public bool SetSessionVolumeImmediate(string executableName, int volumePercentage)
+    public async Task<bool> SetSessionVolumeImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
-        var sessions = _sessionManager.GetSessionsByExecutable(executableName);
+        var sessions = await _sessionManager.GetSessionsById(volumeApplicationId);
 
         bool anySet = false;
         foreach (var session in sessions)
@@ -85,11 +84,11 @@ public partial class AudioSessionService : IDisposable
             {
                 session.SessionControl.SimpleAudioVolume.Volume = volumePercentage / 100f;
                 anySet = true;
-                App.Logger.LogInfo($"Set volume for {executableName} (PID: {session.ProcessId}) to {volumePercentage}%", "AudioSessionManager");
+                App.Logger.LogInfo($"Set volume for {volumeApplicationId} (PID: {session.ProcessId}) to {volumePercentage}%", "AudioSessionManager");
             }
             catch (Exception ex)
             {
-                App.Logger.LogError($"Failed to set volume for {executableName} (PID: {session.ProcessId})", ex, "AudioSessionManager");
+                App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex, "AudioSessionManager");
             }
         }
 
