@@ -170,15 +170,10 @@ public partial class AudioSessionManager : IDisposable
 
             App.Logger.LogDebug($"Found audio session: PID={processId}, Name={executableName}, Path={fullPath}");
 
-            if (!executableName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-            {
-                executableName += ".exe";
-            }
-
             return new AudioSession
             {
                 ProcessId = processId,
-                ProcessName = process.ProcessName,
+                ProcessName = sessionControl.DisplayName,
                 ExecutableName = executableName,
                 ExecutablePath = fullPath,
                 Volume = simpleVolume.Volume * 100,

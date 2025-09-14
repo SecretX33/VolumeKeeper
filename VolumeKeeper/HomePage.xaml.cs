@@ -65,7 +65,7 @@ public sealed partial class HomePage : Page
                     var app = new Models.UI.ApplicationVolume
                     {
                         Session = session,
-                        ApplicationName = Path.GetFileNameWithoutExtension(session.ExecutableName),
+                        ApplicationName = session.ProcessName,
                         Volume = session.Volume,
                         SavedVolume = savedVolume,
                         Status = "Active",
@@ -146,7 +146,7 @@ public sealed partial class HomePage : Page
                     var app = new Models.UI.ApplicationVolume
                     {
                         Session = session,
-                        ApplicationName = Path.GetFileNameWithoutExtension(session.ExecutableName),
+                        ApplicationName = session.ProcessName,
                         Volume = session.Volume,
                         SavedVolume = savedVolume,
                         Status = "Active",
@@ -203,7 +203,7 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private async void AutoRestoreToggle_Toggled(object sender, RoutedEventArgs e)
+    private void AutoRestoreToggle_Toggled(object sender, RoutedEventArgs e)
     {
         try
         {

@@ -23,7 +23,7 @@ public sealed partial class ApplicationVolume : INotifyPropertyChanged
     public string? ExecutablePath => _session.ExecutablePath;
     public bool IsMuted => _session.IsMuted;
 
-    public required AudioSession Session
+    public AudioSession Session
     {
         get => _session;
         set

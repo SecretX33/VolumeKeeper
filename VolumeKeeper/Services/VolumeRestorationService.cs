@@ -128,11 +128,11 @@ public partial class VolumeRestorationService : IDisposable
 
                 if (await _audioSessionService.SetSessionVolume(session.AppId, savedVolume.Value))
                 {
-                    App.Logger.LogInfo($"Volume restored for {session.ExecutableName} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
+                    App.Logger.LogInfo($"Volume restored for {session.AppId} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
                 }
                 else
                 {
-                    App.Logger.LogWarning($"Failed to restore volume for {session.ExecutableName}", "VolumeRestorationService");
+                    App.Logger.LogWarning($"Failed to restore volume for {session.AppId}", "VolumeRestorationService");
                 }
             }
         }
