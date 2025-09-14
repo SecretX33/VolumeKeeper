@@ -26,20 +26,51 @@ public abstract record VolumeApplicationId(ApplicationNameMatchType NameMatchTyp
     public virtual IEnumerable<VolumeApplicationId> GetAllVariants() => [this];
 }
 
-public record NamedVolumeApplicationId(string Name) : VolumeApplicationId(ApplicationNameMatchType.Name);
+public record NamedVolumeApplicationId(string Name) : VolumeApplicationId(ApplicationNameMatchType.Name)
+{
+    public virtual bool Equals(NamedVolumeApplicationId? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return base.Equals(other) && string.Equals(Name, other.Name, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public override int GetHashCode()
+    {
+        var hashCode = new HashCode();
+        hashCode.Add(base.GetHashCode());
+        hashCode.Add(Name, StringComparer.OrdinalIgnoreCase);
+        return hashCode.ToHashCode();
+    }
+}
 
 public record PathVolumeApplicationId(string Path) : VolumeApplicationId(ApplicationNameMatchType.Path)
 {
     public override IEnumerable<VolumeApplicationId> GetAllVariants()
     {
         var variants = new List<VolumeApplicationId> { this };
-        var fileName = System.IO.Path.GetFileName(Path).ToLowerInvariant();
+        var fileName = System.IO.Path.GetFileName(Path);
 
-        if (!string.IsNullOrWhiteSpace(fileName) && !string.Equals(fileName, Path, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(fileName))
         {
             variants.Add(new NamedVolumeApplicationId(fileName));
         }
         return variants;
+    }
+
+    public virtual bool Equals(PathVolumeApplicationId? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return base.Equals(other) && string.Equals(Path, other.Path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public override int GetHashCode()
+    {
+        var hashCode = new HashCode();
+        hashCode.Add(base.GetHashCode());
+        hashCode.Add(Path, StringComparer.OrdinalIgnoreCase);
+        return hashCode.ToHashCode();
     }
 }
 

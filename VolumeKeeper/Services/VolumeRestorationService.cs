@@ -130,7 +130,7 @@ public partial class VolumeRestorationService : IDisposable
 
             foreach (var session in validSessions)
             {
-                var savedVolume = _settingsManager.GetVolume(session.VolumeId);
+                var savedVolume = _settingsManager.GetVolume(session.AppId);
                 if (savedVolume == null || Math.Abs(session.Volume - savedVolume.Value) <= 1) continue;
 
                 if (await _audioSessionService.SetSessionVolume(session.ExecutableName, savedVolume.Value))
