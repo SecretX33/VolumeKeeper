@@ -99,8 +99,7 @@ public sealed partial class HomePage : Page
             var sessions = await App.AudioSessionManager.GetAllSessionsAsync();
 
             // Get saved volumes for new sessions
-            var newSessions = sessions.Where(s =>
-                !Applications.Any(a => string.Equals(a.ExecutableName, s.ExecutableName, StringComparison.OrdinalIgnoreCase))).ToList();
+            var newSessions = sessions.Where(s => Applications.All(a => a.AppId != s.AppId)).ToList();
             var newSessionsWithVolumes = new List<(AudioSession session, int? savedVolume)>();
 
             foreach (var session in newSessions)
@@ -114,13 +113,12 @@ public sealed partial class HomePage : Page
                 // Update existing applications
                 foreach (var app in Applications.ToList())
                 {
-                    var session = sessions.FirstOrDefault(s =>
-                        string.Equals(s.ExecutableName, app.ExecutableName, StringComparison.OrdinalIgnoreCase));
+                    var session = sessions.FirstOrDefault(s => s.AppId == app.AppId);
                     if (session != null)
                     {
                         if (Math.Abs(app.Volume - session.Volume) > 1.0)
                         {
-                            App.Logger.LogInfo($"Volume changed for {app.ApplicationName}: {app.Volume}% → {session.Volume}%", "HomePage");
+                            App.Logger.LogInfo($"Volume changed for {app.AppId}: {app.Volume}% -> {session.Volume}%", "HomePage");
                         }
 
                         app.Session = session;

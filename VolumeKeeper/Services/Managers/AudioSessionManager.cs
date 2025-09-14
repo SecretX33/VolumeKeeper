@@ -167,13 +167,21 @@ public partial class AudioSessionManager : IDisposable
             using var process = Process.GetProcessById(processId);
             var fullPath = process.MainModule?.FileName;
             var executableName = Path.GetFileName(fullPath ?? process.ProcessName);
+            var displayName = new[]
+                {
+                    sessionControl.DisplayName,
+                    process.MainWindowTitle,
+                    process.MainModule?.ModuleName
+                }
+                .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+                ?? executableName;
 
-            App.Logger.LogDebug($"Found audio session: PID={processId}, Name={executableName}, Path={fullPath}");
+            App.Logger.LogDebug($"Found audio session: PID={processId}, Name={displayName} ({executableName}), Path={fullPath}");
 
             return new AudioSession
             {
                 ProcessId = processId,
-                ProcessName = sessionControl.DisplayName,
+                ProcessName = displayName,
                 ExecutableName = executableName,
                 ExecutablePath = fullPath,
                 Volume = simpleVolume.Volume * 100,
