@@ -25,7 +25,6 @@ public partial class App : Application
     private static VolumeSettingsManager? _volumeSettingsManager;
     private static WindowSettingsManager? _windowSettingsManager;
     private static AudioSessionService? _audioSessionService;
-    private static VolumeMonitorService? _volumeMonitorService;
     private ApplicationMonitorService? _applicationMonitorService;
     private VolumeRestorationService? _volumeRestorationService;
     public static ILoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
@@ -140,13 +139,9 @@ public partial class App : Application
             _audioSessionService = new AudioSessionService(_audioSessionManager);
 
             // Initialize monitoring services with managers
-            _volumeMonitorService = new VolumeMonitorService(_audioSessionManager, _volumeSettingsManager);
             _applicationMonitorService = new ApplicationMonitorService(_processDataManager);
 
-            await Task.WhenAll(
-                Task.Run(_applicationMonitorService.Initialize),
-                Task.Run(_volumeMonitorService.Initialize)
-            );
+            await Task.Run(_applicationMonitorService.Initialize);
 
             _volumeRestorationService = new VolumeRestorationService(
                 _audioSessionService,
@@ -181,7 +176,6 @@ public partial class App : Application
         {
             _mainWindow?.Close();
             DisposeAll(
-                _volumeMonitorService,
                 _applicationMonitorService,
                 _volumeRestorationService,
                 _audioSessionManager,
