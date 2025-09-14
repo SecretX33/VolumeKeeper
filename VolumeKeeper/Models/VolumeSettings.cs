@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text.Json.Serialization;
 using VolumeKeeper.Util.Converter;
 
@@ -23,54 +24,71 @@ public record ApplicationVolumeConfig(
 
 public abstract record VolumeApplicationId(ApplicationNameMatchType NameMatchType)
 {
-    public virtual IEnumerable<VolumeApplicationId> GetAllVariants() => [this];
-}
+    public abstract string Name { get; init; }
 
-public record NamedVolumeApplicationId(string Name) : VolumeApplicationId(ApplicationNameMatchType.Name)
-{
-    public virtual bool Equals(NamedVolumeApplicationId? other)
+    public static VolumeApplicationId Create(string? executablePath, string executableName)
+    {
+        return !string.IsNullOrWhiteSpace(executablePath)
+            ? new PathVolumeApplicationId(executablePath)
+            : new NamedVolumeApplicationId(executableName);
+    }
+
+    public virtual bool Equals(VolumeApplicationId? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return base.Equals(other) && string.Equals(Name, other.Name, StringComparison.OrdinalIgnoreCase);
+
+        // Both are path-based, compare paths
+        if (this is PathVolumeApplicationId thisId && other is PathVolumeApplicationId otherId)
+        {
+            return string.Equals(thisId.Path, otherId.Path, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Fallback to name match if either is name match
+        return string.Equals(Name, other.Name, StringComparison.OrdinalIgnoreCase);
     }
 
     public override int GetHashCode()
     {
         var hashCode = new HashCode();
-        hashCode.Add(base.GetHashCode());
         hashCode.Add(Name, StringComparer.OrdinalIgnoreCase);
         return hashCode.ToHashCode();
     }
 }
 
-public record PathVolumeApplicationId(string Path) : VolumeApplicationId(ApplicationNameMatchType.Path)
+public sealed record NamedVolumeApplicationId : VolumeApplicationId
 {
-    public override IEnumerable<VolumeApplicationId> GetAllVariants()
-    {
-        var variants = new List<VolumeApplicationId> { this };
-        var fileName = System.IO.Path.GetFileName(Path);
+    public override string Name { get; init; }
 
-        if (!string.IsNullOrWhiteSpace(fileName))
+    public NamedVolumeApplicationId(string name) : base(ApplicationNameMatchType.Name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
         {
-            variants.Add(new NamedVolumeApplicationId(fileName));
+            throw new ArgumentException("Name cannot be null or empty.", nameof(name));
         }
-        return variants;
+        Name = System.IO.Path.GetFileName(name);
+        if (string.IsNullOrWhiteSpace(Name)) {
+            throw new ArgumentException("Name must contain a valid file name.", nameof(name));
+        }
     }
+}
 
-    public virtual bool Equals(PathVolumeApplicationId? other)
-    {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return base.Equals(other) && string.Equals(Path, other.Path, StringComparison.OrdinalIgnoreCase);
-    }
+public sealed record PathVolumeApplicationId : VolumeApplicationId
+{
+    public readonly string Path;
+    public override string Name { get; init; }
 
-    public override int GetHashCode()
+    public PathVolumeApplicationId(string path) : base(ApplicationNameMatchType.Path)
     {
-        var hashCode = new HashCode();
-        hashCode.Add(base.GetHashCode());
-        hashCode.Add(Path, StringComparer.OrdinalIgnoreCase);
-        return hashCode.ToHashCode();
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new ArgumentException("Path cannot be null or empty.", nameof(path));
+        }
+        Path = path;
+        Name = System.IO.Path.GetFileName(path);
+        if (string.IsNullOrWhiteSpace(Name)) {
+            throw new ArgumentException("Path must contain a valid file name.", nameof(path));
+        }
     }
 }
 

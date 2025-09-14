@@ -15,7 +15,7 @@ public partial class VolumeRestorationService : IDisposable
     private readonly AudioSessionManager _sessionManager;
     private readonly VolumeSettingsManager _settingsManager;
     private readonly ApplicationMonitorService _appMonitorService;
-    private readonly ConcurrentDictionary<string, DateTime> _recentRestorations = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<VolumeApplicationId, DateTime> _recentRestorations = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _cleanupTimer;
     private readonly TimeSpan _restorationCooldown = TimeSpan.FromSeconds(1);
     private readonly AtomicReference<bool> _isDisposed = new(false);
@@ -49,7 +49,7 @@ public partial class VolumeRestorationService : IDisposable
                 }
             }
 
-            await Task.Run(() => RestoreVolumeAsync(e.ExecutableName));
+            await Task.Run(() => RestoreVolumeAsync(e.AppId));
         } catch (Exception ex)
         {
             App.Logger.LogError($"Error handling application launch for {e.ExecutableName}", ex, "VolumeRestorationService");
@@ -73,7 +73,7 @@ public partial class VolumeRestorationService : IDisposable
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                if (_audioSessionService.SetSessionVolumeImmediate(executableName, savedVolume.Value))
+                if (await _audioSessionService.SetSessionVolumeImmediate(volumeApplicationId, savedVolume.Value))
                 {
                     _recentRestorations[executableName] = DateTime.UtcNow;
                     App.Logger.LogInfo($"Volume restored for {executableName} to {savedVolume}% (attempt {attempt + 1})",
@@ -90,13 +90,13 @@ public partial class VolumeRestorationService : IDisposable
 
             if (!restored)
             {
-                App.Logger.LogWarning($"Failed to restore volume for {executableName} after {maxAttempts} attempts",
+                App.Logger.LogWarning($"Failed to restore volume for {volumeApplicationId} after {maxAttempts} attempts",
                     "VolumeRestorationService");
             }
         }
         catch (Exception ex)
         {
-            App.Logger.LogError($"Error restoring volume for {executableName}", ex, "VolumeRestorationService");
+            App.Logger.LogError($"Error restoring volume for {volumeApplicationId}", ex, "VolumeRestorationService");
         }
     }
 

@@ -10,15 +10,11 @@ using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
-public class ApplicationLaunchEventArgs : EventArgs
+public class ApplicationLaunchEventArgs : ProcessEventArgs
 {
-    public string ExecutableName { get; init; } = string.Empty;
     public string? ExecutablePath { get; init; } = null;
-    public int ProcessId { get; init; }
-
-    public VolumeApplicationId AppId => !string.IsNullOrWhiteSpace(ExecutablePath)
-        ? new PathVolumeApplicationId(ExecutablePath)
-        : new NamedVolumeApplicationId(ExecutableName);
+    public string ExecutableName => ProcessName;
+    public VolumeApplicationId AppId => VolumeApplicationId.Create(ExecutablePath, ProcessName);
 }
 
 public partial class ApplicationMonitorService : IDisposable
@@ -112,7 +108,7 @@ public partial class ApplicationMonitorService : IDisposable
         App.Logger.LogInfo($"Application launched: {executableName} (PID: {processId})", "ApplicationMonitorService");
         ApplicationLaunched?.Invoke(this, new ApplicationLaunchEventArgs
         {
-            ExecutableName = executableName,
+            ProcessName = executableName,
             ProcessId = processId
         });
     }

@@ -13,7 +13,5 @@ public class AudioSession
     public string IconPath { get; init; } = string.Empty;
     public AudioSessionControl SessionControl { get; init; } = null!;
 
-    public VolumeApplicationId AppId => !string.IsNullOrWhiteSpace(ExecutablePath)
-        ? new PathVolumeApplicationId(ExecutablePath)
-        : new NamedVolumeApplicationId(ExecutableName);
+    public VolumeApplicationId AppId => VolumeApplicationId.Create(ExecutablePath, ExecutableName);
 }

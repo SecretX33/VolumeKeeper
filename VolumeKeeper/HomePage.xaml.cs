@@ -68,16 +68,12 @@ public sealed partial class HomePage : Page
                 {
                     var app = new ApplicationVolume
                     {
-                        AppId = session.AppId,
+                        Session = session,
                         ApplicationName = Path.GetFileNameWithoutExtension(session.ExecutableName),
-                        ProcessName = session.ProcessName,
-                        ExecutableName = session.ExecutableName,
-                        ExecutablePath = session.ExecutablePath,
                         Volume = session.Volume,
                         SavedVolume = savedVolume,
                         Status = "Active",
-                        LastSeen = "Just now",
-                        IsMuted = session.IsMuted
+                        LastSeen = "Just now"
                     };
 
                     Applications.Add(app);
@@ -133,9 +129,9 @@ public sealed partial class HomePage : Page
                             App.Logger.LogInfo($"Volume changed for {app.ApplicationName}: {app.Volume}% → {session.Volume}%", "HomePage");
                         }
 
+                        app.Session = session;
                         app.Volume = session.Volume;
                         app.Status = "Active";
-                        app.IsMuted = session.IsMuted;
                         app.LastSeen = "Just now";
                     }
                     else
@@ -155,15 +151,12 @@ public sealed partial class HomePage : Page
 
                     var app = new ApplicationVolume
                     {
-                        AppId = session.AppId,
+                        Session = session,
                         ApplicationName = Path.GetFileNameWithoutExtension(session.ExecutableName),
-                        ProcessName = session.ProcessName,
-                        ExecutableName = session.ExecutableName,
                         Volume = session.Volume,
                         SavedVolume = savedVolume,
                         Status = "Active",
-                        LastSeen = "Just now",
-                        IsMuted = session.IsMuted
+                        LastSeen = "Just now"
                     };
 
                     Applications.Add(app);
@@ -350,18 +343,34 @@ public sealed partial class HomePage : Page
 
 public sealed partial class ApplicationVolume : INotifyPropertyChanged
 {
-    public required VolumeApplicationId AppId;
+    private AudioSession _session = null!; // Initialized via property
     private string _applicationName = string.Empty;
-    private string _processName = string.Empty;
-    private string _executableName = string.Empty;
-    private string? _executablePath;
     private double _volume;
     private int? _savedVolume;
     private string _status = string.Empty;
     private string _lastSeen = string.Empty;
-    private bool _isMuted;
     private BitmapImage? _icon;
     private const double VolumeDifferenceTolerance = 0.01;
+
+    public VolumeApplicationId AppId => _session.AppId;
+    public string ProcessName => _session.ProcessName;
+    public string ExecutableName => _session.ExecutableName;
+    public string? ExecutablePath => _session.ExecutablePath;
+    public bool IsMuted => _session.IsMuted;
+
+    public required AudioSession Session
+    {
+        get => _session;
+        set
+        {
+            _session = value;
+            OnPropertyChanged(nameof(AppId));
+            OnPropertyChanged(nameof(ProcessName));
+            OnPropertyChanged(nameof(ExecutableName));
+            OnPropertyChanged(nameof(ExecutablePath));
+            OnPropertyChanged(nameof(IsMuted));
+        }
+    }
 
     public string ApplicationName
     {
@@ -374,18 +383,6 @@ public sealed partial class ApplicationVolume : INotifyPropertyChanged
         }
     }
 
-    public string ProcessName
-    {
-        get => _processName;
-        set
-        {
-            if (_processName != value)
-            {
-                _processName = value;
-                OnPropertyChanged(nameof(ProcessName));
-            }
-        }
-    }
 
     public double Volume
     {
@@ -430,18 +427,6 @@ public sealed partial class ApplicationVolume : INotifyPropertyChanged
         }
     }
 
-    public bool IsMuted
-    {
-        get => _isMuted;
-        set
-        {
-            if (_isMuted != value)
-            {
-                _isMuted = value;
-                OnPropertyChanged(nameof(IsMuted));
-            }
-        }
-    }
 
     public BitmapImage? Icon
     {
@@ -456,31 +441,6 @@ public sealed partial class ApplicationVolume : INotifyPropertyChanged
         }
     }
 
-    public string ExecutableName
-    {
-        get => _executableName;
-        set
-        {
-            if (_executableName != value)
-            {
-                _executableName = value;
-                OnPropertyChanged(nameof(ExecutableName));
-            }
-        }
-    }
-
-    public string? ExecutablePath
-    {
-        get => _executablePath;
-        set
-        {
-            if (_executablePath != value)
-            {
-                _executablePath = value;
-                OnPropertyChanged(nameof(ExecutablePath));
-            }
-        }
-    }
 
     public int? SavedVolume
     {
