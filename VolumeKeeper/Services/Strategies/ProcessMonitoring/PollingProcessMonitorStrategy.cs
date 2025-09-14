@@ -106,7 +106,7 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
         try
         {
             var currentProcesses = Process.GetProcesses();
-            var currentProcessMap = new Dictionary<int, string>();
+            var currentProcessMap = new Dictionary<int, Process>();
 
             foreach (var process in currentProcesses)
             {
@@ -115,7 +115,7 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
                     var executableName = GetExecutableName(process);
                     if (string.IsNullOrEmpty(executableName)) continue;
 
-                    currentProcessMap[process.Id] = executableName;
+                    currentProcessMap[process.Id] = process;
 
                     if (_knownProcesses.TryAdd(process.Id, executableName))
                     {

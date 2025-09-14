@@ -24,7 +24,7 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
 {
     private ManagementEventWatcher? _startWatcher;
     private ManagementEventWatcher? _stopWatcher;
-    private volatile bool _isRunning;
+    private readonly AtomicReference<bool> _isRunning = new(false);
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public event EventHandler<ProcessEventArgs>? ProcessStarted;
@@ -60,13 +60,12 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
 
     public void Start()
     {
-        if (_isRunning || _startWatcher == null || _stopWatcher == null) return;
+        if (!_isRunning.CompareAndSet(false, true) || _startWatcher == null || _stopWatcher == null) return;
 
         try
         {
             _startWatcher.Start();
             _stopWatcher.Start();
-            _isRunning = true;
             App.Logger.LogDebug("WMI process monitor started", "WmiProcessMonitorStrategy");
         }
         catch (Exception ex)
@@ -143,13 +142,12 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
 
     public void Stop()
     {
-        if (!_isRunning) return;
+        if (!_isRunning.CompareAndSet(true, false)) return;
 
         try
         {
             _startWatcher?.Stop();
             _stopWatcher?.Stop();
-            _isRunning = false;
             App.Logger.LogInfo("WMI process monitor stopped", "WmiProcessMonitorStrategy");
         }
         catch (Exception ex)

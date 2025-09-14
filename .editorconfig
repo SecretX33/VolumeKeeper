@@ -10,5 +10,5 @@ max_line_length = 140
 tab_width = 4
 trim_trailing_whitespace = true
 
-[*.{yml,yaml,xml,xaml}]
+[*.{manifest,xml,xaml,yml,yaml}]
 indent_size = 2
