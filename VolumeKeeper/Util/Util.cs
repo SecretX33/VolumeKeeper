@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Windows.Forms;
 using Microsoft.Diagnostics.Tracing.Session;
@@ -11,14 +12,19 @@ namespace VolumeKeeper.Util;
 
 public static class Util
 {
-    public static bool IsElevated() => TraceEventSession.IsElevated() == true;
-
+    /**
+     * Returns <b>true</b> if the current user is a member of the local Administrators group, even if the process is not running
+     * with elevated privileges.
+     */
     public static bool IsAdministrator()
     {
-        var identity = WindowsIdentity.GetCurrent();
-        var principal = new WindowsPrincipal(identity);
-        return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        using var windowsIdentity = WindowsIdentity.GetCurrent();
+        var claims = new WindowsPrincipal(windowsIdentity).Claims;
+        var adminClaimId = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null).Value;
+        return claims.Any(c => c.Value == adminClaimId);
     }
+
+    public static bool IsElevated() => TraceEventSession.IsElevated() == true;
 
     public static void EnsureAdminPrivileges()
     {
@@ -27,7 +33,7 @@ public static class Util
         RestartAsAdmin();
     }
 
-    private static void RestartAsAdmin()
+    public static void RestartAsAdmin()
     {
         var exeName = Process.GetCurrentProcess().MainModule?.FileName;
         if (exeName == null)

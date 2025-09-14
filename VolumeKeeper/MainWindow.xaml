@@ -10,6 +10,29 @@
                     IsSettingsVisible="False"
                     SelectionChanged="NavigationView_SelectionChanged">
 
+      <NavigationView.PaneCustomContent>
+        <Button x:Name="AdminButton"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Margin="0,0,10,0"
+                Visibility="Collapsed"
+                Click="AdminButton_Click">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <SymbolIcon Symbol="Admin" />
+            <TextBlock Text="Run as admin" VerticalAlignment="Center" />
+          </StackPanel>
+          <ToolTipService.ToolTip>
+            <ToolTip>
+              <TextBlock TextWrapping="Wrap" MaxWidth="300">
+                Running as administrator enables better process monitoring using Event Tracing for Windows (ETW).
+                This provides instant detection when applications launch, ensuring volume settings are restored immediately.
+                Without admin privileges, the app uses slower polling-based detection.
+              </TextBlock>
+            </ToolTip>
+          </ToolTipService.ToolTip>
+        </Button>
+      </NavigationView.PaneCustomContent>
+
       <NavigationView.MenuItems>
         <NavigationViewItem Tag="Home" Content="Home">
           <NavigationViewItem.Icon>
