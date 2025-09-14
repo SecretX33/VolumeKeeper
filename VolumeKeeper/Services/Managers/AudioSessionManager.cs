@@ -184,7 +184,7 @@ public partial class AudioSessionManager : IDisposable
                 ProcessName = displayName,
                 ExecutableName = executableName,
                 ExecutablePath = fullPath,
-                Volume = simpleVolume.Volume * 100,
+                Volume = (int)Math.Round(simpleVolume.Volume * 100),
                 IsMuted = simpleVolume.Mute,
                 IconPath = sessionControl.IconPath ?? string.Empty,
                 SessionControl = sessionControl

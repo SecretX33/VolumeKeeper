@@ -116,7 +116,7 @@ public sealed partial class HomePage : Page
                     var session = sessions.FirstOrDefault(s => s.AppId == app.AppId);
                     if (session != null)
                     {
-                        if (Math.Abs(app.Volume - session.Volume) > 1.0)
+                        if (Math.Abs(app.Volume - session.Volume) > 1)
                         {
                             App.Logger.LogInfo($"Volume changed for {app.AppId}: {app.Volume}% -> {session.Volume}%", "HomePage");
                         }

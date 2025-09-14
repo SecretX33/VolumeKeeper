@@ -10,7 +10,7 @@ public sealed partial class ApplicationVolume : INotifyPropertyChanged
 {
     private AudioSession _session = null!; // Initialized via property
     private string _applicationName = string.Empty;
-    private double _volume;
+    private int _volume;
     private int? _savedVolume;
     private string _status = string.Empty;
     private string _lastSeen = string.Empty;
@@ -49,7 +49,7 @@ public sealed partial class ApplicationVolume : INotifyPropertyChanged
     }
 
 
-    public double Volume
+    public int Volume
     {
         get => _volume;
         set

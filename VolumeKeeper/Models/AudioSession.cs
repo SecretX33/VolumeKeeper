@@ -8,7 +8,7 @@ public class AudioSession
     public string ProcessName { get; init; } = string.Empty;
     public string ExecutableName { get; init; } = string.Empty;
     public string? ExecutablePath { get; init; } = null;
-    public float Volume { get; init; }
+    public int Volume { get; init; }
     public bool IsMuted { get; init; }
     public string IconPath { get; init; } = string.Empty;
     public AudioSessionControl SessionControl { get; init; } = null!;
