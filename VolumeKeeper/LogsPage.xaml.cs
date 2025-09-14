@@ -3,12 +3,14 @@ using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VolumeKeeper.Models.Log;
+using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper;
 
 public sealed partial class LogsPage : Page
 {
     public ObservableCollection<LogEntry> LogEntries => App.Logger.LogEntries;
+    private static VolumeSettingsManager VolumeSettingsManager => App.VolumeSettingsManager;
 
     public LogsPage()
     {
@@ -32,19 +34,15 @@ public sealed partial class LogsPage : Page
         };
     }
 
-    private async void LoadSettings()
+    private void LoadSettings()
     {
-        var settings = await App.VolumeSettingsManager.GetSettingsAsync();
-        AutoScrollToggle.IsOn = settings.AutoScrollLogsEnabled;
+        AutoScrollToggle.IsOn = VolumeSettingsManager.AutoScrollLogsEnabled;
     }
 
-    private async void AutoScrollToggle_Toggled(object sender, RoutedEventArgs e)
+    private void AutoScrollToggle_Toggled(object sender, RoutedEventArgs e)
     {
         if (sender is not ToggleSwitch toggle) return;
-
-        var settings = await App.VolumeSettingsManager.GetSettingsAsync();
-        settings.AutoScrollLogsEnabled = toggle.IsOn;
-        await App.VolumeSettingsManager.SaveSettingsAsync(settings);
+        VolumeSettingsManager.SetAutoScrollLogsEnabledAndSave(toggle.IsOn);
     }
 
 

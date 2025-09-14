@@ -15,7 +15,7 @@ public partial class VolumeRestorationService : IDisposable
     private readonly AudioSessionManager _sessionManager;
     private readonly VolumeSettingsManager _settingsManager;
     private readonly ApplicationMonitorService _appMonitorService;
-    private readonly ConcurrentDictionary<VolumeApplicationId, DateTime> _recentRestorations = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<VolumeApplicationId, DateTime> _recentRestorations = new();
     private readonly Timer _cleanupTimer;
     private readonly TimeSpan _restorationCooldown = TimeSpan.FromSeconds(1);
     private readonly AtomicReference<bool> _isDisposed = new(false);
@@ -40,7 +40,7 @@ public partial class VolumeRestorationService : IDisposable
             if (string.IsNullOrWhiteSpace(e.ExecutableName) || !_settingsManager.AutoRestoreEnabled)
                 return;
 
-            if (_recentRestorations.TryGetValue(e.ExecutableName, out var lastRestoration))
+            if (_recentRestorations.TryGetValue(e.AppId, out var lastRestoration))
             {
                 if (DateTime.UtcNow - lastRestoration < _restorationCooldown)
                 {
@@ -75,8 +75,8 @@ public partial class VolumeRestorationService : IDisposable
             {
                 if (await _audioSessionService.SetSessionVolumeImmediate(volumeApplicationId, savedVolume.Value))
                 {
-                    _recentRestorations[executableName] = DateTime.UtcNow;
-                    App.Logger.LogInfo($"Volume restored for {executableName} to {savedVolume}% (attempt {attempt + 1})",
+                    _recentRestorations[volumeApplicationId] = DateTime.UtcNow;
+                    App.Logger.LogInfo($"Volume restored for {volumeApplicationId} to {savedVolume}% (attempt {attempt + 1})",
                         "VolumeRestorationService");
                     restored = true;
                     break;
@@ -118,16 +118,15 @@ public partial class VolumeRestorationService : IDisposable
     {
         try
         {
-            var sessions = await _sessionManager.GetAllSessionsAsync();
-            var validSessions = sessions.Where(s => !string.IsNullOrEmpty(s.ExecutableName));
+            var sessions = await _sessionManager.GetAllSessionsAsync().ConfigureAwait(false);
             App.Logger.LogInfo($"Restoring volumes for {sessions.Count} active sessions", "VolumeRestorationService");
 
-            foreach (var session in validSessions)
+            foreach (var session in sessions)
             {
                 var savedVolume = _settingsManager.GetVolume(session.AppId);
                 if (savedVolume == null || Math.Abs(session.Volume - savedVolume.Value) <= 1) continue;
 
-                if (await _audioSessionService.SetSessionVolume(session.ExecutableName, savedVolume.Value))
+                if (await _audioSessionService.SetSessionVolume(session.AppId, savedVolume.Value))
                 {
                     App.Logger.LogInfo($"Volume restored for {session.ExecutableName} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
                 }

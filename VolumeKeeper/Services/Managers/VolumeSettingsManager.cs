@@ -65,9 +65,7 @@ public class VolumeSettingsManager
         }
     }
 
-    public int? GetVolume(VolumeApplicationId id) => id.GetAllVariants()
-        .Select(_applicationVolumes.GetOrNullValue)
-        .First(it => it != null);
+    public int? GetVolume(VolumeApplicationId id) => _applicationVolumes.GetOrNullValue(id);
 
     public void SetVolumeAndSave(VolumeApplicationId id, int value)
     {
@@ -79,8 +77,7 @@ public class VolumeSettingsManager
         ScheduleSave(NormalSaveDelay);
     }
 
-    private bool DeleteVolume(VolumeApplicationId id) => id.GetAllVariants()
-        .Aggregate(false, (current, volumeApplicationId) => _applicationVolumes.TryRemove(volumeApplicationId, out _) || current);
+    private bool DeleteVolume(VolumeApplicationId id) => _applicationVolumes.TryRemove(id, out _);
 
     public bool DeleteVolumeAndSave(VolumeApplicationId id)
     {
@@ -101,8 +98,7 @@ public class VolumeSettingsManager
         ScheduleSave(NormalSaveDelay);
     }
 
-    private bool DeleteLastVolumeBeforeMute(VolumeApplicationId id) => id.GetAllVariants()
-        .Aggregate(false, (current, volumeApplicationId) => _applicationLastVolumeBeforeMute.TryRemove(volumeApplicationId, out _) || current);
+    private bool DeleteLastVolumeBeforeMute(VolumeApplicationId id) => _applicationLastVolumeBeforeMute.TryRemove(id, out _);
 
     public bool DeleteLastVolumeBeforeMuteAndSave(VolumeApplicationId id)
     {
@@ -168,9 +164,9 @@ public class VolumeSettingsManager
             {
                 Directory.CreateDirectory(directory);
             }
-            var applicationVolumeConfigs = new List<ApplicationVolumeConfig>();
 
             var existingKeys = _applicationVolumes.Keys.Concat(_applicationLastVolumeBeforeMute.Keys).Distinct();
+            var applicationVolumeConfigs = new List<ApplicationVolumeConfig>();
 
             foreach (var volumeApplicationId in existingKeys)
             {
@@ -186,9 +182,14 @@ public class VolumeSettingsManager
                 applicationVolumeConfigs.Add(config);
             }
 
+            var sortedApplicationVolumeConfigs = applicationVolumeConfigs
+                .OrderBy(x => x.Id.NameMatchType)
+                .ThenBy(x => x.Id is PathVolumeApplicationId pathId ? pathId.Path : x.Id.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             var settingsToSave = new VolumeSettings
             {
-                ApplicationVolumes = applicationVolumeConfigs,
+                ApplicationVolumes = sortedApplicationVolumeConfigs,
                 AutoRestoreEnabled = _autoRestoreEnabled,
                 AutoScrollLogsEnabled = _autoScrollLogsEnabled,
             };

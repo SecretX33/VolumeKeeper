@@ -242,7 +242,7 @@ public sealed partial class HomePage : Page
                 var savedLastVolume = VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId);
                 VolumeSettingsManager.DeleteLastVolumeBeforeMuteAndSave(app.AppId);
                 var lastVolume = savedLastVolume ?? 50;
-                await audioSessionService.SetSessionVolume(app.ExecutableName, lastVolume);
+                await audioSessionService.SetSessionVolume(app.AppId, lastVolume);
                 App.Logger.LogInfo($"Unmuted {app.ApplicationName} to {lastVolume}%", "HomePage");
             }
         }
@@ -267,7 +267,7 @@ public sealed partial class HomePage : Page
             var newVolume = (int)e.NewValue;
 
             // Update the audio session volume
-            await App.AudioSessionService.SetSessionVolume(app.ExecutableName, newVolume);
+            await App.AudioSessionService.SetSessionVolume(app.AppId, newVolume);
         } catch (Exception ex)
         {
             App.Logger.LogError("Failed to change volume", ex, "HomePage");
@@ -302,7 +302,7 @@ public sealed partial class HomePage : Page
             var audioSessionService = App.AudioSessionService;
 
             var savedVolume = app.SavedVolume.Value;
-            await audioSessionService.SetSessionVolume(app.ExecutableName, savedVolume);
+            await audioSessionService.SetSessionVolume(app.AppId, savedVolume);
             app.Volume = savedVolume;
 
             App.Logger.LogInfo($"Reverted volume for {app.ApplicationName} to {savedVolume}%", "HomePage");

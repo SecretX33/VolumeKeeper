@@ -142,7 +142,7 @@ public partial class AudioSessionManager : IDisposable
                     continue;
 
                 var session = CreateAudioSession(sessionControl, simpleVolume);
-                if (session != null && !string.IsNullOrEmpty(session.ExecutableName))
+                if (session != null && !string.IsNullOrWhiteSpace(session.ExecutableName))
                 {
                     sessions.Add(session);
                 }
