@@ -200,6 +200,14 @@ public partial class AudioSessionManager : IDisposable
         if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        DisposeAll(_deviceEnumerator, _defaultDevice.Get(), _cacheLock);
+        try
+        {
+            DisposeAll(_deviceEnumerator, _defaultDevice.Get(), _cacheLock);
+        }
+        catch
+        {
+            /* Ignore exceptions during dispose */
+        }
+        GC.SuppressFinalize(this);
     }
 }

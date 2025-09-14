@@ -55,8 +55,7 @@ public sealed partial class HomePage : Page
 
             foreach (var session in sessions)
             {
-                var savedVolume = await VolumeSettingsManager.GetVolume(session.AppId)
-                    : null;
+                var savedVolume = VolumeSettingsManager.GetVolume(session.AppId);
                 sessionsWithSavedVolumes.Add((session, savedVolume));
             }
 
@@ -109,9 +108,7 @@ public sealed partial class HomePage : Page
 
             foreach (var session in newSessions)
             {
-                var savedVolume = VolumeSettingsManager != null
-                    ? await VolumeSettingsManager.GetVolumeAsync(session.ExecutableName)
-                    : null;
+                var savedVolume = VolumeSettingsManager.GetVolume(session.AppId);
                 newSessionsWithVolumes.Add((session, savedVolume));
             }
 
@@ -237,7 +234,7 @@ public sealed partial class HomePage : Page
                 VolumeSettingsManager.SetLastVolumeBeforeMuteAndSave(app.AppId, (int)app.Volume);
 
                 // Mute
-                await audioSessionService.SetSessionVolume(app.ExecutableName, 0);
+                await audioSessionService.SetSessionVolume(app.AppId, 0);
                 app.Volume = 0;
                 App.Logger.LogInfo(
                     $"Muted {app.ApplicationName} (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)",
@@ -337,7 +334,13 @@ public sealed partial class HomePage : Page
 
     public void Dispose()
     {
-        _refreshTimer.Stop();
+        try
+        {
+            _refreshTimer.Stop();
+        } catch
+        {
+            /* Ignore exceptions during dispose */
+        }
     }
 }
 

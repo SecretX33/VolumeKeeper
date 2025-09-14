@@ -11,18 +11,12 @@ using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services;
 
-public partial class AudioSessionService : IDisposable
+public partial class AudioSessionService(AudioSessionManager sessionManager) : IDisposable
 {
     private const int VolumeDebounceDelayMs = 300;
-    private readonly AudioSessionManager _sessionManager;
     private readonly ConcurrentDictionary<VolumeApplicationId, CancellationTokenSource> _volumeDebounceTokens = new();
     private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);
     private readonly AtomicReference<bool> _isDisposed = new(false);
-
-    public AudioSessionService(AudioSessionManager sessionManager)
-    {
-        _sessionManager = sessionManager;
-    }
 
     public Task<bool> SetSessionVolume(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
@@ -75,7 +69,7 @@ public partial class AudioSessionService : IDisposable
 
     public async Task<bool> SetSessionVolumeImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
-        var sessions = await _sessionManager.GetSessionsById(volumeApplicationId);
+        var sessions = await sessionManager.GetSessionsById(volumeApplicationId);
 
         bool anySet = false;
         foreach (var session in sessions)
@@ -97,7 +91,7 @@ public partial class AudioSessionService : IDisposable
 
     public float? GetSessionVolume(string executableName)
     {
-        var sessions = _sessionManager.GetSessionsByExecutable(executableName);
+        var sessions = sessionManager.GetSessionsByExecutable(executableName);
         var session = sessions.FirstOrDefault();
         return session?.Volume;
     }
@@ -107,25 +101,34 @@ public partial class AudioSessionService : IDisposable
         if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        // Clean up all debounce tokens
-        foreach (var kvp in _volumeDebounceTokens)
+        try
         {
-            try
+            // Clean up all debounce tokens
+            foreach (var kvp in _volumeDebounceTokens)
             {
-                kvp.Value.Cancel();
+                try
+                {
+                    kvp.Value.Cancel();
+                }
+                catch
+                {
+                    App.Logger.LogDebug($"Exception was throw when attempting to cancel debounce token for {kvp.Key}", "AudioSessionManager");
+                }
             }
-            catch
-            {
-                App.Logger.LogDebug($"Exception was throw when attempting to cancel debounce token for {kvp.Key}", "AudioSessionManager");
-            }
+
+            var tokensToDispose = _volumeDebounceTokens.Values.ToList();
+            _volumeDebounceTokens.Clear();
+
+            DisposeAll(
+                tokensToDispose
+                    .Concat(new IDisposable?[] { _volumeSetSemaphore })
+            );
+        }
+        catch
+        {
+            /* Ignore exceptions during dispose */
         }
 
-        var tokensToDispose = _volumeDebounceTokens.Values.ToList();
-        _volumeDebounceTokens.Clear();
-
-        DisposeAll(
-            tokensToDispose
-                .Concat(new IDisposable?[] { _volumeSetSemaphore })
-        );
+        GC.SuppressFinalize(this);
     }
 }

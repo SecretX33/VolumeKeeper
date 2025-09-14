@@ -218,10 +218,17 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        Stop();
-
-        _cancellationTokenSource?.Dispose();
-        _source?.Dispose();
-        DisposeSession();
+        try
+        {
+            Stop();
+            _cancellationTokenSource?.Dispose();
+            _source?.Dispose();
+            DisposeSession();
+        }
+        catch
+        {
+            /* Ignore exceptions during dispose */
+        }
+        GC.SuppressFinalize(this);
     }
 }

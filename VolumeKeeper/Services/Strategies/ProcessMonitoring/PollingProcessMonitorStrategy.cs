@@ -202,12 +202,20 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
         if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        Stop();
+        try
+        {
+            Stop();
+            DisposeAll(
+                _pollTimer,
+                _pollLock
+            );
+            _knownProcesses.Clear();
+        }
+        catch
+        {
+            /* Ignore exceptions during dispose */
+        }
 
-        DisposeAll(
-            _pollTimer,
-            _pollLock
-        );
-        _knownProcesses.Clear();
+        GC.SuppressFinalize(this);
     }
 }

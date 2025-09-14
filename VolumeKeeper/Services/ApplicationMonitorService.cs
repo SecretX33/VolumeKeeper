@@ -163,12 +163,20 @@ public partial class ApplicationMonitorService : IDisposable
         if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        if (_activeStrategy != null)
+        try
         {
-            _activeStrategy.ProcessStarted -= OnProcessStarted;
-            _activeStrategy.ProcessStopped -= OnProcessStopped;
-            _activeStrategy.Stop();
-            _activeStrategy.Dispose();
+            if (_activeStrategy != null)
+            {
+                _activeStrategy.ProcessStarted -= OnProcessStarted;
+                _activeStrategy.ProcessStopped -= OnProcessStopped;
+                _activeStrategy.Stop();
+                _activeStrategy.Dispose();
+            }
         }
+        catch
+        {
+            /* Ignore exceptions during dispose */
+        }
+        GC.SuppressFinalize(this);
     }
 }

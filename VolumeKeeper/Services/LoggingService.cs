@@ -186,10 +186,17 @@ public partial class LoggingService : ILoggingService, IDisposable
         if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        _flushTimer.Dispose();
-        FlushAsync().Wait(TimeSpan.FromSeconds(1));
-        _fileWriteSemaphore.Dispose();
+        try
+        {
+            _flushTimer.Dispose();
+            FlushAsync().Wait(TimeSpan.FromSeconds(1));
+            _fileWriteSemaphore.Dispose();
+        }
+        catch
+        {
+            /* Ignore exceptions during dispose */
+        }
 
-        LogInfo("VolumeKeeper logging service stopped", "LoggingService");
+        GC.SuppressFinalize(this);
     }
 }

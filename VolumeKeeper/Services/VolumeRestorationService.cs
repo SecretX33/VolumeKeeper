@@ -148,7 +148,16 @@ public partial class VolumeRestorationService : IDisposable
         if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        _appMonitorService.ApplicationLaunched -= OnApplicationLaunched;
-        _cleanupTimer.Dispose();
+        try
+        {
+            _appMonitorService.ApplicationLaunched -= OnApplicationLaunched;
+            _cleanupTimer.Dispose();
+        }
+        catch
+        {
+            /* Ignore exceptions during dispose */
+        }
+
+        GC.SuppressFinalize(this);
     }
 }

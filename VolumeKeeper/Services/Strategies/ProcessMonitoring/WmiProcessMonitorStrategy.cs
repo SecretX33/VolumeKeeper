@@ -190,5 +190,6 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
             return;
 
         DisposeWatchers();
+        /* Ignore exceptions during dispose */
     }
 }
