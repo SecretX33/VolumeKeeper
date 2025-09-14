@@ -7,6 +7,7 @@ using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Parsers.Kernel;
 using Microsoft.Diagnostics.Tracing.Session;
 using VolumeKeeper.Util;
+using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services.Strategies.ProcessMonitoring;
 
@@ -41,7 +42,7 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
     {
         try
         {
-            if (!TraceEventSession.IsElevated() ?? false)
+            if (!IsElevated())
             {
                 App.Logger.LogDebug("ETW strategy requires administrator privileges", "EtwProcessMonitorStrategy");
                 return false;
