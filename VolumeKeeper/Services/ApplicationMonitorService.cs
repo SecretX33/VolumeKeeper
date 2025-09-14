@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Management;
-using System.Threading;
 using VolumeKeeper.Services.Managers;
+using VolumeKeeper.Services.Strategies.ProcessMonitoring;
 using VolumeKeeper.Util;
-using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services;
 
@@ -20,114 +18,86 @@ public class ApplicationLaunchEventArgs : EventArgs
 public class ApplicationMonitorService : IDisposable
 {
     private readonly ProcessDataManager _processDataManager;
-    private readonly Timer? _pollTimer;
-    private readonly SemaphoreSlim _pollLock = new(1, 1);
-    private volatile ManagementEventWatcher? _processWatcher;
     private readonly AtomicReference<bool> _isDisposed = new(false);
+    private IProcessMonitorStrategy? _activeStrategy;
 
     public event EventHandler<ApplicationLaunchEventArgs>? ApplicationLaunched;
 
     public ApplicationMonitorService(ProcessDataManager processDataManager)
     {
         _processDataManager = processDataManager;
-        if (InitializeWmiWatcher()) return;
-        _pollTimer = new Timer(PollForNewProcesses, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
+        InitializeStrategy();
     }
 
-    private bool InitializeWmiWatcher()
+    private void InitializeStrategy()
     {
-        try
+        var strategies = new List<IProcessMonitorStrategy>
         {
-            var query = new WqlEventQuery("SELECT * FROM Win32_ProcessStartTrace");
-            _processWatcher = new ManagementEventWatcher(query);
-            _processWatcher.EventArrived += OnProcessStarted;
-            _processWatcher.Start();
-            App.Logger.LogInfo("WMI process watcher started", "ApplicationMonitorService");
-            return true;
-        }
-        catch (Exception ex)
+            new EtwProcessMonitorStrategy(),
+            new WmiProcessMonitorStrategy(),
+            new PollingProcessMonitorStrategy()
+        };
+
+        foreach (var strategy in strategies)
         {
-            App.Logger.LogError("Failed to initialize WMI watcher, falling back to polling only", ex, "ApplicationMonitorService");
-            _processWatcher?.Stop();
-            _processWatcher = null;
-
-            return false;
-        }
-    }
-
-    private void OnProcessStarted(object sender, EventArrivedEventArgs e)
-    {
-        try
-        {
-            var processName = e.NewEvent.Properties["ProcessName"].Value?.ToString();
-            var processId = Convert.ToInt32(e.NewEvent.Properties["ProcessID"].Value);
-
-            if (!string.IsNullOrEmpty(processName) && !_processDataManager.IsProcessKnown(processId))
+            try
             {
-                _processDataManager.AddProcess(processId, processName);
-                OnApplicationLaunched(processName, processId);
+                if (!strategy.Initialize())
+                {
+                    strategy.Dispose();
+                    continue;
+                }
+
+                _activeStrategy = strategy;
+                _activeStrategy.ProcessStarted += OnProcessStarted;
+                _activeStrategy.ProcessStopped += OnProcessStopped;
+                _activeStrategy.Start();
+
+                App.Logger.LogInfo($"Using process monitor strategy: {strategy.Name}", "ApplicationMonitorService");
+
+                foreach (var unusedStrategy in strategies.Where(s => s != _activeStrategy))
+                {
+                    unusedStrategy.Dispose();
+                }
+
+                return;
+            }
+            catch (Exception ex)
+            {
+                App.Logger.LogError($"Failed to initialize strategy: {strategy.Name}", ex, "ApplicationMonitorService");
+                strategy.Dispose();
+            }
+        }
+
+        App.Logger.LogError("Failed to initialize any process monitoring strategy", null, "ApplicationMonitorService");
+    }
+
+    private void OnProcessStarted(object? sender, ProcessEventArgs e)
+    {
+        try
+        {
+            if (!_processDataManager.IsProcessKnown(e.ProcessId))
+            {
+                _processDataManager.AddProcess(e.ProcessId, e.ProcessName);
+                OnApplicationLaunched(e.ProcessName, e.ProcessId);
             }
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Error handling WMI process start event", ex, "ApplicationMonitorService");
+            App.Logger.LogError($"Error handling process start event for {e.ProcessName} (PID: {e.ProcessId})", ex, "ApplicationMonitorService");
         }
     }
 
-    private async void PollForNewProcesses(object? state)
+    private void OnProcessStopped(object? sender, ProcessEventArgs e)
     {
-        if (_isDisposed.Get() || !await _pollLock.WaitAsync(0))
-            return;
-
         try
         {
-            var currentProcesses = Process.GetProcesses();
-
-            foreach (var process in currentProcesses)
-            {
-                try
-                {
-                    if (_processDataManager.IsProcessKnown(process.Id) || string.IsNullOrEmpty(process.ProcessName)) continue;
-
-                    var executableName = GetExecutableName(process);
-                    if (!string.IsNullOrEmpty(executableName))
-                    {
-                        _processDataManager.AddProcess(process.Id, executableName);
-                        OnApplicationLaunched(executableName, process.Id);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    App.Logger.LogError($"Error processing process ID {process.Id}", ex, "ApplicationMonitorService");
-                }
-            }
-
-            var currentIds = new HashSet<int>(currentProcesses.Select(p => p.Id));
-            var allKnownProcesses = _processDataManager.GetAllProcesses();
-            var toRemove = allKnownProcesses.Keys.Where(id => !currentIds.Contains(id));
-            _processDataManager.RemoveProcesses(toRemove);
+            _processDataManager.RemoveProcess(e.ProcessId);
+            App.Logger.LogInfo($"Application stopped: {e.ProcessName} (PID: {e.ProcessId})", "ApplicationMonitorService");
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Error during process polling", ex, "ApplicationMonitorService");
-        }
-        finally
-        {
-            _pollLock.Release();
-        }
-    }
-
-    private string GetExecutableName(Process process)
-    {
-        try
-        {
-            return Path.GetFileName(process.MainModule?.FileName ?? process.ProcessName);
-        }
-        catch
-        {
-            return process.ProcessName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                ? process.ProcessName
-                : $"{process.ProcessName}.exe";
+            App.Logger.LogError($"Error handling process stop event for {e.ProcessName} (PID: {e.ProcessId})", ex, "ApplicationMonitorService");
         }
     }
 
@@ -172,16 +142,31 @@ public class ApplicationMonitorService : IDisposable
         }
     }
 
+    private string GetExecutableName(Process process)
+    {
+        try
+        {
+            return Path.GetFileName(process.MainModule?.FileName ?? process.ProcessName);
+        }
+        catch
+        {
+            return process.ProcessName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                ? process.ProcessName
+                : $"{process.ProcessName}.exe";
+        }
+    }
+
     public void Dispose()
     {
         if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        _processWatcher?.Stop();
-        DisposeAll(
-            _processWatcher,
-            _pollTimer,
-            _pollLock
-        );
+        if (_activeStrategy != null)
+        {
+            _activeStrategy.ProcessStarted -= OnProcessStarted;
+            _activeStrategy.ProcessStopped -= OnProcessStopped;
+            _activeStrategy.Stop();
+            _activeStrategy.Dispose();
+        }
     }
 }
