@@ -23,9 +23,8 @@ public interface ILoggingService
 
 public partial class LoggingService : ILoggingService, IDisposable
 {
-    private readonly ObservableCollection<LogEntry> _logEntries;
-    private readonly Queue<LogEntry> _pendingFileWrites;
-    private readonly SemaphoreSlim _fileWriteSemaphore;
+    private readonly Queue<LogEntry> _pendingFileWrites = new();
+    private readonly SemaphoreSlim _fileWriteSemaphore = new(1, 1);
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly string _logFilePath;
     private readonly Timer _flushTimer;
@@ -33,14 +32,11 @@ public partial class LoggingService : ILoggingService, IDisposable
     private const int FileWriteBatchSize = 50;
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
-    public ObservableCollection<LogEntry> LogEntries => _logEntries;
+    public ObservableCollection<LogEntry> LogEntries { get; } = [];
 
     public LoggingService(DispatcherQueue dispatcherQueue)
     {
         _dispatcherQueue = dispatcherQueue;
-        _logEntries = new ObservableCollection<LogEntry>();
-        _pendingFileWrites = new Queue<LogEntry>();
-        _fileWriteSemaphore = new SemaphoreSlim(1, 1);
 
         var logDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -94,11 +90,11 @@ public partial class LoggingService : ILoggingService, IDisposable
 
         _dispatcherQueue.TryEnqueue(() =>
         {
-            _logEntries.Insert(0, entry); // Insert at beginning for newest-first order
+            LogEntries.Insert(0, entry); // Insert at beginning for newest-first order
 
-            while (_logEntries.Count > MaxInMemoryEntries)
+            while (LogEntries.Count > MaxInMemoryEntries)
             {
-                _logEntries.RemoveAt(_logEntries.Count - 1); // Remove oldest (last) entry
+                LogEntries.RemoveAt(LogEntries.Count - 1); // Remove oldest (last) entry
             }
         });
 
