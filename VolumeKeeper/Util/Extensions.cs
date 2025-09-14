@@ -25,7 +25,12 @@ public static class Extensions
     public static TValue? GetOrNull<TKey, TValue>(
         this IDictionary<TKey, TValue> dict,
         TKey key
-    ) where TKey : notnull => dict.TryGetValue(key, out var value) ? value : default;
+    ) where TKey : notnull where TValue : class => dict.TryGetValue(key, out var value) ? value : null;
+
+    public static TValue? GetOrNullValue<TKey, TValue>(
+        this IDictionary<TKey, TValue> dict,
+        TKey key
+    ) where TKey : notnull where TValue : struct => dict.TryGetValue(key, out var value) ? value : null;
 
     public static void AddAll<TKey, TValue>(
         this IDictionary<TKey, TValue> dict,

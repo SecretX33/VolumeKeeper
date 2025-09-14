@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,8 +21,8 @@ public class VolumeSettingsManager
     {
         WriteIndented = true
     };
-    private readonly ConcurrentDictionary<string, int> _applicationVolumes = new();
-    private readonly ConcurrentDictionary<string, int> _applicationLastVolumeBeforeMute = new();
+    private readonly ConcurrentDictionary<VolumeApplicationId, int> _applicationVolumes = new();
+    private readonly ConcurrentDictionary<VolumeApplicationId, int> _applicationLastVolumeBeforeMute = new();
     private volatile bool _autoRestoreEnabled = true;
     private volatile bool _autoScrollLogsEnabled = true;
 
@@ -49,9 +50,12 @@ public class VolumeSettingsManager
 
             foreach (var config in parsedValue.ApplicationVolumes)
             {
-                _applicationVolumes[config.Name] = config.Volume;
-                if (config.LastVolumeBeforeMute != null) {
-                    _applicationLastVolumeBeforeMute[config.Name] = config.LastVolumeBeforeMute.Value;
+                if (config.Volume.HasValue) {
+                    _applicationVolumes[config.Id] = config.Volume.Value;
+                }
+
+                if (config.LastVolumeBeforeMute.HasValue) {
+                    _applicationLastVolumeBeforeMute[config.Id] = config.LastVolumeBeforeMute.Value;
                 }
             }
             _autoRestoreEnabled = parsedValue.AutoRestoreEnabled;
@@ -61,27 +65,59 @@ public class VolumeSettingsManager
         }
     }
 
-    private int? GetVolume(string name) => _applicationVolumes.GetOrNull(name);
+    private int? GetVolume(VolumeApplicationId id) => _applicationVolumes.GetOrNullValue(id);
 
-    private void SetVolumeAndSave(string name, int value)
+    private void SetVolumeAndSave(VolumeApplicationId id, int value)
     {
         // validate volume range and name
         if (value is < 0 or > 100) throw new ArgumentOutOfRangeException(nameof(value), "Volume must be between 0 and 100");
-        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name cannot be null or whitespace", nameof(name));
 
-        _applicationVolumes[name] = value;
+        DeleteVolume(id);
+        _applicationVolumes[id] = value;
         ScheduleSave(NormalSaveDelay);
     }
 
-    public int? GetLastVolumeBeforeMute(string name) => _applicationLastVolumeBeforeMute.GetOrNull(name);
+    private bool DeleteVolume(VolumeApplicationId id) => id.GetAllVariants()
+        .Aggregate(false, (current, volumeApplicationId) => _applicationVolumes.TryRemove(volumeApplicationId, out _) || current);
 
-    public void SetLastVolumeBeforeMuteAndSave(string name, int value)
+    public bool DeleteVolumeAndSave(VolumeApplicationId id)
+    {
+        var removed = DeleteVolume(id);
+        ScheduleSave(NormalSaveDelay);
+        return removed;
+    }
+
+    public int? GetLastVolumeBeforeMute(VolumeApplicationId id) => _applicationLastVolumeBeforeMute.GetOrNullValue(id);
+
+    public void SetLastVolumeBeforeMuteAndSave(VolumeApplicationId id, int value)
     {
         // validate volume range and name
         if (value is < 0 or > 100) throw new ArgumentOutOfRangeException(nameof(value), "Volume must be between 0 and 100");
-        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name cannot be null or whitespace", nameof(name));
 
-        _applicationLastVolumeBeforeMute[name] = value;
+        DeleteLastVolumeBeforeMute(id);
+        _applicationLastVolumeBeforeMute[id] = value;
+        ScheduleSave(NormalSaveDelay);
+    }
+
+    private bool DeleteLastVolumeBeforeMute(VolumeApplicationId id) => id.GetAllVariants()
+        .Aggregate(false, (current, volumeApplicationId) => _applicationLastVolumeBeforeMute.TryRemove(volumeApplicationId, out _) || current);
+
+    public bool DeleteLastVolumeBeforeMuteAndSave(VolumeApplicationId id)
+    {
+        var removed = DeleteLastVolumeBeforeMute(id);
+        ScheduleSave(NormalSaveDelay);
+        return removed;
+    }
+
+    public void SetAutoRestoreEnabledAndSave(bool enabled)
+    {
+        _autoRestoreEnabled = enabled;
+        ScheduleSave(NormalSaveDelay);
+    }
+
+    public void SetAutoScrollLogsEnabledAndSave(bool enabled)
+    {
+        _autoScrollLogsEnabled = enabled;
         ScheduleSave(NormalSaveDelay);
     }
 
@@ -130,22 +166,23 @@ public class VolumeSettingsManager
             {
                 Directory.CreateDirectory(directory);
             }
-
             var applicationVolumeConfigs = new List<ApplicationVolumeConfig>();
-            foreach (var (appName, appVolume) in _applicationVolumes)
+
+            var existingKeys = _applicationVolumes.Keys.Concat(_applicationLastVolumeBeforeMute.Keys).Distinct();
+
+            foreach (var volumeApplicationId in existingKeys)
             {
-                var config = new ApplicationVolumeConfig
-                {
-                    Name = appName,
-                    Volume = appVolume,
-                };
-                if (_applicationLastVolumeBeforeMute.TryGetValue(appName, out var lastVolume))
-                {
-                    config.LastVolumeBeforeMute = lastVolume;
-                }
+                var volume = _applicationVolumes.GetOrNullValue(volumeApplicationId);
+                var lastVolumeBeforeMute = _applicationLastVolumeBeforeMute.GetOrNullValue(volumeApplicationId);
+                if (volume == null && lastVolumeBeforeMute == null) continue;
+
+                var config = new ApplicationVolumeConfig(
+                    Id: volumeApplicationId,
+                    Volume: volume,
+                    LastVolumeBeforeMute: lastVolumeBeforeMute
+                );
                 applicationVolumeConfigs.Add(config);
             }
-
 
             var settingsToSave = new VolumeSettings
             {
