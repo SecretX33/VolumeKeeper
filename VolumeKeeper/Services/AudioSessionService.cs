@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using VolumeKeeper.Services.Managers;
+using VolumeKeeper.Util;
 using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services;
@@ -15,6 +16,7 @@ public class AudioSessionService : IDisposable
     private readonly AudioSessionManager _sessionManager;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _volumeDebounceTokens = new();
     private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);
+    private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public AudioSessionService(AudioSessionManager sessionManager)
     {
@@ -103,6 +105,9 @@ public class AudioSessionService : IDisposable
 
     public void Dispose()
     {
+        if (!_isDisposed.CompareAndSet(false, true))
+            return;
+
         // Clean up all debounce tokens
         foreach (var kvp in _volumeDebounceTokens)
         {

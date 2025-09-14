@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using VolumeKeeper.Models.Log;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
@@ -30,7 +31,7 @@ public class LoggingService : ILoggingService, IDisposable
     private readonly Timer _flushTimer;
     private const int MaxInMemoryEntries = 1000;
     private const int FileWriteBatchSize = 50;
-    private volatile bool _disposed;
+    private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public ObservableCollection<LogEntry> LogEntries => _logEntries;
 
@@ -127,7 +128,7 @@ public class LoggingService : ILoggingService, IDisposable
 
     public async Task FlushAsync()
     {
-        if (_disposed) return;
+        if (_isDisposed.Get()) return;
 
         List<LogEntry> entriesToWrite;
         lock (_pendingFileWrites)
@@ -186,9 +187,9 @@ public class LoggingService : ILoggingService, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (!_isDisposed.CompareAndSet(false, true))
+            return;
 
-        _disposed = true;
         _flushTimer.Dispose();
         FlushAsync().Wait(TimeSpan.FromSeconds(1));
         _fileWriteSemaphore.Dispose();

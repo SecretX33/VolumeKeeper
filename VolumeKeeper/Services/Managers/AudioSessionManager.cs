@@ -18,6 +18,7 @@ public partial class AudioSessionManager : IDisposable
     private readonly AtomicReference<MMDevice?> _defaultDevice = new(null);
     private readonly TimeSpan _cacheTtl = TimeSpan.FromMilliseconds(500);
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
+    private readonly AtomicReference<bool> _isDisposed = new(false);
     private SessionCollection? _sessions;
     private List<AudioSession>? _cachedSessions;
     private DateTime _cacheExpiry = DateTime.MinValue;
@@ -182,5 +183,11 @@ public partial class AudioSessionManager : IDisposable
         }
     }
 
-    public void Dispose() => DisposeAll(_deviceEnumerator, _defaultDevice.Get(), _cacheLock);
+    public void Dispose()
+    {
+        if (!_isDisposed.CompareAndSet(false, true))
+            return;
+
+        DisposeAll(_deviceEnumerator, _defaultDevice.Get(), _cacheLock);
+    }
 }

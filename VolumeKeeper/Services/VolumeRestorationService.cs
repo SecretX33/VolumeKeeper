@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using VolumeKeeper.Services.Managers;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
@@ -16,7 +17,7 @@ public class VolumeRestorationService : IDisposable
     private readonly ConcurrentDictionary<string, DateTime> _recentRestorations = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _cleanupTimer;
     private readonly TimeSpan _restorationCooldown = TimeSpan.FromSeconds(1);
-    private volatile bool _isDisposed;
+    private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public VolumeRestorationService(
         AudioSessionService audioSessionService,
@@ -150,10 +151,9 @@ public class VolumeRestorationService : IDisposable
 
     public void Dispose()
     {
-        if (_isDisposed)
+        if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        _isDisposed = true;
         _appMonitorService.ApplicationLaunched -= OnApplicationLaunched;
         _cleanupTimer.Dispose();
     }

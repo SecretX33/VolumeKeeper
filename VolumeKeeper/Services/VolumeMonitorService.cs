@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using VolumeKeeper.Services.Managers;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
@@ -15,7 +16,7 @@ public class VolumeMonitorService : IDisposable
     private readonly ConcurrentDictionary<string, float> _lastKnownVolumes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _pollTimer;
     private readonly SemaphoreSlim _pollLock = new(1, 1);
-    private volatile bool _isDisposed;
+    private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public VolumeMonitorService(AudioSessionManager sessionManager, VolumeSettingsManager settingsManager)
     {
@@ -26,7 +27,7 @@ public class VolumeMonitorService : IDisposable
 
     private async void PollVolumeChanges(object? state)
     {
-        if (_isDisposed || !await _pollLock.WaitAsync(0))
+        if (_isDisposed.Get() || !await _pollLock.WaitAsync(0))
             return;
 
         try
@@ -109,8 +110,9 @@ public class VolumeMonitorService : IDisposable
 
     public void Dispose()
     {
-        if (_isDisposed) return;
-        _isDisposed = true;
+        if (!_isDisposed.CompareAndSet(false, true))
+            return;
+
         _pollTimer.Dispose();
         _pollLock.Dispose();
     }
