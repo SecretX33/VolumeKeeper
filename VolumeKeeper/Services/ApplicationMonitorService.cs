@@ -6,6 +6,7 @@ using System.Linq;
 using System.Management;
 using System.Threading;
 using VolumeKeeper.Services.Managers;
+using VolumeKeeper.Util;
 using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services;
@@ -19,21 +20,21 @@ public class ApplicationLaunchEventArgs : EventArgs
 public class ApplicationMonitorService : IDisposable
 {
     private readonly ProcessDataManager _processDataManager;
-    private readonly Timer _pollTimer;
+    private readonly Timer? _pollTimer;
     private readonly SemaphoreSlim _pollLock = new(1, 1);
     private volatile ManagementEventWatcher? _processWatcher;
-    private volatile bool _isDisposed;
+    private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public event EventHandler<ApplicationLaunchEventArgs>? ApplicationLaunched;
 
     public ApplicationMonitorService(ProcessDataManager processDataManager)
     {
         _processDataManager = processDataManager;
+        if (InitializeWmiWatcher()) return;
         _pollTimer = new Timer(PollForNewProcesses, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
-        InitializeWmiWatcher();
     }
 
-    private void InitializeWmiWatcher()
+    private bool InitializeWmiWatcher()
     {
         try
         {
@@ -42,10 +43,15 @@ public class ApplicationMonitorService : IDisposable
             _processWatcher.EventArrived += OnProcessStarted;
             _processWatcher.Start();
             App.Logger.LogInfo("WMI process watcher started", "ApplicationMonitorService");
+            return true;
         }
         catch (Exception ex)
         {
             App.Logger.LogError("Failed to initialize WMI watcher, falling back to polling only", ex, "ApplicationMonitorService");
+            _processWatcher?.Stop();
+            _processWatcher = null;
+
+            return false;
         }
     }
 
@@ -70,7 +76,7 @@ public class ApplicationMonitorService : IDisposable
 
     private async void PollForNewProcesses(object? state)
     {
-        if (_isDisposed || !await _pollLock.WaitAsync(0))
+        if (_isDisposed.Get() || !await _pollLock.WaitAsync(0))
             return;
 
         try
@@ -168,10 +174,9 @@ public class ApplicationMonitorService : IDisposable
 
     public void Dispose()
     {
-        if (_isDisposed)
+        if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        _isDisposed = true;
         _processWatcher?.Stop();
         DisposeAll(
             _processWatcher,
