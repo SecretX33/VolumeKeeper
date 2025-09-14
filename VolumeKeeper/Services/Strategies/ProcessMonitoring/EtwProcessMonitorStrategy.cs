@@ -78,12 +78,10 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         _isRunning = true;
         _cancellationTokenSource = new CancellationTokenSource();
 
-        _source = new ETWTraceEventSource(_session);
+        _source = new ETWTraceEventSource(_session.SessionName);
 
-        var kernelParser = new KernelTraceEventParser(_source);
-
-        kernelParser.ProcessStart += OnProcessStart;
-        kernelParser.ProcessStop += OnProcessStop;
+        _source.Kernel.ProcessStart += OnProcessStart;
+        _source.Kernel.ProcessStop += OnProcessStop;
 
         _processingTask = Task.Run(() =>
         {
@@ -107,6 +105,14 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
     {
         try
         {
+            Console.WriteLine($"[PROCESS START] {DateTime.Now:HH:mm:ss.fff}");
+            Console.WriteLine($"  PID: {data.ProcessID}");
+            Console.WriteLine($"  Process Name: {data.ProcessName}");
+            Console.WriteLine($"  Image Name: {data.ImageFileName}");
+            Console.WriteLine($"  Command Line: {data.CommandLine}");
+            Console.WriteLine($"  Session ID: {data.SessionID}");
+            Console.WriteLine($"  Exit Status: {data.ExitStatus}");
+
             var processName = GetProcessName(data);
             if (!string.IsNullOrEmpty(processName))
             {

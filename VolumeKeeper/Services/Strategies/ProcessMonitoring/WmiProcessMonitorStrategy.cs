@@ -45,7 +45,7 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
             _stopWatcher.EventArrived += OnProcessStopped;
 
             _startWatcher.Start();
-            _startWatcher.Stop();
+            _stopWatcher.Start();
 
             App.Logger.LogDebug("WMI process monitor initialized successfully", "WmiProcessMonitorStrategy");
             return true;
@@ -189,7 +189,6 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
         if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        Stop();
         DisposeWatchers();
     }
 }
