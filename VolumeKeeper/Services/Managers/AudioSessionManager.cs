@@ -53,15 +53,13 @@ public partial class AudioSessionManager : IDisposable
     public async Task<List<AudioSession>> GetSessionsById(VolumeApplicationId volumeApplicationId)
     {
         var allSessions = await GetAllSessionsAsync();
-        return volumeApplicationId.GetAllVariants()
-            .SelectMany(id => allSessions.Where(session => session.AppId == id))
-            .ToList();
+        return allSessions.Where(session => session.AppId == volumeApplicationId).ToList();
     }
 
     public async Task<List<AudioSession>> GetSessionsByExecutableAsync(string executableName)
     {
         if (string.IsNullOrWhiteSpace(executableName))
-            return new List<AudioSession>();
+            return [];
 
         var sessions = await GetAllSessionsAsync();
         return sessions.Where(s =>
