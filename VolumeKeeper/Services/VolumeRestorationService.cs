@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VolumeKeeper.Models;
 using VolumeKeeper.Services.Managers;
 using VolumeKeeper.Util;
 
@@ -36,15 +37,8 @@ public partial class VolumeRestorationService : IDisposable
     private async void OnApplicationLaunched(object? sender, ApplicationLaunchEventArgs e)
     {
         try {
-            if (string.IsNullOrEmpty(e.ExecutableName))
+            if (string.IsNullOrWhiteSpace(e.ExecutableName) || !_settingsManager.AutoRestoreEnabled)
                 return;
-
-            var settings = await _settingsManager.GetSettingsAsync().ConfigureAwait(false);
-            if (!settings.AutoRestoreEnabled)
-            {
-                App.Logger.LogDebug($"Auto-restore disabled, skipping volume restoration for {e.ExecutableName}", "VolumeRestorationService");
-                return;
-            }
 
             if (_recentRestorations.TryGetValue(e.ExecutableName, out var lastRestoration))
             {
@@ -62,14 +56,14 @@ public partial class VolumeRestorationService : IDisposable
         }
     }
 
-    private async Task RestoreVolumeAsync(string executableName)
+    private async Task RestoreVolumeAsync(VolumeApplicationId volumeApplicationId)
     {
         try
         {
-            var savedVolume = await _settingsManager.GetVolumeAsync(executableName);
+            var savedVolume = _settingsManager.GetVolume(volumeApplicationId);
             if (savedVolume == null)
             {
-                App.Logger.LogDebug($"No saved volume found for {executableName}", "VolumeRestorationService");
+                App.Logger.LogDebug($"No saved volume found for {volumeApplicationId}", "VolumeRestorationService");
                 return;
             }
 
