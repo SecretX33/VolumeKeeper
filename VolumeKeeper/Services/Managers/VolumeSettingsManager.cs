@@ -65,9 +65,9 @@ public class VolumeSettingsManager
         }
     }
 
-    private int? GetVolume(VolumeApplicationId id) => _applicationVolumes.GetOrNullValue(id);
+    public int? GetVolume(VolumeApplicationId id) => _applicationVolumes.GetOrNullValue(id);
 
-    private void SetVolumeAndSave(VolumeApplicationId id, int value)
+    public void SetVolumeAndSave(VolumeApplicationId id, int value)
     {
         // validate volume range and name
         if (value is < 0 or > 100) throw new ArgumentOutOfRangeException(nameof(value), "Volume must be between 0 and 100");
