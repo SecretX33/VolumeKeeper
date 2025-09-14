@@ -73,7 +73,7 @@ public partial class VolumeRestorationService : IDisposable
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                if (await _audioSessionService.SetSessionVolumeImmediate(volumeApplicationId, savedVolume.Value))
+                if (await _audioSessionService.SetSessionVolumeImmediateAsync(volumeApplicationId, savedVolume.Value))
                 {
                     _recentRestorations[volumeApplicationId] = DateTime.UtcNow;
                     App.Logger.LogInfo($"Volume restored for {volumeApplicationId} to {savedVolume}% (attempt {attempt + 1})",
@@ -126,14 +126,17 @@ public partial class VolumeRestorationService : IDisposable
                 var savedVolume = _settingsManager.GetVolume(session.AppId);
                 if (savedVolume == null || Math.Abs(session.Volume - savedVolume.Value) <= 1) continue;
 
-                if (await _audioSessionService.SetSessionVolume(session.AppId, savedVolume.Value))
+                _ = _audioSessionService.SetSessionVolumeAsync(session.AppId, savedVolume.Value).ContinueWith(async (a) =>
                 {
-                    App.Logger.LogInfo($"Volume restored for {session.AppId} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
-                }
-                else
-                {
-                    App.Logger.LogWarning($"Failed to restore volume for {session.AppId}", "VolumeRestorationService");
-                }
+                    if (await a.ConfigureAwait(false))
+                    {
+                        App.Logger.LogInfo($"Volume restored for {session.AppId} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
+                    }
+                    else
+                    {
+                        App.Logger.LogWarning($"Failed to restore volume for {session.AppId}", "VolumeRestorationService");
+                    }
+                });
             }
         }
         catch (Exception ex)

@@ -18,7 +18,7 @@ public partial class AudioSessionService(AudioSessionManager sessionManager) : I
     private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
-    public Task<bool> SetSessionVolume(VolumeApplicationId volumeApplicationId, int volumePercentage)
+    public Task<bool> SetSessionVolumeAsync(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
         return Task.Run(async () =>
         {
@@ -42,7 +42,7 @@ public partial class AudioSessionService(AudioSessionManager sessionManager) : I
                     await _volumeSetSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
-                        return await SetSessionVolumeImmediate(volumeApplicationId, volumePercentage);
+                        return await SetSessionVolumeImmediateAsync(volumeApplicationId, volumePercentage);
                     }
                     finally
                     {
@@ -67,26 +67,58 @@ public partial class AudioSessionService(AudioSessionManager sessionManager) : I
         });
     }
 
-    public async Task<bool> SetSessionVolumeImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage)
+    public Task<bool> SetSessionVolumeImmediateAsync(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
-        var sessions = await sessionManager.GetSessionsById(volumeApplicationId);
-
-        bool anySet = false;
-        foreach (var session in sessions)
+        return Task.Run(async () =>
         {
-            try
-            {
-                session.SessionControl.SimpleAudioVolume.Volume = volumePercentage / 100f;
-                anySet = true;
-                App.Logger.LogInfo($"Set volume for {volumeApplicationId} (PID: {session.ProcessId}) to {volumePercentage}%", "AudioSessionManager");
-            }
-            catch (Exception ex)
-            {
-                App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex, "AudioSessionManager");
-            }
-        }
+            var sessions = await sessionManager.GetSessionsById(volumeApplicationId);
 
-        return anySet;
+            bool anySet = false;
+            foreach (var session in sessions)
+            {
+                try
+                {
+                    session.SessionControl.SimpleAudioVolume.Volume = volumePercentage / 100f;
+                    anySet = true;
+                    App.Logger.LogInfo($"Set volume for {volumeApplicationId} (PID: {session.ProcessId}) to {volumePercentage}%",
+                        "AudioSessionManager");
+                }
+                catch (Exception ex)
+                {
+                    App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex,
+                        "AudioSessionManager");
+                }
+            }
+
+            return anySet;
+        });
+    }
+
+    public Task<bool> SetMuteSessionImmediateAsync(VolumeApplicationId volumeApplicationId, bool mute)
+    {
+        return Task.Run(async () =>
+        {
+            var sessions = await sessionManager.GetSessionsById(volumeApplicationId);
+
+            bool anySet = false;
+            foreach (var session in sessions)
+            {
+                try
+                {
+                    session.SessionControl.SimpleAudioVolume.Mute = mute;
+                    anySet = true;
+                    App.Logger.LogInfo($"Set mute for {volumeApplicationId} (PID: {session.ProcessId}) to {(mute ? "muted" : "unmuted")}",
+                        "AudioSessionManager");
+                }
+                catch (Exception ex)
+                {
+                    App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex,
+                        "AudioSessionManager");
+                }
+            }
+
+            return anySet;
+        });
     }
 
     public float? GetSessionVolume(string executableName)

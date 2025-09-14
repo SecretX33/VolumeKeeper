@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using VolumeKeeper.Models;
+using VolumeKeeper.Models.UI;
 using VolumeKeeper.Services;
 using VolumeKeeper.Services.Managers;
 
@@ -15,7 +16,7 @@ namespace VolumeKeeper;
 
 public sealed partial class HomePage : Page
 {
-    public ObservableCollection<Models.UI.ApplicationVolume> Applications { get; } = [];
+    public ObservableCollection<ApplicationVolume> Applications { get; } = [];
     private readonly IconService _iconService;
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly DispatcherTimer _refreshTimer;
@@ -62,7 +63,7 @@ public sealed partial class HomePage : Page
 
                 foreach (var (session, savedVolume) in sessionsWithSavedVolumes)
                 {
-                    var app = new Models.UI.ApplicationVolume
+                    var app = new ApplicationVolume
                     {
                         Session = session,
                         ApplicationName = session.ProcessName,
@@ -141,7 +142,7 @@ public sealed partial class HomePage : Page
                         $"New audio session detected: {Path.GetFileNameWithoutExtension(session.ExecutableName)} (Volume: {session.Volume}%)",
                         "HomePage");
 
-                    var app = new Models.UI.ApplicationVolume
+                    var app = new ApplicationVolume
                     {
                         Session = session,
                         ApplicationName = session.ProcessName,
@@ -215,32 +216,32 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private async void MuteToggle_Click(object sender, RoutedEventArgs e)
+    private void MuteToggle_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            if (sender is not Button { CommandParameter: Models.UI.ApplicationVolume app }) return;
+            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
 
             var audioSessionService = App.AudioSessionService;
 
-            if (app.Volume > 0)
+            if (app is { IsMuted: false, Volume: > 0 })
             {
                 // Store current volume before muting
-                VolumeSettingsManager.SetLastVolumeBeforeMuteAndSave(app.AppId, (int)app.Volume);
+                VolumeSettingsManager.SetLastVolumeBeforeMuteAndSave(app.AppId, app.Volume);
 
                 // Mute
-                await audioSessionService.SetSessionVolume(app.AppId, 0);
-                app.Volume = 0;
+                _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, true);
                 App.Logger.LogInfo(
                     $"Muted {app.ApplicationName} (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)",
                     "HomePage");
             }
             else
             {
-                var savedLastVolume = VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId);
+                var lastVolume = VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId) ?? 50;
                 VolumeSettingsManager.DeleteLastVolumeBeforeMuteAndSave(app.AppId);
-                var lastVolume = savedLastVolume ?? 50;
-                await audioSessionService.SetSessionVolume(app.AppId, lastVolume);
+
+                _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, false);
+                _ = audioSessionService.SetSessionVolumeImmediateAsync(app.AppId, lastVolume);
                 App.Logger.LogInfo($"Unmuted {app.ApplicationName} to {lastVolume}%", "HomePage");
             }
         }
@@ -260,12 +261,12 @@ public sealed partial class HomePage : Page
     private async void VolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         try {
-            if (sender is not Slider { Tag: Models.UI.ApplicationVolume app } || string.IsNullOrEmpty(app.ExecutableName)) return;
+            if (sender is not Slider { Tag: ApplicationVolume app } || string.IsNullOrEmpty(app.ExecutableName)) return;
 
             var newVolume = (int)e.NewValue;
 
             // Update the audio session volume
-            await App.AudioSessionService.SetSessionVolume(app.AppId, newVolume);
+            await App.AudioSessionService.SetSessionVolumeAsync(app.AppId, newVolume);
         } catch (Exception ex)
         {
             App.Logger.LogError("Failed to change volume", ex, "HomePage");
@@ -276,7 +277,7 @@ public sealed partial class HomePage : Page
     {
         try
         {
-            if (sender is not Button { CommandParameter: Models.UI.ApplicationVolume app }) return;
+            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
 
             var currentVolume = (int)app.Volume;
             VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
@@ -294,13 +295,13 @@ public sealed partial class HomePage : Page
     {
         try
         {
-            if (sender is not Button { CommandParameter: Models.UI.ApplicationVolume app }) return;
+            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
             if (!app.SavedVolume.HasValue) return;
 
             var audioSessionService = App.AudioSessionService;
 
             var savedVolume = app.SavedVolume.Value;
-            await audioSessionService.SetSessionVolume(app.AppId, savedVolume);
+            await audioSessionService.SetSessionVolumeAsync(app.AppId, savedVolume);
             app.Volume = savedVolume;
 
             App.Logger.LogInfo($"Reverted volume for {app.ApplicationName} to {savedVolume}%", "HomePage");
@@ -311,7 +312,7 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private async void LoadApplicationIconAsync(Models.UI.ApplicationVolume app, string? iconPath)
+    private async void LoadApplicationIconAsync(ApplicationVolume app, string? iconPath)
     {
         try
         {
