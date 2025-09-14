@@ -55,8 +55,7 @@ public sealed partial class HomePage : Page
 
             foreach (var session in sessions)
             {
-                var savedVolume = VolumeSettingsManager != null
-                    ? await VolumeSettingsManager.GetVolumeAsync(session.ExecutableName)
+                var savedVolume = await VolumeSettingsManager.GetVolume(session.AppId)
                     : null;
                 sessionsWithSavedVolumes.Add((session, savedVolume));
             }
@@ -69,9 +68,11 @@ public sealed partial class HomePage : Page
                 {
                     var app = new ApplicationVolume
                     {
+                        AppId = session.AppId,
                         ApplicationName = Path.GetFileNameWithoutExtension(session.ExecutableName),
                         ProcessName = session.ProcessName,
                         ExecutableName = session.ExecutableName,
+                        ExecutablePath = session.ExecutablePath,
                         Volume = session.Volume,
                         SavedVolume = savedVolume,
                         Status = "Active",
@@ -154,6 +155,7 @@ public sealed partial class HomePage : Page
 
                     var app = new ApplicationVolume
                     {
+                        AppId = session.AppId,
                         ApplicationName = Path.GetFileNameWithoutExtension(session.ExecutableName),
                         ProcessName = session.ProcessName,
                         ExecutableName = session.ExecutableName,
@@ -219,11 +221,7 @@ public sealed partial class HomePage : Page
         try
         {
             if (sender is not ToggleSwitch toggle) return;
-            var settings = await VolumeSettingsManager.GetSettingsAsync();
-            if (settings.AutoRestoreEnabled == toggle.IsOn) return;
-
-            settings.AutoRestoreEnabled = toggle.IsOn;
-            await VolumeSettingsManager.SaveSettingsAsync(settings);
+            VolumeSettingsManager.SetAutoRestoreEnabledAndSave(toggle.IsOn);
             App.Logger.LogInfo($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
         }
         catch (Exception ex)
@@ -238,44 +236,32 @@ public sealed partial class HomePage : Page
         {
             if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
 
-            var volumeSettingsService = App.AudioSessionService;
-
-            var settings = await VolumeSettingsManager.GetSettingsAsync();
+            var audioSessionService = App.AudioSessionService;
 
             if (app.Volume > 0)
             {
                 // Store current volume before muting
-                settings.LastVolumeBeforeMute[app.ExecutableName.ToLowerInvariant()] = (int)app.Volume;
-                await VolumeSettingsManager.SaveSettingsAsync(settings);
+                VolumeSettingsManager.SetLastVolumeBeforeMuteAndSave(app.AppId, (int)app.Volume);
 
                 // Mute
-                await volumeSettingsService.SetSessionVolume(app.ExecutableName, 0);
+                await audioSessionService.SetSessionVolume(app.ExecutableName, 0);
                 app.Volume = 0;
                 App.Logger.LogInfo(
-                    $"Muted {app.ApplicationName} (saved volume: {settings.LastVolumeBeforeMute[app.ExecutableName.ToLowerInvariant()]}%)",
+                    $"Muted {app.ApplicationName} (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)",
                     "HomePage");
             }
             else
             {
-                // Unmute - restore previous volume
-                if (settings.LastVolumeBeforeMute.TryGetValue(app.ExecutableName.ToLowerInvariant(), out var lastVolume))
-                {
-                    await volumeSettingsService.SetSessionVolume(app.ExecutableName, lastVolume);
-                    app.Volume = lastVolume;
-                    App.Logger.LogInfo($"Unmuted {app.ApplicationName} to {lastVolume}%", "HomePage");
-                }
-                else
-                {
-                    // No saved volume, restore to 50%
-                    await volumeSettingsService.SetSessionVolume(app.ExecutableName, 50);
-                    app.Volume = 50;
-                    App.Logger.LogInfo($"Unmuted {app.ApplicationName} to 50% (no saved volume)", "HomePage");
-                }
+                var savedLastVolume = VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId);
+                VolumeSettingsManager.DeleteLastVolumeBeforeMuteAndSave(app.AppId);
+                var lastVolume = savedLastVolume ?? 50;
+                await audioSessionService.SetSessionVolume(app.ExecutableName, lastVolume);
+                App.Logger.LogInfo($"Unmuted {app.ApplicationName} to {lastVolume}%", "HomePage");
             }
         }
         catch (Exception ex)
         {
-            App.Logger.LogError($"Failed to toggle mute for application", ex, "HomePage");
+            App.Logger.LogError("Failed to toggle mute for application", ex, "HomePage");
         }
     }
 
@@ -293,24 +279,22 @@ public sealed partial class HomePage : Page
 
             var newVolume = (int)e.NewValue;
 
-            var volumeSettingsManager = VolumeSettingsManager;
-
             // Update the audio session volume
-            await volumeSettingsManager.SetVolumeAsync(app.ExecutableName, newVolume);
+            await App.AudioSessionService.SetSessionVolume(app.ExecutableName, newVolume);
         } catch (Exception ex)
         {
             App.Logger.LogError("Failed to change volume", ex, "HomePage");
         }
     }
 
-    private async void SaveVolume_Click(object sender, RoutedEventArgs e)
+    private void SaveVolume_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
 
             var currentVolume = (int)app.Volume;
-            VolumeSettingsManager.SetVolumeAndSave(app.ExecutableName, currentVolume);
+            VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
             app.SavedVolume = currentVolume;
 
             App.Logger.LogInfo($"Saved volume for {app.ApplicationName}: {currentVolume}%", "HomePage");
@@ -366,9 +350,11 @@ public sealed partial class HomePage : Page
 
 public sealed partial class ApplicationVolume : INotifyPropertyChanged
 {
+    public required VolumeApplicationId AppId;
     private string _applicationName = string.Empty;
     private string _processName = string.Empty;
     private string _executableName = string.Empty;
+    private string? _executablePath;
     private double _volume;
     private int? _savedVolume;
     private string _status = string.Empty;
@@ -479,6 +465,19 @@ public sealed partial class ApplicationVolume : INotifyPropertyChanged
             {
                 _executableName = value;
                 OnPropertyChanged(nameof(ExecutableName));
+            }
+        }
+    }
+
+    public string? ExecutablePath
+    {
+        get => _executablePath;
+        set
+        {
+            if (_executablePath != value)
+            {
+                _executablePath = value;
+                OnPropertyChanged(nameof(ExecutablePath));
             }
         }
     }
