@@ -172,36 +172,6 @@ public sealed partial class HomePage : Page
         LoadAudioSessions();
     }
 
-    private async void ClearAllButton_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var dialog = new ContentDialog
-            {
-                Title = "Clear All Saved Volumes?",
-                Content =
-                    "This will remove all saved volume levels. Applications will no longer have their volumes automatically restored.",
-                PrimaryButtonText = "Clear All",
-                CloseButtonText = "Cancel",
-                XamlRoot = this.XamlRoot,
-                DefaultButton = ContentDialogButton.Close
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result != ContentDialogResult.Primary) return;
-
-            // await VolumeSettingsManager.ClearAllConfigurationsAsync();
-
-            Applications.Clear();
-            UpdateEmptyStateVisibility();
-            App.Logger.LogInfo("All saved volume levels cleared", "HomePage");
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to clear all saved volumes", ex, "HomePage");
-        }
-    }
-
     private void AutoRestoreToggle_Toggled(object sender, RoutedEventArgs e)
     {
         try

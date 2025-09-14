@@ -37,15 +37,6 @@
             <TextBlock Text="Refresh" />
           </StackPanel>
         </Button>
-
-        <Button x:Name="ClearAllButton"
-                Click="ClearAllButton_Click"
-                Style="{ThemeResource AccentButtonStyle}">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <SymbolIcon Symbol="Clear" />
-            <TextBlock Text="Clear All" />
-          </StackPanel>
-        </Button>
       </StackPanel>
 
       <StackPanel Grid.Column="1"
