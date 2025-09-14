@@ -10,6 +10,19 @@ using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services.Strategies.ProcessMonitoring;
 
+/**
+ * <p>EtwProcessMonitorStrategy uses Event Tracing for Windows (ETW) to monitor process start and stop events.
+ * ETW is a kernel-level, high-performance logging system built into Windows that provides direct access to kernel events.</p>
+ *
+ * <p><b>Performance:</b> Very fast with minimal latency and low overhead. Designed for real-time diagnostics at scale
+ * (used by professional tools like Sysmon, Process Monitor, and PerfView).</p>
+ *
+ * <p><b>Reliability:</b> Kernel sends events directly, ensuring no missed events even for short-lived processes.
+ * Captures rich process data including process name, PID, parent PID, command line, session ID, and user SID.</p>
+ *
+ * <p><b>Note:</b> This strategy requires administrator privileges to create ETW sessions and subscribe to kernel events.
+ * It is the preferred strategy when available due to its superior performance and reliability.</p>
+ */
 public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
 {
     private TraceEventSession? _session;
@@ -34,14 +47,14 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
                 return false;
             }
 
-            _session = new TraceEventSession("VolumeKeeperETWSession", TraceEventSessionOptions.Create);
+            _session = new TraceEventSession("VolumeKeeperETWSession");
 
             _session.EnableKernelProvider(
                 KernelTraceEventParser.Keywords.Process |
                 KernelTraceEventParser.Keywords.ImageLoad
             );
 
-            App.Logger.LogInfo("ETW process monitor initialized successfully", "EtwProcessMonitorStrategy");
+            App.Logger.LogDebug("ETW process monitor initialized successfully", "EtwProcessMonitorStrategy");
             return true;
         }
         catch (UnauthorizedAccessException)
@@ -87,7 +100,7 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
             }
         }, _cancellationTokenSource.Token);
 
-        App.Logger.LogInfo("ETW process monitor started", "EtwProcessMonitorStrategy");
+        App.Logger.LogDebug("ETW process monitor started", "EtwProcessMonitorStrategy");
     }
 
     private void OnProcessStart(ProcessTraceData data)
@@ -175,7 +188,7 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
             App.Logger.LogError("Error stopping ETW process monitor", ex, "EtwProcessMonitorStrategy");
         }
 
-        App.Logger.LogInfo("ETW process monitor stopped", "EtwProcessMonitorStrategy");
+        App.Logger.LogDebug("ETW process monitor stopped", "EtwProcessMonitorStrategy");
     }
 
     private void DisposeSession()

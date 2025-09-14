@@ -1,15 +1,31 @@
 using System;
 using System.IO;
 using System.Management;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services.Strategies.ProcessMonitoring;
 
+/**
+ * <p>WmiProcessMonitorStrategy uses Windows Management Instrumentation (WMI) to monitor process start and stop events.
+ * WMI provides a standardized way to access management information through event subscriptions to Win32_ProcessStartTrace
+ * and Win32_ProcessStopTrace events.</p>
+ *
+ * <p><b>Performance:</b> Moderate performance with higher overhead than ETW. Event delivery may have slight delays
+ * as WMI operates at a higher level than kernel events. Suitable for most monitoring scenarios where real-time
+ * response is not critical.</p>
+ *
+ * <p><b>Reliability:</b> Generally reliable for standard process monitoring. May occasionally miss very short-lived
+ * processes due to the event subscription model. Provides basic process information including process name and PID.</p>
+ *
+ * <p><b>Note:</b> This strategy works without administrator privileges in most cases, making it a good fallback
+ * when ETW is unavailable. It is the recommended strategy for non-elevated applications.</p>
+ */
 public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
 {
     private ManagementEventWatcher? _startWatcher;
     private ManagementEventWatcher? _stopWatcher;
     private volatile bool _isRunning;
-    private volatile bool _isDisposed;
+    private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public event EventHandler<ProcessEventArgs>? ProcessStarted;
     public event EventHandler<ProcessEventArgs>? ProcessStopped;
@@ -31,7 +47,7 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
             _startWatcher.Start();
             _startWatcher.Stop();
 
-            App.Logger.LogInfo("WMI process monitor initialized successfully", "WmiProcessMonitorStrategy");
+            App.Logger.LogDebug("WMI process monitor initialized successfully", "WmiProcessMonitorStrategy");
             return true;
         }
         catch (Exception ex)
@@ -51,7 +67,7 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
             _startWatcher.Start();
             _stopWatcher.Start();
             _isRunning = true;
-            App.Logger.LogInfo("WMI process monitor started", "WmiProcessMonitorStrategy");
+            App.Logger.LogDebug("WMI process monitor started", "WmiProcessMonitorStrategy");
         }
         catch (Exception ex)
         {
@@ -149,6 +165,7 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
             if (_startWatcher != null)
             {
                 _startWatcher.EventArrived -= OnProcessStarted;
+                _startWatcher.Stop();
                 _startWatcher.Dispose();
                 _startWatcher = null;
             }
@@ -156,6 +173,7 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
             if (_stopWatcher != null)
             {
                 _stopWatcher.EventArrived -= OnProcessStopped;
+                _stopWatcher.Stop();
                 _stopWatcher.Dispose();
                 _stopWatcher = null;
             }
@@ -168,8 +186,8 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
 
     public void Dispose()
     {
-        if (_isDisposed) return;
-        _isDisposed = true;
+        if (!_isDisposed.CompareAndSet(false, true))
+            return;
 
         Stop();
         DisposeWatchers();

@@ -5,20 +5,32 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using VolumeKeeper.Util;
+using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services.Strategies.ProcessMonitoring;
 
 /**
- * <p>A process monitoring strategy that uses polling to detect process start and stop events.
- * This strategy periodically checks the list of running processes and compares it to a known list.
- * It raises events when it detects new processes or when known processes have stopped.</p>
+ * <p>PollingProcessMonitorStrategy uses periodic polling with Process.GetProcesses() to detect process start and stop events.
+ * This strategy maintains an internal list of known processes and periodically scans the system to detect changes,
+ * comparing snapshots to identify new or terminated processes.</p>
  *
- * <p><b>Note:</b> This is a fallback strategy and it's not as efficient or responsive as other strategies
- * like ETW or WMI. It is recommended to use this only if other strategies are unavailable.</p>
+ * <p><b>Performance:</b> Higher resource consumption due to periodic full process enumeration. Detection latency
+ * depends on polling interval (default: 2 seconds). CPU usage increases with the number of running processes
+ * as each poll requires iterating through all system processes.</p>
+ *
+ * <p><b>Reliability:</b> Most reliable fallback strategy that works in all environments. Will eventually detect
+ * all process changes but may miss very short-lived processes that start and stop between polling intervals.
+ * Provides basic process information through standard .NET Process APIs.</p>
+ *
+ * <p><b>Note:</b> This is the ultimate fallback strategy that requires no special privileges or Windows features.
+ * It will always work but should only be used when ETW and WMI strategies are unavailable due to its higher
+ * resource usage and detection latency.</p>
  */
 public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
 {
     private Timer? _pollTimer;
+    private readonly TimeSpan _delayBeforeFirstPoll = TimeSpan.FromSeconds(1);
+    private readonly TimeSpan _internalBetweenPolls = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _pollLock = new(1, 1);
     private readonly Dictionary<int, string> _knownProcesses = new();
     private volatile bool _isRunning;
@@ -52,7 +64,7 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
 
         InitializeKnownProcesses();
 
-        _pollTimer = new Timer(PollForProcessChanges, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
+        _pollTimer = new Timer(PollForProcessChanges, null, _delayBeforeFirstPoll, _internalBetweenPolls);
 
         App.Logger.LogInfo("Polling process monitor started", "PollingProcessMonitorStrategy");
     }
@@ -105,9 +117,8 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
 
                     currentProcessMap[process.Id] = executableName;
 
-                    if (!_knownProcesses.ContainsKey(process.Id))
+                    if (_knownProcesses.TryAdd(process.Id, executableName))
                     {
-                        _knownProcesses[process.Id] = executableName;
                         OnProcessStarted(executableName, process.Id);
                     }
                 }
@@ -193,8 +204,10 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
 
         Stop();
 
-        _pollTimer?.Dispose();
-        _pollLock?.Dispose();
+        DisposeAll(
+            _pollTimer,
+            _pollLock
+        );
         _knownProcesses.Clear();
     }
 }
