@@ -105,13 +105,13 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
     {
         try
         {
-            Console.WriteLine($"[PROCESS START] {DateTime.Now:HH:mm:ss.fff}");
-            Console.WriteLine($"  PID: {data.ProcessID}");
-            Console.WriteLine($"  Process Name: {data.ProcessName}");
-            Console.WriteLine($"  Image Name: {data.ImageFileName}");
-            Console.WriteLine($"  Command Line: {data.CommandLine}");
-            Console.WriteLine($"  Session ID: {data.SessionID}");
-            Console.WriteLine($"  Exit Status: {data.ExitStatus}");
+            App.Logger.LogDebug($"[PROCESS START] {DateTime.Now:HH:mm:ss.fff}");
+            App.Logger.LogDebug($"  PID: {data.ProcessID}");
+            App.Logger.LogDebug($"  Process Name: {data.ProcessName}");
+            App.Logger.LogDebug($"  Image Name: {data.ImageFileName}");
+            App.Logger.LogDebug($"  Command Line: {data.CommandLine}");
+            App.Logger.LogDebug($"  Session ID: {data.SessionID}");
+            App.Logger.LogDebug($"  Exit Status: {data.ExitStatus}");
 
             var processName = GetProcessName(data);
             if (!string.IsNullOrEmpty(processName))
