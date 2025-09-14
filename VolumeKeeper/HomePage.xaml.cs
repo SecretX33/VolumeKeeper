@@ -11,6 +11,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
 using VolumeKeeper.Models;
 using VolumeKeeper.Services;
+using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper;
 
@@ -20,6 +21,7 @@ public sealed partial class HomePage : Page
     private readonly IconService _iconService;
     private readonly DispatcherQueue _dispatcherQueue;
     private readonly DispatcherTimer _refreshTimer;
+    private static VolumeSettingsManager VolumeSettingsManager => App.VolumeSettingsManager;
 
     public HomePage()
     {
@@ -38,16 +40,9 @@ public sealed partial class HomePage : Page
         LoadSettings();
     }
 
-    private async void LoadSettings()
+    private void LoadSettings()
     {
-        try
-        {
-            var settings = await App.VolumeSettingsManager.GetSettingsAsync();
-            AutoRestoreToggle.IsOn = settings.AutoRestoreEnabled;
-        } catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to load settings", ex, "HomePage");
-        }
+        AutoRestoreToggle.IsOn = VolumeSettingsManager.AutoRestoreEnabled;
     }
 
     private async void LoadAudioSessions()
@@ -60,8 +55,8 @@ public sealed partial class HomePage : Page
 
             foreach (var session in sessions)
             {
-                var savedVolume = App.VolumeSettingsManager != null
-                    ? await App.VolumeSettingsManager.GetVolumeAsync(session.ExecutableName)
+                var savedVolume = VolumeSettingsManager != null
+                    ? await VolumeSettingsManager.GetVolumeAsync(session.ExecutableName)
                     : null;
                 sessionsWithSavedVolumes.Add((session, savedVolume));
             }
@@ -117,8 +112,8 @@ public sealed partial class HomePage : Page
 
             foreach (var session in newSessions)
             {
-                var savedVolume = App.VolumeSettingsManager != null
-                    ? await App.VolumeSettingsManager.GetVolumeAsync(session.ExecutableName)
+                var savedVolume = VolumeSettingsManager != null
+                    ? await VolumeSettingsManager.GetVolumeAsync(session.ExecutableName)
                     : null;
                 newSessionsWithVolumes.Add((session, savedVolume));
             }
@@ -207,7 +202,7 @@ public sealed partial class HomePage : Page
             var result = await dialog.ShowAsync();
             if (result != ContentDialogResult.Primary) return;
 
-            await App.VolumeSettingsManager.ClearAllConfigurationsAsync();
+            await VolumeSettingsManager.ClearAllConfigurationsAsync();
 
             Applications.Clear();
             UpdateEmptyStateVisibility();
@@ -224,11 +219,11 @@ public sealed partial class HomePage : Page
         try
         {
             if (sender is not ToggleSwitch toggle) return;
-            var settings = await App.VolumeSettingsManager.GetSettingsAsync();
+            var settings = await VolumeSettingsManager.GetSettingsAsync();
             if (settings.AutoRestoreEnabled == toggle.IsOn) return;
 
             settings.AutoRestoreEnabled = toggle.IsOn;
-            await App.VolumeSettingsManager.SaveSettingsAsync(settings);
+            await VolumeSettingsManager.SaveSettingsAsync(settings);
             App.Logger.LogInfo($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
         }
         catch (Exception ex)
@@ -245,13 +240,13 @@ public sealed partial class HomePage : Page
 
             var volumeSettingsService = App.AudioSessionService;
 
-            var settings = await App.VolumeSettingsManager.GetSettingsAsync();
+            var settings = await VolumeSettingsManager.GetSettingsAsync();
 
             if (app.Volume > 0)
             {
                 // Store current volume before muting
                 settings.LastVolumeBeforeMute[app.ExecutableName.ToLowerInvariant()] = (int)app.Volume;
-                await App.VolumeSettingsManager.SaveSettingsAsync(settings);
+                await VolumeSettingsManager.SaveSettingsAsync(settings);
 
                 // Mute
                 await volumeSettingsService.SetSessionVolume(app.ExecutableName, 0);
@@ -298,7 +293,7 @@ public sealed partial class HomePage : Page
 
             var newVolume = (int)e.NewValue;
 
-            var volumeSettingsManager = App.VolumeSettingsManager;
+            var volumeSettingsManager = VolumeSettingsManager;
 
             // Update the audio session volume
             await volumeSettingsManager.SetVolumeAsync(app.ExecutableName, newVolume);
@@ -315,7 +310,7 @@ public sealed partial class HomePage : Page
             if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
 
             var currentVolume = (int)app.Volume;
-            await App.VolumeSettingsManager.SetVolumeAsync(app.ExecutableName, currentVolume);
+            VolumeSettingsManager.SetVolumeAndSave(app.ExecutableName, currentVolume);
             app.SavedVolume = currentVolume;
 
             App.Logger.LogInfo($"Saved volume for {app.ApplicationName}: {currentVolume}%", "HomePage");
@@ -369,7 +364,7 @@ public sealed partial class HomePage : Page
     }
 }
 
-public class ApplicationVolume : INotifyPropertyChanged
+public sealed partial class ApplicationVolume : INotifyPropertyChanged
 {
     private string _applicationName = string.Empty;
     private string _processName = string.Empty;
@@ -387,11 +382,9 @@ public class ApplicationVolume : INotifyPropertyChanged
         get => _applicationName;
         set
         {
-            if (_applicationName != value)
-            {
-                _applicationName = value;
-                OnPropertyChanged(nameof(ApplicationName));
-            }
+            if (_applicationName == value) return;
+            _applicationName = value;
+            OnPropertyChanged(nameof(ApplicationName));
         }
     }
 
@@ -413,17 +406,15 @@ public class ApplicationVolume : INotifyPropertyChanged
         get => _volume;
         set
         {
-            if (Math.Abs(_volume - value) > VolumeDifferenceTolerance)
-            {
-                _volume = value;
-                OnPropertyChanged(nameof(Volume));
-                OnPropertyChanged(nameof(VolumeIcon));
-                OnPropertyChanged(nameof(VolumeDisplayText));
-                OnPropertyChanged(nameof(HasUnsavedChanges));
-                OnPropertyChanged(nameof(SaveButtonVisibility));
-                OnPropertyChanged(nameof(RevertButtonVisibility));
-                OnPropertyChanged(nameof(SavedVolumeDisplay));
-            }
+            if (!(Math.Abs(_volume - value) > VolumeDifferenceTolerance)) return;
+            _volume = value;
+            OnPropertyChanged(nameof(Volume));
+            OnPropertyChanged(nameof(VolumeIcon));
+            OnPropertyChanged(nameof(VolumeDisplayText));
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            OnPropertyChanged(nameof(SaveButtonVisibility));
+            OnPropertyChanged(nameof(RevertButtonVisibility));
+            OnPropertyChanged(nameof(SavedVolumeDisplay));
         }
     }
 
@@ -521,7 +512,7 @@ public class ApplicationVolume : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    protected virtual void OnPropertyChanged(string propertyName)
+    private void OnPropertyChanged(string propertyName)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
