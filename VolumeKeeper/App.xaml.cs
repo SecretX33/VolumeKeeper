@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
@@ -16,6 +19,8 @@ namespace VolumeKeeper;
 
 public partial class App : Application
 {
+    private const string MutexName = "Global\\VolumeKeeper_SingleInstance_Mutex";
+    private static Mutex? _singleInstanceMutex;
     private MainWindow? _mainWindow;
     private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
@@ -42,6 +47,15 @@ public partial class App : Application
     {
         try
         {
+            // Check for single instance
+            if (!EnsureSingleInstance())
+            {
+                Console.WriteLine("Multiple instances detected. Bringing existing instance to front and exiting.");
+                BringExistingInstanceToFront();
+                ExitApplication();
+                return;
+            }
+
             // Initialize logging service first
             _loggingService = new LoggingService(DispatcherQueue.GetForCurrentThread());
             Logger.LogDebug("VolumeKeeper initialization started");
@@ -56,6 +70,48 @@ public partial class App : Application
         {
             Logger.LogError("Unhandled exception during application launch", ex, "App");
             ExitApplication();
+        }
+    }
+
+    private static bool EnsureSingleInstance()
+    {
+        try
+        {
+            // Try to create a new mutex
+            _singleInstanceMutex = new Mutex(true, MutexName, out bool createdNew);
+
+            if (createdNew) return true;
+
+            // Another instance already owns the mutex
+            _singleInstanceMutex.Dispose();
+            _singleInstanceMutex = null;
+            return false;
+        }
+        catch (Exception)
+        {
+            // If we can't create/check the mutex, allow the instance to run
+            // Better to have multiple instances than to fail completely
+            return true;
+        }
+    }
+
+    private static void BringExistingInstanceToFront()
+    {
+        try
+        {
+            // Find the existing VolumeKeeper process
+            var currentProcess = Process.GetCurrentProcess();
+            var anotherInstance = Process.GetProcessesByName(currentProcess.ProcessName)
+                .FirstOrDefault(it => it.Id != currentProcess.Id);
+            var handle = anotherInstance?.MainWindowHandle;
+
+            if (handle == null || handle == IntPtr.Zero) return;
+
+            NativeMethods.ShowAndFocus((IntPtr)handle);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Failed to bring existing instance to front: " + ex.Message);
         }
     }
 
@@ -186,6 +242,11 @@ public partial class App : Application
         }
         finally
         {
+            // Release the mutex before exiting
+            _singleInstanceMutex?.ReleaseMutex();
+            _singleInstanceMutex?.Dispose();
+            _singleInstanceMutex = null;
+
             Current.Exit();
         }
     }
