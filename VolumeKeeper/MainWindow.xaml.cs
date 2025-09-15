@@ -4,7 +4,6 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VolumeKeeper.Models;
-using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper;
 
@@ -21,19 +20,6 @@ public sealed partial class MainWindow : Window
         NavigationViewControl.SelectedItem = NavigationViewControl.MenuItems[0];
         Closed += MainWindow_Closed;
         NavigateToPage("Home");
-        UpdateAdminButtonVisibility();
-    }
-
-    private void UpdateAdminButtonVisibility()
-    {
-        App.Logger.LogDebug($"Admin button status, IsAdministrator: {IsAdministrator()}, IsElevated: {IsElevated()}", "MainWindow");
-        // Show button only if user is admin but app is not elevated
-        AdminButton.Visibility = IsAdministrator() && !IsElevated() ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void AdminButton_Click(object sender, RoutedEventArgs e)
-    {
-        RestartAsAdmin();
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
