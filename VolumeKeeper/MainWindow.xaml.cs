@@ -53,7 +53,7 @@ public sealed partial class MainWindow : Window
         var appWindow = AppWindow;
         if (appWindow == null) return;
 
-        var windowSettings = App.WindowSettingsService.Get(WindowId);
+        var windowSettings = App.WindowSettingsManager.Get(WindowId);
 
         // Apply maximize state if needed
         var presenter = appWindow.Presenter as OverlappedPresenter;
@@ -115,7 +115,7 @@ public sealed partial class MainWindow : Window
         var appWindow = AppWindow;
         if (appWindow == null) return;
 
-        var windowSettings = App.WindowSettingsService.Get(WindowId);
+        var windowSettings = App.WindowSettingsManager.Get(WindowId);
 
         // Check if window is maximized
         var presenter = appWindow.Presenter as OverlappedPresenter;
@@ -131,7 +131,7 @@ public sealed partial class MainWindow : Window
         );
         if (windowSettings == newWindowSettings) return;
 
-        App.WindowSettingsService.SetAndSave(WindowId, newWindowSettings, saveImmediately);
+        App.WindowSettingsManager.SetAndSave(WindowId, newWindowSettings, saveImmediately);
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)

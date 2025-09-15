@@ -3,26 +3,32 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VolumeKeeper.Models;
+using VolumeKeeper.Services.Managers;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
-public class VolumeRestorationService : IDisposable
+public partial class VolumeRestorationService : IDisposable
 {
-    private readonly AudioSessionManager _audioSessionManager;
-    private readonly VolumeStorageService _storageService;
+    private readonly AudioSessionService _audioSessionService;
+    private readonly AudioSessionManager _sessionManager;
+    private readonly VolumeSettingsManager _settingsManager;
     private readonly ApplicationMonitorService _appMonitorService;
-    private readonly ConcurrentDictionary<string, DateTime> _recentRestorations = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<VolumeApplicationId, DateTime> _recentRestorations = new();
     private readonly Timer _cleanupTimer;
     private readonly TimeSpan _restorationCooldown = TimeSpan.FromSeconds(1);
-    private volatile bool _isDisposed;
+    private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public VolumeRestorationService(
-        AudioSessionManager audioSessionManager,
-        VolumeStorageService storageService,
+        AudioSessionService audioSessionService,
+        AudioSessionManager sessionManager,
+        VolumeSettingsManager settingsManager,
         ApplicationMonitorService appMonitorService)
     {
-        _audioSessionManager = audioSessionManager;
-        _storageService = storageService;
+        _audioSessionService = audioSessionService;
+        _sessionManager = sessionManager;
+        _settingsManager = settingsManager;
         _appMonitorService = appMonitorService;
         _appMonitorService.ApplicationLaunched += OnApplicationLaunched;
         _cleanupTimer = new Timer(CleanupOldRestorations, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
@@ -31,17 +37,10 @@ public class VolumeRestorationService : IDisposable
     private async void OnApplicationLaunched(object? sender, ApplicationLaunchEventArgs e)
     {
         try {
-            if (string.IsNullOrEmpty(e.ExecutableName))
+            if (string.IsNullOrWhiteSpace(e.ExecutableName) || !_settingsManager.AutoRestoreEnabled)
                 return;
 
-            var settings = await _storageService.GetSettingsAsync().ConfigureAwait(false);
-            if (!settings.AutoRestoreEnabled)
-            {
-                App.Logger.LogDebug($"Auto-restore disabled, skipping volume restoration for {e.ExecutableName}", "VolumeRestorationService");
-                return;
-            }
-
-            if (_recentRestorations.TryGetValue(e.ExecutableName, out var lastRestoration))
+            if (_recentRestorations.TryGetValue(e.AppId, out var lastRestoration))
             {
                 if (DateTime.UtcNow - lastRestoration < _restorationCooldown)
                 {
@@ -50,21 +49,21 @@ public class VolumeRestorationService : IDisposable
                 }
             }
 
-            await Task.Run(() => RestoreVolumeAsync(e.ExecutableName));
+            await Task.Run(() => RestoreVolumeAsync(e.AppId));
         } catch (Exception ex)
         {
             App.Logger.LogError($"Error handling application launch for {e.ExecutableName}", ex, "VolumeRestorationService");
         }
     }
 
-    private async Task RestoreVolumeAsync(string executableName)
+    private async Task RestoreVolumeAsync(VolumeApplicationId volumeApplicationId)
     {
         try
         {
-            var savedVolume = await _storageService.GetVolumeAsync(executableName);
+            var savedVolume = _settingsManager.GetVolume(volumeApplicationId);
             if (savedVolume == null)
             {
-                App.Logger.LogDebug($"No saved volume found for {executableName}", "VolumeRestorationService");
+                App.Logger.LogDebug($"No saved volume found for {volumeApplicationId}", "VolumeRestorationService");
                 return;
             }
 
@@ -74,10 +73,10 @@ public class VolumeRestorationService : IDisposable
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                if (_audioSessionManager.SetSessionVolumeImmediate(executableName, savedVolume.Value))
+                if (await _audioSessionService.SetSessionVolumeImmediateAsync(volumeApplicationId, savedVolume.Value))
                 {
-                    _recentRestorations[executableName] = DateTime.UtcNow;
-                    App.Logger.LogInfo($"Volume restored for {executableName} to {savedVolume}% (attempt {attempt + 1})",
+                    _recentRestorations[volumeApplicationId] = DateTime.UtcNow;
+                    App.Logger.LogInfo($"Volume restored for {volumeApplicationId} to {savedVolume}% (attempt {attempt + 1})",
                         "VolumeRestorationService");
                     restored = true;
                     break;
@@ -91,13 +90,13 @@ public class VolumeRestorationService : IDisposable
 
             if (!restored)
             {
-                App.Logger.LogWarning($"Failed to restore volume for {executableName} after {maxAttempts} attempts",
+                App.Logger.LogWarning($"Failed to restore volume for {volumeApplicationId} after {maxAttempts} attempts",
                     "VolumeRestorationService");
             }
         }
         catch (Exception ex)
         {
-            App.Logger.LogError($"Error restoring volume for {executableName}", ex, "VolumeRestorationService");
+            App.Logger.LogError($"Error restoring volume for {volumeApplicationId}", ex, "VolumeRestorationService");
         }
     }
 
@@ -119,23 +118,25 @@ public class VolumeRestorationService : IDisposable
     {
         try
         {
-            var sessions = _audioSessionManager.GetAllSessions();
-            var validSessions = sessions.Where(s => !string.IsNullOrEmpty(s.ExecutableName));
+            var sessions = await _sessionManager.GetAllSessionsAsync().ConfigureAwait(false);
             App.Logger.LogInfo($"Restoring volumes for {sessions.Count} active sessions", "VolumeRestorationService");
 
-            foreach (var session in validSessions)
+            foreach (var session in sessions)
             {
-                var savedVolume = await _storageService.GetVolumeAsync(session.ExecutableName);
+                var savedVolume = _settingsManager.GetVolume(session.AppId);
                 if (savedVolume == null || Math.Abs(session.Volume - savedVolume.Value) <= 1) continue;
 
-                if (await _audioSessionManager.SetSessionVolume(session.ExecutableName, savedVolume.Value))
+                _ = _audioSessionService.SetSessionVolumeAsync(session.AppId, savedVolume.Value).ContinueWith(async (a) =>
                 {
-                    App.Logger.LogInfo($"Volume restored for {session.ExecutableName} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
-                }
-                else
-                {
-                    App.Logger.LogWarning($"Failed to restore volume for {session.ExecutableName}", "VolumeRestorationService");
-                }
+                    if (await a.ConfigureAwait(false))
+                    {
+                        App.Logger.LogInfo($"Volume restored for {session.AppId} from {session.Volume}% to {savedVolume}%", "VolumeRestorationService");
+                    }
+                    else
+                    {
+                        App.Logger.LogWarning($"Failed to restore volume for {session.AppId}", "VolumeRestorationService");
+                    }
+                });
             }
         }
         catch (Exception ex)
@@ -146,11 +147,19 @@ public class VolumeRestorationService : IDisposable
 
     public void Dispose()
     {
-        if (_isDisposed)
+        if (!_isDisposed.CompareAndSet(false, true))
             return;
 
-        _isDisposed = true;
-        _appMonitorService.ApplicationLaunched -= OnApplicationLaunched;
-        _cleanupTimer?.Dispose();
+        try
+        {
+            _appMonitorService.ApplicationLaunched -= OnApplicationLaunched;
+            _cleanupTimer.Dispose();
+        }
+        catch
+        {
+            /* Ignore exceptions during dispose */
+        }
+
+        GC.SuppressFinalize(this);
     }
 }

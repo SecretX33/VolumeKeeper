@@ -4,22 +4,14 @@ namespace VolumeKeeper.Models;
 
 public class AudioSession
 {
-    public int ProcessId { get; set; }
-    public string ProcessName { get; set; } = string.Empty;
-    public string ExecutableName { get; set; } = string.Empty;
-    public float Volume { get; set; }
-    public bool IsMuted { get; set; }
-    public string IconPath { get; set; } = string.Empty;
-    public AudioSessionControl SessionControl { get; set; } = null!;
-}
+    public int ProcessId { get; init; }
+    public string ProcessName { get; init; } = string.Empty;
+    public string ExecutableName { get; init; } = string.Empty;
+    public string? ExecutablePath { get; init; } = null;
+    public int Volume { get; init; }
+    public bool IsMuted { get; init; }
+    public string IconPath { get; init; } = string.Empty;
+    public AudioSessionControl SessionControl { get; init; } = null!;
 
-public class AudioSessionInfo
-{
-    public string ApplicationName { get; set; } = string.Empty;
-    public string ProcessName { get; set; } = string.Empty;
-    public double Volume { get; set; }
-    public bool IsMuted { get; set; }
-    public bool IsActive { get; set; }
-    public AudioSessionControl? Session { get; set; }
-    public string? IconPath { get; set; }
+    public VolumeApplicationId AppId => VolumeApplicationId.Create(ExecutablePath, ExecutableName);
 }

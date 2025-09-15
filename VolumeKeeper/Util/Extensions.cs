@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using Microsoft.UI.Xaml;
 
 namespace VolumeKeeper.Util;
@@ -22,10 +23,23 @@ public static class Extensions
     }
 
     public static TValue? GetOrNull<TKey, TValue>(
-        this ConcurrentDictionary<TKey, TValue> dict,
+        this IDictionary<TKey, TValue> dict,
         TKey key
-    ) where TKey : notnull where TValue : class
+    ) where TKey : notnull where TValue : class => dict.TryGetValue(key, out var value) ? value : null;
+
+    public static TValue? GetOrNullValue<TKey, TValue>(
+        this IDictionary<TKey, TValue> dict,
+        TKey key
+    ) where TKey : notnull where TValue : struct => dict.TryGetValue(key, out var value) ? value : null;
+
+    public static void AddAll<TKey, TValue>(
+        this IDictionary<TKey, TValue> dict,
+        IEnumerable<KeyValuePair<TKey, TValue>> items
+    ) where TKey : notnull
     {
-        return dict.TryGetValue(key, out var value) ? value : null;
+        foreach (var item in items)
+        {
+            dict[item.Key] = item.Value;
+        }
     }
 }

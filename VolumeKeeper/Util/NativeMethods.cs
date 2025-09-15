@@ -45,6 +45,11 @@ internal static partial class NativeMethods
     public static void ShowAndFocus(Window window)
     {
         IntPtr hWnd = WindowNative.GetWindowHandle(window);
+        ShowAndFocus(hWnd);
+    }
+
+    public static void ShowAndFocus(IntPtr hWnd)
+    {
         ShowWindow(hWnd, ShowWindowCommand.SW_RESTORE);  // Show and restore if minimized
         SetForegroundWindow(hWnd);  // Bring to foreground
     }
