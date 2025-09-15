@@ -58,6 +58,12 @@
           "NAudio.WinMM": "2.2.1"
         }
       },
+      "NLog": {
+        "type": "Direct",
+        "requested": "[5.3.4, )",
+        "resolved": "5.3.4",
+        "contentHash": "gLy7+O1hEYJXIlcTr1/VWjGXrZTQFZzYNO18IWasD64pNwz0BreV+nHLxWKXWZzERRzoKnsk2XYtwLkTVk7J1A=="
+      },
       "System.Management": {
         "type": "Direct",
         "requested": "[9.0.0, )",
