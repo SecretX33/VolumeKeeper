@@ -176,7 +176,9 @@ public partial class AudioSessionManager : IDisposable
                 .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
                 ?? executableName;
 
+#if DEBUG
             App.Logger.LogDebug($"Found audio session: PID={processId}, Name={displayName} ({executableName}), Path={fullPath}");
+#endif
 
             return new AudioSession
             {
