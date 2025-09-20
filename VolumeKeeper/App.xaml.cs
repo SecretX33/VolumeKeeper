@@ -26,17 +26,16 @@ public partial class App : Application
     private TaskbarIcon? _trayIcon;
     private static LoggingService? _loggingService;
     private static AudioSessionManager? _audioSessionManager;
-    private static ProcessDataManager? _processDataManager;
     private static VolumeSettingsManager? _volumeSettingsManager;
     private static WindowSettingsManager? _windowSettingsManager;
     private static AudioSessionService? _audioSessionService;
     private ApplicationMonitorService? _applicationMonitorService;
-    private VolumeRestorationService? _volumeRestorationService;
+    // private VolumeRestorationService? _volumeRestorationService;
     public static ILoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
     public static AudioSessionManager AudioSessionManager => _audioSessionManager ?? throw new InvalidOperationException("Audio session manager not initialized");
     public static VolumeSettingsManager VolumeSettingsManager => _volumeSettingsManager ?? throw new InvalidOperationException("Volume settings manager not initialized");
     public static WindowSettingsManager WindowSettingsManager => _windowSettingsManager ?? throw new InvalidOperationException("Window settings service not initialized");
-    public static AudioSessionService AudioSessionService => _audioSessionService ?? throw new InvalidOperationException("Audio session manager not initialized");
+    public static AudioSessionService AudioSessionService => _audioSessionService ?? throw new InvalidOperationException("Audio session service not initialized");
 
     public App()
     {
@@ -180,34 +179,35 @@ public partial class App : Application
         {
             Logger.LogDebug("Initializing volume management services");
 
-            // Initialize data managers
-            _audioSessionManager = new AudioSessionManager();
-            _processDataManager = new ProcessDataManager();
+            // Initialize settings managers first
+            var iconService = new IconService();
             _volumeSettingsManager = new VolumeSettingsManager();
             _windowSettingsManager = new WindowSettingsManager();
+            _audioSessionManager = new AudioSessionManager(iconService);
 
             await Task.WhenAll(
                 Task.Run(_volumeSettingsManager.InitializeAsync),
-                Task.Run(_windowSettingsManager.InitializeAsync)
+                Task.Run(_windowSettingsManager.InitializeAsync),
+                Task.Run(_audioSessionManager.Initialize)
             );
 
             // Initialize core services with managers
             _audioSessionService = new AudioSessionService(_audioSessionManager);
 
             // Initialize monitoring services with managers
-            _applicationMonitorService = new ApplicationMonitorService(_processDataManager);
+            _applicationMonitorService = new ApplicationMonitorService(_audioSessionManager);
 
             await Task.Run(_applicationMonitorService.Initialize);
 
-            _volumeRestorationService = new VolumeRestorationService(
-                _audioSessionService,
-                _audioSessionManager,
-                _volumeSettingsManager,
-                _applicationMonitorService
-            );
-
-            // Restore volumes for currently running applications
-            _ = Task.Run(_volumeRestorationService.RestoreAllCurrentSessionsAsync);
+            // _volumeRestorationService = new VolumeRestorationService(
+            //     _audioSessionService,
+            //     _audioSessionManager,
+            //     _volumeSettingsManager,
+            //     _applicationMonitorService
+            // );
+            //
+            // // Restore volumes for currently running applications
+            // _ = Task.Run(_volumeRestorationService.RestoreAllCurrentSessionsAsync);
 
             Logger.LogInfo("All services initialized successfully");
         }
@@ -233,7 +233,7 @@ public partial class App : Application
             _mainWindow?.Close();
             DisposeAll(
                 _applicationMonitorService,
-                _volumeRestorationService,
+                // _volumeRestorationService,
                 _audioSessionManager,
                 _audioSessionService,
                 _trayIcon,

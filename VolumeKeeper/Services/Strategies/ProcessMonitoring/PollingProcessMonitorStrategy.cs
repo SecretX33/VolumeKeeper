@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -32,8 +33,8 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
     private readonly TimeSpan _delayBeforeFirstPoll = TimeSpan.FromSeconds(1);
     private readonly TimeSpan _internalBetweenPolls = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _pollLock = new(1, 1);
-    private readonly Dictionary<int, string> _knownProcesses = new();
-    private volatile bool _isRunning;
+    private readonly ConcurrentDictionary<int, string> _knownProcesses = new();
+    private readonly AtomicReference<bool> _isRunning = new(false);
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public event EventHandler<ProcessEventArgs>? ProcessStarted;
@@ -58,9 +59,7 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
 
     public void Start()
     {
-        if (_isRunning) return;
-
-        _isRunning = true;
+        if (!_isRunning.CompareAndSet(false, true)) return;
 
         InitializeKnownProcesses();
 
@@ -79,10 +78,8 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
                 try
                 {
                     var executableName = GetExecutableName(process);
-                    if (!string.IsNullOrEmpty(executableName))
-                    {
-                        _knownProcesses[process.Id] = executableName;
-                    }
+                    _knownProcesses[process.Id] = executableName;
+                    OnProcessStarted(executableName, process.Id);
                 }
                 catch (Exception ex)
                 {
@@ -100,7 +97,7 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
 
     private async void PollForProcessChanges(object? state)
     {
-        if (!_isRunning || _isDisposed.Get() || !await _pollLock.WaitAsync(0))
+        if (!_isRunning.Get() || _isDisposed.Get() || !await _pollLock.WaitAsync(0))
             return;
 
         try
@@ -131,9 +128,8 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
             var stoppedProcessIds = _knownProcesses.Keys.Where(id => !currentProcessMap.ContainsKey(id)).ToList();
             foreach (var processId in stoppedProcessIds)
             {
-                if (_knownProcesses.TryGetValue(processId, out var processName))
+                if (_knownProcesses.TryRemove(processId, out var processName))
                 {
-                    _knownProcesses.Remove(processId);
                     OnProcessStopped(processName, processId);
                 }
             }
@@ -166,8 +162,8 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
     {
         ProcessStarted?.Invoke(this, new ProcessEventArgs
         {
-            ProcessName = executableName,
-            ProcessId = processId
+            ExecutableName = executableName,
+            Id = processId
         });
     }
 
@@ -175,16 +171,14 @@ public partial class PollingProcessMonitorStrategy : IProcessMonitorStrategy
     {
         ProcessStopped?.Invoke(this, new ProcessEventArgs
         {
-            ProcessName = executableName,
-            ProcessId = processId
+            ExecutableName = executableName,
+            Id = processId
         });
     }
 
     public void Stop()
     {
-        if (!_isRunning) return;
-
-        _isRunning = false;
+        if (!_isRunning.CompareAndSet(true, false)) return;
 
         try
         {

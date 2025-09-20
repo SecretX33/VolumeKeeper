@@ -1,40 +1,30 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
+using System.Collections.Specialized;
 using System.Linq;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using VolumeKeeper.Models;
-using VolumeKeeper.Models.UI;
 using VolumeKeeper.Services;
 using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper;
 
-public sealed partial class HomePage : Page
+public sealed partial class HomePage : Page, IDisposable
 {
-    public ObservableCollection<ApplicationVolume> Applications { get; } = [];
-    private readonly IconService _iconService;
-    private readonly DispatcherQueue _dispatcherQueue;
-    private readonly DispatcherTimer _refreshTimer;
     private static VolumeSettingsManager VolumeSettingsManager => App.VolumeSettingsManager;
+    private static AudioSessionManager AudioSessionManager => App.AudioSessionManager;
+    private static AudioSessionService AudioSessionService => App.AudioSessionService;
+    private ObservableCollection<ObservableAudioSession> Applications => AudioSessionManager.AudioSessions;
+    private readonly NotifyCollectionChangedEventHandler? _applicationsOnCollectionChanged;
 
     public HomePage()
     {
         InitializeComponent();
-        _iconService = new IconService();
-        _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-
-        _refreshTimer = new DispatcherTimer();
-        _refreshTimer.Interval = TimeSpan.FromSeconds(2);
-        _refreshTimer.Tick += RefreshTimer_Tick;
-        _refreshTimer.Start();
-
-        LoadAudioSessions();
         UpdateEmptyStateVisibility();
+        _applicationsOnCollectionChanged = (_, _) => UpdateEmptyStateVisibility();
+        Applications.CollectionChanged += _applicationsOnCollectionChanged;
         LoadSettings();
     }
 
@@ -43,133 +33,9 @@ public sealed partial class HomePage : Page
         AutoRestoreToggle.IsOn = VolumeSettingsManager.AutoRestoreEnabled;
     }
 
-    private async void LoadAudioSessions()
-    {
-        try
-        {
-            var sessions = await App.AudioSessionManager.GetAllSessionsAsync();
-
-            var sessionsWithSavedVolumes = new List<(AudioSession session, int? savedVolume)>();
-
-            foreach (var session in sessions)
-            {
-                var savedVolume = VolumeSettingsManager.GetVolume(session.AppId);
-                sessionsWithSavedVolumes.Add((session, savedVolume));
-            }
-
-            _dispatcherQueue.TryEnqueue(() =>
-            {
-                Applications.Clear();
-
-                foreach (var (session, savedVolume) in sessionsWithSavedVolumes)
-                {
-                    var app = new ApplicationVolume
-                    {
-                        Session = session,
-                        ApplicationName = session.ProcessName,
-                        Volume = session.Volume,
-                        SavedVolume = savedVolume,
-                        Status = "Active",
-                        LastSeen = "Just now"
-                    };
-
-                    Applications.Add(app);
-
-                    // Load icon asynchronously
-                    LoadApplicationIconAsync(app, session.IconPath);
-                }
-
-                UpdateEmptyStateVisibility();
-            });
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to load audio sessions", ex, "HomePage");
-        }
-    }
-
-    private void RefreshTimer_Tick(object? sender, object e)
-    {
-        UpdateAudioSessions();
-    }
-
-    private async void UpdateAudioSessions()
-    {
-        try
-        {
-            var sessions = await App.AudioSessionManager.GetAllSessionsAsync();
-
-            // Get saved volumes for new sessions
-            var newSessions = sessions.Where(s => Applications.All(a => a.AppId != s.AppId)).ToList();
-            var newSessionsWithVolumes = new List<(AudioSession session, int? savedVolume)>();
-
-            foreach (var session in newSessions)
-            {
-                var savedVolume = VolumeSettingsManager.GetVolume(session.AppId);
-                newSessionsWithVolumes.Add((session, savedVolume));
-            }
-
-            _dispatcherQueue.TryEnqueue(() =>
-            {
-                // Update existing applications
-                foreach (var app in Applications.ToList())
-                {
-                    var session = sessions.FirstOrDefault(s => s.AppId == app.AppId);
-                    if (session != null)
-                    {
-                        if (Math.Abs(app.Volume - session.Volume) > 1)
-                        {
-                            App.Logger.LogInfo($"Volume changed for {app.AppId}: {app.Volume}% -> {session.Volume}%", "HomePage");
-                        }
-
-                        app.Session = session;
-                        app.Volume = session.Volume;
-                        app.Status = "Active";
-                        app.LastSeen = "Just now";
-                    }
-                    else
-                    {
-                        // Application no longer has audio session
-                        App.Logger.LogInfo($"Audio session ended for {app.ApplicationName}", "HomePage");
-                        Applications.Remove(app);
-                    }
-                }
-
-                // Add new applications
-                foreach (var (session, savedVolume) in newSessionsWithVolumes)
-                {
-                    App.Logger.LogInfo(
-                        $"New audio session detected: {Path.GetFileNameWithoutExtension(session.ExecutableName)} (Volume: {session.Volume}%)",
-                        "HomePage");
-
-                    var app = new ApplicationVolume
-                    {
-                        Session = session,
-                        ApplicationName = session.ProcessName,
-                        Volume = session.Volume,
-                        SavedVolume = savedVolume,
-                        Status = "Active",
-                        LastSeen = "Just now"
-                    };
-
-                    Applications.Add(app);
-
-                    // Load icon asynchronously
-                    LoadApplicationIconAsync(app, session.IconPath);
-                }
-
-                UpdateEmptyStateVisibility();
-            });
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to load audio sessions", ex, "HomePage");
-        }
-    }
-
     private void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        LoadAudioSessions();
+        throw new NotImplementedException("Manual refresh not implemented yet.");
     }
 
     private void AutoRestoreToggle_Toggled(object sender, RoutedEventArgs e)
@@ -190,7 +56,7 @@ public sealed partial class HomePage : Page
     {
         try
         {
-            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
+            if (sender is not Button { CommandParameter: ObservableAudioSession app }) return;
 
             var audioSessionService = App.AudioSessionService;
 
@@ -202,7 +68,7 @@ public sealed partial class HomePage : Page
                 // Mute
                 _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, true);
                 App.Logger.LogInfo(
-                    $"Muted {app.ApplicationName} (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)",
+                    $"Muted {app.ProcessDisplayName} (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)",
                     "HomePage");
             }
             else
@@ -211,8 +77,8 @@ public sealed partial class HomePage : Page
                 VolumeSettingsManager.DeleteLastVolumeBeforeMuteAndSave(app.AppId);
 
                 _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, false);
-                _ = audioSessionService.SetSessionVolumeImmediateAsync(app.AppId, lastVolume);
-                App.Logger.LogInfo($"Unmuted {app.ApplicationName} to {lastVolume}%", "HomePage");
+                _ = audioSessionService.SetSessionVolumeImmediate(app.AppId, lastVolume);
+                App.Logger.LogInfo($"Unmuted {app.ProcessDisplayName} to {lastVolume}%", "HomePage");
             }
         }
         catch (Exception ex)
@@ -221,17 +87,17 @@ public sealed partial class HomePage : Page
         }
     }
 
-
     private void UpdateEmptyStateVisibility()
     {
-        EmptyState.Visibility = Applications.Any() ? Visibility.Collapsed : Visibility.Visible;
-        ApplicationListView.Visibility = Applications.Any() ? Visibility.Visible : Visibility.Collapsed;
+        var hasAnyItems = Applications.Any();
+        EmptyState.Visibility = hasAnyItems ? Visibility.Collapsed : Visibility.Visible;
+        ApplicationListView.Visibility = hasAnyItems ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void VolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         try {
-            if (sender is not Slider { Tag: ApplicationVolume app } || string.IsNullOrEmpty(app.ExecutableName)) return;
+            if (sender is not Slider { Tag: ObservableAudioSession app } || string.IsNullOrEmpty(app.ExecutableName)) return;
 
             var newVolume = (int)e.NewValue;
 
@@ -247,13 +113,13 @@ public sealed partial class HomePage : Page
     {
         try
         {
-            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
+            if (sender is not Button { CommandParameter: ObservableAudioSession app }) return;
 
             var currentVolume = (int)app.Volume;
             VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
             app.SavedVolume = currentVolume;
 
-            App.Logger.LogInfo($"Saved volume for {app.ApplicationName}: {currentVolume}%", "HomePage");
+            App.Logger.LogInfo($"Saved volume for {app.ProcessDisplayName}: {currentVolume}%", "HomePage");
         }
         catch (Exception ex)
         {
@@ -265,16 +131,14 @@ public sealed partial class HomePage : Page
     {
         try
         {
-            if (sender is not Button { CommandParameter: ApplicationVolume app }) return;
+            if (sender is not Button { CommandParameter: ObservableAudioSession app }) return;
             if (!app.SavedVolume.HasValue) return;
 
-            var audioSessionService = App.AudioSessionService;
-
             var savedVolume = app.SavedVolume.Value;
-            await audioSessionService.SetSessionVolumeAsync(app.AppId, savedVolume);
-            app.Volume = savedVolume;
 
-            App.Logger.LogInfo($"Reverted volume for {app.ApplicationName} to {savedVolume}%", "HomePage");
+            await AudioSessionService.SetSessionVolumeAsync(app.AppId, savedVolume);
+
+            App.Logger.LogInfo($"Reverted volume for {app.ProcessDisplayName} to {savedVolume}%", "HomePage");
         }
         catch (Exception ex)
         {
@@ -282,30 +146,14 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private async void LoadApplicationIconAsync(ApplicationVolume app, string? iconPath)
-    {
-        try
-        {
-            var icon = await _iconService.GetApplicationIconAsync(iconPath, app.ProcessName);
-            if (icon != null)
-            {
-                _dispatcherQueue.TryEnqueue(() => { app.Icon = icon; });
-            }
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogWarning($"Failed to load icon for {app.ApplicationName}: {ex.Message}", "HomePage");
-        }
-    }
-
     public void Dispose()
     {
         try
         {
-            _refreshTimer.Stop();
+            Applications.CollectionChanged -= _applicationsOnCollectionChanged;
         } catch
         {
-            /* Ignore exceptions during dispose */
+            /* Ignore errors on dispose */
         }
     }
 }

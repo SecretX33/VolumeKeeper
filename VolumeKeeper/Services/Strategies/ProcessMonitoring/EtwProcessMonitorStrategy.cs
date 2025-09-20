@@ -28,7 +28,6 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
 {
     private TraceEventSession? _session;
     private ETWTraceEventSource? _source;
-    private Task? _processingTask;
     private CancellationTokenSource? _cancellationTokenSource;
     private volatile bool _isRunning;
     private readonly AtomicReference<bool> _isDisposed = new(false);
@@ -61,15 +60,14 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         catch (UnauthorizedAccessException)
         {
             App.Logger.LogInfo("ETW strategy initialization failed: Administrator privileges required", "EtwProcessMonitorStrategy");
-            DisposeSession();
-            return false;
         }
         catch (Exception ex)
         {
             App.Logger.LogError("Failed to initialize ETW process monitor", ex, "EtwProcessMonitorStrategy");
-            DisposeSession();
-            return false;
         }
+
+        DisposeSession();
+        return false;
     }
 
     public void Start()
@@ -80,11 +78,10 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         _cancellationTokenSource = new CancellationTokenSource();
 
         _source = new ETWTraceEventSource(_session.SessionName);
-
         _source.Kernel.ProcessStart += OnProcessStart;
         _source.Kernel.ProcessStop += OnProcessStop;
 
-        _processingTask = Task.Run(() =>
+        Task.Run(() =>
         {
             try
             {
@@ -106,23 +103,7 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
     {
         try
         {
-            App.Logger.LogDebug($"[PROCESS START] {DateTime.Now:HH:mm:ss.fff}");
-            App.Logger.LogDebug($"  PID: {data.ProcessID}");
-            App.Logger.LogDebug($"  Process Name: {data.ProcessName}");
-            App.Logger.LogDebug($"  Image Name: {data.ImageFileName}");
-            App.Logger.LogDebug($"  Command Line: {data.CommandLine}");
-            App.Logger.LogDebug($"  Session ID: {data.SessionID}");
-            App.Logger.LogDebug($"  Exit Status: {data.ExitStatus}");
-
-            var processName = GetProcessName(data);
-            if (!string.IsNullOrEmpty(processName))
-            {
-                ProcessStarted?.Invoke(this, new ProcessEventArgs
-                {
-                    ProcessName = processName,
-                    ProcessId = data.ProcessID
-                });
-            }
+            HandleEvent(ProcessStarted, data);
         }
         catch (Exception ex)
         {
@@ -134,15 +115,7 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
     {
         try
         {
-            var processName = GetProcessName(data);
-            if (!string.IsNullOrEmpty(processName))
-            {
-                ProcessStopped?.Invoke(this, new ProcessEventArgs
-                {
-                    ProcessName = processName,
-                    ProcessId = data.ProcessID
-                });
-            }
+            HandleEvent(ProcessStopped, data);
         }
         catch (Exception ex)
         {
@@ -150,22 +123,19 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         }
     }
 
+    private void HandleEvent(EventHandler<ProcessEventArgs>? eventHandler, ProcessTraceData data) =>
+        eventHandler?.Invoke(this, new ProcessEventArgs
+        {
+            ExecutableName = GetProcessName(data),
+            Id = data.ProcessID,
+        });
+
     private string GetProcessName(ProcessTraceData data)
     {
         try
         {
-            if (!string.IsNullOrEmpty(data.ImageFileName))
-            {
-                return Path.GetFileName(data.ImageFileName);
-            }
-
-            if (!string.IsNullOrEmpty(data.ProcessName))
-            {
-                return data.ProcessName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                    ? data.ProcessName
-                    : $"{data.ProcessName}.exe";
-            }
-
+            if (!string.IsNullOrEmpty(data.ImageFileName)) return Path.GetFileName(data.ImageFileName);
+            if (!string.IsNullOrEmpty(data.ProcessName)) return data.ProcessName;
             return string.Empty;
         }
         catch
@@ -184,11 +154,6 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         {
             _cancellationTokenSource?.Cancel();
             _source?.StopProcessing();
-
-            if (_processingTask != null && !_processingTask.IsCompleted)
-            {
-                _processingTask.Wait(TimeSpan.FromSeconds(2));
-            }
         }
         catch (Exception ex)
         {

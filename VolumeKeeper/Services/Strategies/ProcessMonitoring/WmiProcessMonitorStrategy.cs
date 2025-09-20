@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Management;
 using VolumeKeeper.Util;
 
@@ -79,18 +78,7 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
     {
         try
         {
-            var processName = e.NewEvent.Properties["ProcessName"].Value?.ToString();
-            var processId = Convert.ToInt32(e.NewEvent.Properties["ProcessID"].Value);
-
-            if (!string.IsNullOrEmpty(processName))
-            {
-                var executableName = GetExecutableName(processName);
-                ProcessStarted?.Invoke(this, new ProcessEventArgs
-                {
-                    ProcessName = executableName,
-                    ProcessId = processId
-                });
-            }
+            HandleEvent(ProcessStarted, e);
         }
         catch (Exception ex)
         {
@@ -102,18 +90,7 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
     {
         try
         {
-            var processName = e.NewEvent.Properties["ProcessName"].Value?.ToString();
-            var processId = Convert.ToInt32(e.NewEvent.Properties["ProcessID"].Value);
-
-            if (!string.IsNullOrEmpty(processName))
-            {
-                var executableName = GetExecutableName(processName);
-                ProcessStopped?.Invoke(this, new ProcessEventArgs
-                {
-                    ProcessName = executableName,
-                    ProcessId = processId
-                });
-            }
+            HandleEvent(ProcessStopped, e);
         }
         catch (Exception ex)
         {
@@ -121,23 +98,20 @@ public partial class WmiProcessMonitorStrategy : IProcessMonitorStrategy
         }
     }
 
-    private string GetExecutableName(string processName)
+    private void HandleEvent(EventHandler<ProcessEventArgs>? eventHandler, EventArrivedEventArgs e)
     {
-        try
-        {
-            if (Path.HasExtension(processName))
-            {
-                return Path.GetFileName(processName);
-            }
+        if (eventHandler == null) return;
 
-            return processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                ? processName
-                : $"{processName}.exe";
-        }
-        catch
+        var processName = e.NewEvent.Properties["ProcessName"].Value?.ToString();
+        if (string.IsNullOrEmpty(processName)) return;
+
+        var processId = Convert.ToInt32(e.NewEvent.Properties["ProcessID"].Value);
+
+        eventHandler(this, new ProcessEventArgs
         {
-            return processName;
-        }
+            ExecutableName = processName,
+            Id = processId
+        });
     }
 
     public void Stop()

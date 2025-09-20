@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -11,7 +12,7 @@ namespace VolumeKeeper.Services;
 
 public class IconService
 {
-    private readonly Dictionary<string, BitmapImage> _iconCache = new();
+    private readonly ConcurrentDictionary<string, BitmapImage> _iconCache = new();
     private readonly string _iconCacheDirectory;
 
     public IconService()

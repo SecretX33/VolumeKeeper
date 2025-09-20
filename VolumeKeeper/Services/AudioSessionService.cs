@@ -42,7 +42,7 @@ public partial class AudioSessionService(AudioSessionManager sessionManager) : I
                     await _volumeSetSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
-                        return await SetSessionVolumeImmediateAsync(volumeApplicationId, volumePercentage);
+                        return await SetSessionVolumeImmediate(volumeApplicationId, volumePercentage);
                     }
                     finally
                     {
@@ -67,27 +67,29 @@ public partial class AudioSessionService(AudioSessionManager sessionManager) : I
         });
     }
 
-    public Task<bool> SetSessionVolumeImmediateAsync(VolumeApplicationId volumeApplicationId, int volumePercentage)
+    public Task<bool> SetSessionVolumeImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
-        return Task.Run(async () =>
+        return Task.Run(() =>
         {
-            var sessions = await sessionManager.GetSessionsById(volumeApplicationId);
+            var session = sessionManager.GetSessionById(volumeApplicationId);
+            if (session == null)
+            {
+                App.Logger.LogWarning($"No audio session found for {volumeApplicationId}", "AudioSessionManager");
+                return false;
+            }
 
             bool anySet = false;
-            foreach (var session in sessions)
+            try
             {
-                try
-                {
-                    session.SessionControl.SimpleAudioVolume.Volume = volumePercentage / 100f;
-                    anySet = true;
-                    App.Logger.LogInfo($"Set volume for {volumeApplicationId} (PID: {session.ProcessId}) to {volumePercentage}%",
-                        "AudioSessionManager");
-                }
-                catch (Exception ex)
-                {
-                    App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex,
-                        "AudioSessionManager");
-                }
+                session.SessionControl.SimpleAudioVolume.Volume = volumePercentage / 100f;
+                anySet = true;
+                App.Logger.LogInfo($"Set volume for {volumeApplicationId} (PID: {session.ProcessId}) to {volumePercentage}%",
+                    "AudioSessionManager");
+            }
+            catch (Exception ex)
+            {
+                App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex,
+                    "AudioSessionManager");
             }
 
             return anySet;
@@ -96,36 +98,31 @@ public partial class AudioSessionService(AudioSessionManager sessionManager) : I
 
     public Task<bool> SetMuteSessionImmediateAsync(VolumeApplicationId volumeApplicationId, bool mute)
     {
-        return Task.Run(async () =>
+        return Task.Run(() =>
         {
-            var sessions = await sessionManager.GetSessionsById(volumeApplicationId);
+            var session = sessionManager.GetSessionById(volumeApplicationId);
+            if (session == null)
+            {
+                App.Logger.LogWarning($"No audio session found for {volumeApplicationId}", "AudioSessionManager");
+                return false;
+            }
 
             bool anySet = false;
-            foreach (var session in sessions)
+            try
             {
-                try
-                {
-                    session.SessionControl.SimpleAudioVolume.Mute = mute;
-                    anySet = true;
-                    App.Logger.LogInfo($"Set mute for {volumeApplicationId} (PID: {session.ProcessId}) to {(mute ? "muted" : "unmuted")}",
-                        "AudioSessionManager");
-                }
-                catch (Exception ex)
-                {
-                    App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex,
-                        "AudioSessionManager");
-                }
+                session.SessionControl.SimpleAudioVolume.Mute = mute;
+                anySet = true;
+                App.Logger.LogInfo($"Set mute for {volumeApplicationId} (PID: {session.ProcessId}) to {(mute ? "muted" : "unmuted")}",
+                    "AudioSessionManager");
+            }
+            catch (Exception ex)
+            {
+                App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex,
+                    "AudioSessionManager");
             }
 
             return anySet;
         });
-    }
-
-    public float? GetSessionVolume(string executableName)
-    {
-        var sessions = sessionManager.GetSessionsByExecutable(executableName);
-        var session = sessions.FirstOrDefault();
-        return session?.Volume;
     }
 
     public void Dispose()

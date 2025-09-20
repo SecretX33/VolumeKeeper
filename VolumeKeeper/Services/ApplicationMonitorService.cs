@@ -1,33 +1,20 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using VolumeKeeper.Models;
-using VolumeKeeper.Services.Managers;
-using VolumeKeeper.Services.Strategies.ProcessMonitoring;
-using VolumeKeeper.Util;
-
 namespace VolumeKeeper.Services;
 
-public class ApplicationLaunchEventArgs : ProcessEventArgs
-{
-    public string? ExecutablePath { get; init; } = null;
-    public string ExecutableName => ProcessName;
-    public VolumeApplicationId AppId => VolumeApplicationId.Create(ExecutablePath, ProcessName);
-}
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Managers;
+using Strategies.ProcessMonitoring;
+using Util;
+using static VolumeKeeper.Util.Util;
 
-public partial class ApplicationMonitorService : IDisposable
+public partial class ApplicationMonitorService(AudioSessionManager _audioSessionManager) : IDisposable
 {
-    private readonly ProcessDataManager _processDataManager;
     private readonly AtomicReference<bool> _isDisposed = new(false);
     private IProcessMonitorStrategy? _activeStrategy;
 
-    public event EventHandler<ApplicationLaunchEventArgs>? ApplicationLaunched;
-
-    public ApplicationMonitorService(ProcessDataManager processDataManager)
+    public void Initialize()
     {
-        _processDataManager = processDataManager;
         InitializeStrategy();
     }
 
@@ -78,15 +65,14 @@ public partial class ApplicationMonitorService : IDisposable
     {
         try
         {
-            if (!_processDataManager.IsProcessKnown(e.ProcessId))
-            {
-                _processDataManager.AddProcess(e.ProcessId, e.ProcessName);
-                OnApplicationLaunched(e.ProcessName, e.ProcessId);
-            }
+            App.Logger.LogInfo($"Application launched: {e.ExecutableName} (PID: {e.Id})", "ApplicationMonitorService");
+            var processInfo = GetProcessInfoOrNull(e.Id);
+            if (processInfo == null) return;
+            _audioSessionManager.OnProcessStarted(processInfo);
         }
         catch (Exception ex)
         {
-            App.Logger.LogError($"Error handling process start event for {e.ProcessName} (PID: {e.ProcessId})", ex, "ApplicationMonitorService");
+            App.Logger.LogError($"Error handling process start event for {e.ExecutableName} (PID: {e.Id})", ex, "ApplicationMonitorService");
         }
     }
 
@@ -94,67 +80,12 @@ public partial class ApplicationMonitorService : IDisposable
     {
         try
         {
-            _processDataManager.RemoveProcess(e.ProcessId);
-            App.Logger.LogInfo($"Application stopped: {e.ProcessName} (PID: {e.ProcessId})", "ApplicationMonitorService");
+            App.Logger.LogInfo($"Application stopped: {e.ExecutableName} (PID: {e.Id})", "ApplicationMonitorService");
+            _audioSessionManager.OnProcessStopped(e.Id);
         }
         catch (Exception ex)
         {
-            App.Logger.LogError($"Error handling process stop event for {e.ProcessName} (PID: {e.ProcessId})", ex, "ApplicationMonitorService");
-        }
-    }
-
-    private void OnApplicationLaunched(string executableName, int processId)
-    {
-        App.Logger.LogInfo($"Application launched: {executableName} (PID: {processId})", "ApplicationMonitorService");
-        ApplicationLaunched?.Invoke(this, new ApplicationLaunchEventArgs
-        {
-            ProcessName = executableName,
-            ProcessId = processId
-        });
-    }
-
-    public void Initialize()
-    {
-        try
-        {
-            var processes = Process.GetProcesses();
-            foreach (var process in processes)
-            {
-                try
-                {
-                    var executableName = GetExecutableName(process);
-                    if (!string.IsNullOrEmpty(executableName))
-                    {
-                        _processDataManager.AddProcess(process.Id, executableName);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    App.Logger.LogError($"Error processing process ID {process.Id}", ex,
-                        "ApplicationMonitorService");
-                }
-            }
-
-            App.Logger.LogInfo($"Application monitor initialized with {_processDataManager.Count} known processes",
-                "ApplicationMonitorService");
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to initialize application monitor", ex, "ApplicationMonitorService");
-        }
-    }
-
-    private string GetExecutableName(Process process)
-    {
-        try
-        {
-            return Path.GetFileName(process.MainModule?.FileName ?? process.ProcessName);
-        }
-        catch
-        {
-            return process.ProcessName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                ? process.ProcessName
-                : $"{process.ProcessName}.exe";
+            App.Logger.LogError($"Error handling process stop event for {e.ExecutableName} (PID: {e.Id})", ex, "ApplicationMonitorService");
         }
     }
 

@@ -42,11 +42,7 @@ internal static partial class NativeMethods
         return Icon.FromHandle(hIcon);
     }
 
-    public static void ShowAndFocus(Window window)
-    {
-        IntPtr hWnd = WindowNative.GetWindowHandle(window);
-        ShowAndFocus(hWnd);
-    }
+    public static void ShowAndFocus(Window window) => ShowAndFocus(WindowNative.GetWindowHandle(window));
 
     public static void ShowAndFocus(IntPtr hWnd)
     {

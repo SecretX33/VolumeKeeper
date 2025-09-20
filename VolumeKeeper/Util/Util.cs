@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Windows.Forms;
 using Microsoft.Diagnostics.Tracing.Session;
+using VolumeKeeper.Models;
 using Application = Microsoft.UI.Xaml.Application;
 
 namespace VolumeKeeper.Util;
@@ -80,6 +81,35 @@ public static class Util
         if (exceptions.Count > 0)
         {
             throw new AggregateException(exceptions);
+        }
+    }
+
+    public static ProcessInfo? GetProcessInfoOrNull(int processId)
+    {
+        if (processId <= 0) return null;
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            var fullPath = process.MainModule?.FileName;
+            var executableName = Path.GetFileName(fullPath ?? process.ProcessName);
+            var displayName = new[]
+                {
+                    process.MainWindowTitle,
+                    process.MainModule?.ModuleName
+                }
+                .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+                ?? executableName;
+
+            return new ProcessInfo(
+                Id: processId,
+                DisplayName: displayName,
+                ExecutableName: executableName,
+                ExecutablePath: fullPath
+            );
+        }
+        catch
+        {
+            return null;
         }
     }
 }
