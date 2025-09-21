@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml.Media.Imaging;
 using NAudio.CoreAudioApi;
 
@@ -9,11 +10,16 @@ public class AudioSession
     public string ProcessDisplayName { get; init; } = string.Empty;
     public string ExecutableName { get; init; } = string.Empty;
     public string? ExecutablePath { get; init; } = null;
-    public int Volume { get; init; }
     public bool IsMuted { get; init; }
     public string IconPath { get; init; } = string.Empty;
     public BitmapImage? Icon { get; init; }
     public AudioSessionControl SessionControl { get; init; } = null!;
+
+    public int Volume
+    {
+        get => (int)Math.Round(SessionControl.SimpleAudioVolume.Volume * 100);
+        set => SessionControl.SimpleAudioVolume.Volume = value / 100f;
+    }
 
     public VolumeApplicationId AppId => VolumeApplicationId.Create(ExecutablePath, ExecutableName);
 

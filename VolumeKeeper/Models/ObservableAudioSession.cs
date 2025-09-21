@@ -40,11 +40,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
                 changedProperties.Add(nameof(HasUnsavedChanges));
                 changedProperties.Add(nameof(VolumeIcon));
             }
-            if (oldValue?.IsMuted != value.IsMuted)
-            {
-                changedProperties.Add(nameof(IsMuted));
-                changedProperties.Add(nameof(VolumeIcon));
-            }
+            IsMuted = value.IsMuted;
 
             foreach (var changedProperty in changedProperties)
             {
@@ -61,9 +57,38 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
 
     public string? ExecutablePath => _audioSession?.ExecutablePath;
 
-    public int Volume => _audioSession?.Volume ?? 0;
+    public int Volume
+    {
+        get => _audioSession?.Volume ?? 0;
+        set
+        {
+            var currentValue = AudioSession.Volume;
+            if (currentValue == value) return;
+            AudioSession.Volume = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(VolumeDisplayText));
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            OnPropertyChanged(nameof(VolumeIcon));
 
-    public bool IsMuted => _audioSession?.IsMuted ?? false;
+            if (value > 0 && IsMuted)
+            {
+                IsMuted = false;
+            }
+        }
+    }
+
+    public bool IsMuted
+    {
+        get => _audioSession?.IsMuted ?? false;
+        set
+        {
+            var currentValue = AudioSession.SessionControl.SimpleAudioVolume.Mute;
+            if (currentValue == value) return;
+            AudioSession.SessionControl.SimpleAudioVolume.Mute = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(VolumeIcon));
+        }
+    }
 
     public string IconPath => _audioSession?.IconPath ?? string.Empty;
 

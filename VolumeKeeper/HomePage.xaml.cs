@@ -2,6 +2,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -35,7 +36,7 @@ public sealed partial class HomePage : Page, IDisposable
 
     private void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        throw new NotImplementedException("Manual refresh not implemented yet.");
+        _ = Task.Run(AudioSessionManager.UpdateAllSessions);
     }
 
     private void AutoRestoreToggle_Toggled(object sender, RoutedEventArgs e)
@@ -115,7 +116,7 @@ public sealed partial class HomePage : Page, IDisposable
         {
             if (sender is not Button { CommandParameter: ObservableAudioSession app }) return;
 
-            var currentVolume = (int)app.Volume;
+            var currentVolume = app.Volume;
             VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
             app.SavedVolume = currentVolume;
 

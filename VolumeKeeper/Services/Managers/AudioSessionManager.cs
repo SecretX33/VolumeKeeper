@@ -132,14 +132,14 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
                 ProcessDisplayName = processInfo.DisplayName,
                 ExecutableName = processInfo.ExecutableName,
                 ExecutablePath = processInfo.ExecutablePath,
-                Volume = (int)Math.Round(simpleVolume.Volume * 100),
                 IsMuted = simpleVolume.Mute,
                 IconPath = sessionControl.IconPath ?? string.Empty,
                 SessionControl = sessionControl
             };
         }
-        catch
+        catch (Exception ex)
         {
+            App.Logger.LogError("Failed to create audio session", ex, "AudioSessionDataManager");
             return null;
         }
     }
