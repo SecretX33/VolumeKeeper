@@ -20,6 +20,7 @@ public sealed partial class MainWindow : Window
         NavigationViewControl.SelectedItem = NavigationViewControl.MenuItems[0];
         Closed += MainWindow_Closed;
         NavigateToPage("Home");
+        SizeChanged += MainWindow_SizeChanged;
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -134,11 +135,15 @@ public sealed partial class MainWindow : Window
         App.WindowSettingsManager.SetAndSave(WindowId, newWindowSettings, saveImmediately);
     }
 
+    private void MainWindow_SizeChanged(object sender, WindowSizeChangedEventArgs args)
+    {
+        SaveWindowSettings();
+    }
+
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         args.Handled = true;
         this.Hide();
         SaveWindowSettings(true);
     }
-
 }
