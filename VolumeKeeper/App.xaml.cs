@@ -24,14 +24,14 @@ public partial class App : Application
     private MainWindow? _mainWindow;
     private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
-    private static LoggingService? _loggingService;
+    private static LoggingServiceImpl? _loggingService;
     private static AudioSessionManager? _audioSessionManager;
     private static VolumeSettingsManager? _volumeSettingsManager;
     private static WindowSettingsManager? _windowSettingsManager;
     private static AudioSessionService? _audioSessionService;
     private ApplicationMonitorService? _applicationMonitorService;
     // private VolumeRestorationService? _volumeRestorationService;
-    public static ILoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
+    public static LoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
     public static AudioSessionManager AudioSessionManager => _audioSessionManager ?? throw new InvalidOperationException("Audio session manager not initialized");
     public static VolumeSettingsManager VolumeSettingsManager => _volumeSettingsManager ?? throw new InvalidOperationException("Volume settings manager not initialized");
     public static WindowSettingsManager WindowSettingsManager => _windowSettingsManager ?? throw new InvalidOperationException("Window settings service not initialized");
@@ -56,7 +56,7 @@ public partial class App : Application
             }
 
             // Initialize logging service first
-            _loggingService = new LoggingService(DispatcherQueue.GetForCurrentThread());
+            _loggingService = new LoggingServiceImpl(DispatcherQueue.GetForCurrentThread());
             Logger.LogDebug("VolumeKeeper initialization started");
             ParseCommandLineArgs();
 

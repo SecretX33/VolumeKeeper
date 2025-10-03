@@ -26,10 +26,9 @@ namespace VolumeKeeper.Services.Strategies.ProcessMonitoring;
  */
 public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
 {
-    private TraceEventSession? _session;
-    private ETWTraceEventSource? _source;
+    private TraceEventSession? _eventSession;
     private CancellationTokenSource? _cancellationTokenSource;
-    private volatile bool _isRunning;
+    private readonly AtomicReference<bool> _isRunning = new(false);
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public event EventHandler<ProcessEventArgs>? ProcessStarted;
@@ -47,12 +46,8 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
                 return false;
             }
 
-            _session = new TraceEventSession("VolumeKeeperETWSession");
-
-            _session.EnableKernelProvider(
-                KernelTraceEventParser.Keywords.Process |
-                KernelTraceEventParser.Keywords.ImageLoad
-            );
+            _eventSession = new TraceEventSession(KernelTraceEventParser.KernelSessionName);
+            _eventSession.EnableKernelProvider(KernelTraceEventParser.Keywords.Process);
 
             App.Logger.LogDebug("ETW process monitor initialized successfully", "EtwProcessMonitorStrategy");
             return true;
@@ -72,20 +67,24 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
 
     public void Start()
     {
-        if (_isRunning || _session == null) return;
+        if (_eventSession == null || !_isRunning.CompareAndSet(false, true)) return;
 
-        _isRunning = true;
+        if (_cancellationTokenSource != null)
+        {
+            _cancellationTokenSource.Cancel();
+            _cancellationTokenSource.Dispose();
+        }
         _cancellationTokenSource = new CancellationTokenSource();
 
-        _source = new ETWTraceEventSource(_session.SessionName);
-        _source.Kernel.ProcessStart += OnProcessStart;
-        _source.Kernel.ProcessStop += OnProcessStop;
+        var eventSource = _eventSession.Source;
+        eventSource.Kernel.ProcessStart += EventListener_OnProcessStart;
+        eventSource.Kernel.ProcessStop += EventListener_OnProcessStop;
 
         Task.Run(() =>
         {
             try
             {
-                _source.Process();
+                eventSource.Process();
             }
             catch (Exception ex)
             {
@@ -99,7 +98,7 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         App.Logger.LogDebug("ETW process monitor started", "EtwProcessMonitorStrategy");
     }
 
-    private void OnProcessStart(ProcessTraceData data)
+    private void EventListener_OnProcessStart(ProcessTraceData data)
     {
         try
         {
@@ -111,7 +110,7 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         }
     }
 
-    private void OnProcessStop(ProcessTraceData data)
+    private void EventListener_OnProcessStop(ProcessTraceData data)
     {
         try
         {
@@ -138,22 +137,26 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
             if (!string.IsNullOrEmpty(data.ProcessName)) return data.ProcessName;
             return string.Empty;
         }
-        catch
+        catch (Exception ex)
         {
+            App.Logger.LogWarning($"Error retrieving process name for PID {data.ProcessID}", ex, "EtwProcessMonitorStrategy");
             return string.Empty;
         }
     }
 
     public void Stop()
     {
-        if (!_isRunning) return;
-
-        _isRunning = false;
+        if (!_isRunning.CompareAndSet(true, false)) return;
 
         try
         {
-            _cancellationTokenSource?.Cancel();
-            _source?.StopProcessing();
+            if (_cancellationTokenSource != null)
+            {
+                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource?.Dispose();
+                _cancellationTokenSource = null;
+            }
+            _eventSession?.Stop();
         }
         catch (Exception ex)
         {
@@ -167,7 +170,8 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
     {
         try
         {
-            _session?.Dispose();
+            _eventSession?.Stop();
+            _eventSession?.Dispose();
         }
         catch (Exception ex)
         {
@@ -175,7 +179,7 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         }
         finally
         {
-            _session = null;
+            _eventSession = null;
         }
     }
 
@@ -188,7 +192,6 @@ public partial class EtwProcessMonitorStrategy : IProcessMonitorStrategy
         {
             Stop();
             _cancellationTokenSource?.Dispose();
-            _source?.Dispose();
             DisposeSession();
         }
         catch
