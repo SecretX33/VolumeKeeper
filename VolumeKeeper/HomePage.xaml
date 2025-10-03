@@ -106,7 +106,7 @@
                   <TextBlock Text="{x:Bind LastSeen}"
                              Style="{ThemeResource CaptionTextBlockStyle}"
                              Opacity="0.6" />
-                  <TextBlock Text="{x:Bind SavedVolumeDisplay, Mode=OneWay}"
+                  <TextBlock Text="{x:Bind PinnedVolumeDisplay, Mode=OneWay}"
                              Style="{ThemeResource CaptionTextBlockStyle}"
                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                              Opacity="0.8"
@@ -120,12 +120,11 @@
                           Spacing="6"
                           VerticalAlignment="Center"
                           Margin="8,0,8,0">
-                <Button Click="SaveVolume_Click"
+                <Button Click="PinVolume_Click"
                         CommandParameter="{x:Bind}"
                         VerticalAlignment="Center"
-                        Visibility="{x:Bind SaveButtonVisibility, Mode=OneWay}"
-                        ToolTipService.ToolTip="Save volume">
-                  <SymbolIcon Symbol="Save" />
+                        ToolTipService.ToolTip="Pin volume">
+                  <SymbolIcon Symbol="Pin" />
                 </Button>
                 <Button Click="RevertVolume_Click"
                         CommandParameter="{x:Bind}"

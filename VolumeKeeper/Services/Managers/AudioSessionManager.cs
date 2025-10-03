@@ -183,7 +183,7 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
             var newSession = new ObservableAudioSession
             {
                 AudioSession = session,
-                SavedVolume = savedVolume
+                PinnedVolume = savedVolume
             };
             LoadApplicationIconAsync(newSession);
             observableSession = newSession;
@@ -191,7 +191,7 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
         }
 
         observableSession.AudioSession = session;
-        observableSession.SavedVolume = savedVolume;
+        observableSession.PinnedVolume = savedVolume;
         observableSession.Status = "Active";
         observableSession.LastSeen = "Just now";
     }

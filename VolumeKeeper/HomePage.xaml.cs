@@ -110,21 +110,34 @@ public sealed partial class HomePage : Page, IDisposable
         }
     }
 
-    private void SaveVolume_Click(object sender, RoutedEventArgs e)
+    private void PinVolume_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             if (sender is not Button { CommandParameter: ObservableAudioSession app }) return;
 
             var currentVolume = app.Volume;
-            VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
-            app.SavedVolume = currentVolume;
 
-            App.Logger.LogInfo($"Saved volume for {app.ProcessDisplayName}: {currentVolume}%", "HomePage");
+            if (app.PinnedVolume.HasValue && app.PinnedVolume.Value == currentVolume)
+            {
+                // Unpin: Remove the pinned volume (only if current equals pinned)
+                VolumeSettingsManager.DeleteVolumeAndSave(app.AppId);
+                app.PinnedVolume = null;
+
+                App.Logger.LogInfo($"Unpinned volume for {app.ProcessDisplayName}", "HomePage");
+            }
+            else
+            {
+                // Pin or re-pin: Save the current volume
+                VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
+                app.PinnedVolume = currentVolume;
+
+                App.Logger.LogInfo($"Pinned volume for {app.ProcessDisplayName}: {currentVolume}%", "HomePage");
+            }
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to save volume", ex, "HomePage");
+            App.Logger.LogError("Failed to pin/unpin volume", ex, "HomePage");
         }
     }
 
@@ -133,9 +146,9 @@ public sealed partial class HomePage : Page, IDisposable
         try
         {
             if (sender is not Button { CommandParameter: ObservableAudioSession app }) return;
-            if (!app.SavedVolume.HasValue) return;
+            if (!app.PinnedVolume.HasValue) return;
 
-            var savedVolume = app.SavedVolume.Value;
+            var savedVolume = app.PinnedVolume.Value;
 
             await AudioSessionService.SetSessionVolumeAsync(app.AppId, savedVolume);
 

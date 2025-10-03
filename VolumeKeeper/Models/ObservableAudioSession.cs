@@ -14,7 +14,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
     private AudioSession? _audioSession;
     private string _status = "Active";
     private string _lastSeen = "Just now";
-    private int? _savedVolume;
+    private int? _pinnedVolume;
 
     public AudioSession AudioSession
     {
@@ -108,28 +108,28 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
         set => SetField(ref _lastSeen, value);
     }
 
-    public int? SavedVolume
+    public int? PinnedVolume
     {
-        get => _savedVolume;
+        get => _pinnedVolume;
         set
         {
-            if (SetField(ref _savedVolume, value))
+            if (SetField(ref _pinnedVolume, value))
             {
                 OnPropertyChanged(nameof(HasUnsavedChanges));
-                OnPropertyChanged(nameof(SavedVolumeDisplay));
+                OnPropertyChanged(nameof(PinnedVolumeDisplay));
             }
         }
     }
 
     public VolumeApplicationId AppId => _audioSession?.AppId ?? throw new InvalidOperationException("AudioSession is not set.");
 
-    public bool HasUnsavedChanges => SavedVolume.HasValue && Math.Abs(SavedVolume.Value - Volume) > 1.0;
+    public bool HasUnsavedChanges => PinnedVolume.HasValue && Math.Abs(PinnedVolume.Value - Volume) > 1.0;
 
-    public string SavedVolumeDisplay => !SavedVolume.HasValue ? "No saved volume" : $"Saved: {SavedVolume}%";
+    public string PinnedVolumeDisplay => !PinnedVolume.HasValue ? "No pinned volume" : $"Pinned: {PinnedVolume}%";
 
     public string VolumeDisplayText => $"{Volume}%";
 
-    public Visibility SaveButtonVisibility => HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility PinButtonVisibility => Visibility.Visible;
     public Visibility RevertButtonVisibility => HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
     public Symbol VolumeIcon => Volume == 0 || IsMuted ? Symbol.Mute : Symbol.Volume;
 
