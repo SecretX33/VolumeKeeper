@@ -149,17 +149,6 @@ public partial class AudioSessionManager(
         }
     }
 
-    private AudioSessionControl? GetAudioSessionByProcessId(int processId)
-    {
-        if (_sessions == null) return null;
-        for (int i = 0; i < _sessions.Count; i++)
-        {
-            var sessionControl = _sessions[i];
-            if (sessionControl?.GetProcessID == processId) return sessionControl;
-        }
-        return null;
-    }
-
     private void AddOrUpdateSession(AudioSession session)
     {
         if (!_dispatcherQueue.HasThreadAccess)
@@ -178,16 +167,22 @@ public partial class AudioSessionManager(
             {
                 OnVolumeChangedHandler = (_, _) =>
                 {
-                    App.Logger.LogDebug($"App volume {newSession.ExecutableName} (PID: {newSession.ProcessId}) changed externally to {newSession.Volume})",
+                    App.Logger.LogDebug($"App volume {newSession.ExecutableName} (PID: {newSession.ProcessId}) changed to {newSession.Volume}",
                         "AudioSessionManager");
                     RestoreSessionVolume(newSession);
+                },
+
+                OnSessionDisconnectedHandler = _ =>
+                {
+                    App.Logger.LogDebug($"Audio session disconnected for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
+                    _dispatcherQueue.TryEnqueue(() => AudioSessions.Remove(newSession));
                 },
 
                 OnStateChangedHandler = state =>
                 {
                     if (state != AudioSessionState.AudioSessionStateExpired) return;
 
-                    App.Logger.LogDebug($"Audio session disconnected for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
+                    App.Logger.LogDebug($"Audio session expired for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
                     _dispatcherQueue.TryEnqueue(() => AudioSessions.Remove(newSession));
                 }
             });
@@ -199,8 +194,6 @@ public partial class AudioSessionManager(
 
         observableSession.AudioSession = session;
         observableSession.PinnedVolume = savedVolume;
-        observableSession.Status = "Active";
-        observableSession.LastSeen = "Just now";
     }
 
     private void RestoreSessionVolume(ObservableAudioSession newSession)

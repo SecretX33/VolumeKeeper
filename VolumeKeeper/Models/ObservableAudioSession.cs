@@ -12,8 +12,6 @@ namespace VolumeKeeper.Models;
 public partial class ObservableAudioSession : INotifyPropertyChanged
 {
     private AudioSession? _audioSession;
-    private string _status = "Active";
-    private string _lastSeen = "Just now";
     private int? _pinnedVolume;
     public DateTimeOffset? LastTimeVolumeOrMuteWereManuallySet { get; private set; }
 
@@ -99,18 +97,6 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
 
     public AudioSessionControl SessionControl => _audioSession?.SessionControl ?? throw new InvalidOperationException("AudioSession is not set.");
 
-    public string Status
-    {
-        get => _status;
-        set => SetField(ref _status, value);
-    }
-
-    public string LastSeen
-    {
-        get => _lastSeen;
-        set => SetField(ref _lastSeen, value);
-    }
-
     public int? PinnedVolume
     {
         get => _pinnedVolume;
@@ -120,6 +106,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
             {
                 OnPropertyChanged(nameof(HasUnsavedChanges));
                 OnPropertyChanged(nameof(PinnedVolumeDisplay));
+                OnPropertyChanged(nameof(RevertButtonVisibility));
             }
         }
     }

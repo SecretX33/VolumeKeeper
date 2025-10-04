@@ -97,20 +97,10 @@
                            Style="{ThemeResource BodyStrongTextBlockStyle}"
                            Margin="0,0,0,2" />
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                  <TextBlock Text="{x:Bind Status}"
-                             Style="{ThemeResource CaptionTextBlockStyle}"
-                             Opacity="0.6" />
-                  <TextBlock Text="•"
-                             Style="{ThemeResource CaptionTextBlockStyle}"
-                             Opacity="0.6" />
-                  <TextBlock Text="{x:Bind LastSeen}"
-                             Style="{ThemeResource CaptionTextBlockStyle}"
-                             Opacity="0.6" />
                   <TextBlock Text="{x:Bind PinnedVolumeDisplay, Mode=OneWay}"
                              Style="{ThemeResource CaptionTextBlockStyle}"
                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                             Opacity="0.8"
-                             Margin="8,0,0,0" />
+                             Opacity="0.8" />
                 </StackPanel>
               </StackPanel>
 
