@@ -10,7 +10,6 @@ public class AudioSession
     public string ProcessDisplayName { get; init; } = string.Empty;
     public string ExecutableName { get; init; } = string.Empty;
     public string? ExecutablePath { get; init; } = null;
-    public bool IsMuted { get; init; }
     public string IconPath { get; init; } = string.Empty;
     public BitmapImage? Icon { get; init; }
     public AudioSessionControl SessionControl { get; init; } = null!;
@@ -21,6 +20,12 @@ public class AudioSession
         set => SessionControl.SimpleAudioVolume.Volume = value / 100f;
     }
 
+    public bool IsMuted
+    {
+        get => SessionControl.SimpleAudioVolume.Mute;
+        set => SessionControl.SimpleAudioVolume.Mute = value;
+    }
+
     public VolumeApplicationId AppId => VolumeApplicationId.Create(ExecutablePath, ExecutableName);
 
     public AudioSession With(
@@ -28,8 +33,6 @@ public class AudioSession
         string? processDisplayName = null,
         string? executableName = null,
         string? executablePath = null,
-        int? volume = null,
-        bool? isMuted = null,
         string? iconPath = null,
         BitmapImage? icon = null,
         AudioSessionControl? sessionControl = null
@@ -39,8 +42,6 @@ public class AudioSession
             ProcessDisplayName = processDisplayName ?? ProcessDisplayName,
             ExecutableName = executableName ?? ExecutableName,
             ExecutablePath = executablePath ?? ExecutablePath,
-            Volume = volume ?? Volume,
-            IsMuted = isMuted ?? IsMuted,
             IconPath = iconPath ?? IconPath,
             Icon = icon ?? Icon,
             SessionControl = sessionControl ?? SessionControl

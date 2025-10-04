@@ -65,10 +65,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
             var currentValue = AudioSession.Volume;
             if (currentValue == value) return;
             AudioSession.Volume = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(VolumeDisplayText));
-            OnPropertyChanged(nameof(HasUnsavedChanges));
-            OnPropertyChanged(nameof(VolumeIcon));
+            NotifyVolumeOrMuteChanged();
 
             if (value > 0 && IsMuted)
             {
@@ -82,11 +79,10 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
         get => _audioSession?.IsMuted ?? false;
         set
         {
-            var currentValue = AudioSession.SessionControl.SimpleAudioVolume.Mute;
+            var currentValue = AudioSession.IsMuted;
             if (currentValue == value) return;
-            AudioSession.SessionControl.SimpleAudioVolume.Mute = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(VolumeIcon));
+            AudioSession.IsMuted = value;
+            NotifyVolumeOrMuteChanged();
         }
     }
 
@@ -129,9 +125,18 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
 
     public string VolumeDisplayText => $"{Volume}%";
 
-    public Visibility PinButtonVisibility => Visibility.Visible;
     public Visibility RevertButtonVisibility => HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
+
     public Symbol VolumeIcon => Volume == 0 || IsMuted ? Symbol.Mute : Symbol.Volume;
+
+    public void NotifyVolumeOrMuteChanged()
+    {
+        OnPropertyChanged(nameof(Volume));
+        OnPropertyChanged(nameof(IsMuted));
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(VolumeDisplayText));
+        OnPropertyChanged(nameof(VolumeIcon));
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

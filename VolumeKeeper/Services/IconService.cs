@@ -69,7 +69,7 @@ public class IconService
         }
         catch (Exception ex)
         {
-            App.Logger.LogWarning($"Failed to get icon for {processName}: {ex.Message}", "IconService");
+            App.Logger.LogWarning($"Failed to get icon for {processName}", ex, "IconService");
             return null;
         }
     }
@@ -86,7 +86,7 @@ public class IconService
             }
             catch (Exception ex)
             {
-                App.Logger.LogWarning($"Failed to extract icon from {filePath}: {ex.Message}", "IconService");
+                App.Logger.LogWarning($"Failed to extract icon from {filePath}", ex, "IconService");
             }
 
             return null;
@@ -104,7 +104,7 @@ public class IconService
             }
             catch (Exception ex)
             {
-                App.Logger.LogWarning($"Failed to save icon to cache: {ex.Message}", "IconService");
+                App.Logger.LogWarning("Failed to save icon to cache", ex, "IconService");
             }
         });
     }

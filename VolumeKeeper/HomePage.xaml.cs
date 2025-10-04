@@ -124,7 +124,7 @@ public sealed partial class HomePage : Page, IDisposable
                 VolumeSettingsManager.DeleteVolumeAndSave(app.AppId);
                 app.PinnedVolume = null;
 
-                App.Logger.LogInfo($"Unpinned volume for {app.ProcessDisplayName}", "HomePage");
+                App.Logger.LogInfo($"Unpinned volume for {app.ExecutableName} (PID: {app.ProcessId})", "HomePage");
             }
             else
             {
@@ -132,7 +132,7 @@ public sealed partial class HomePage : Page, IDisposable
                 VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
                 app.PinnedVolume = currentVolume;
 
-                App.Logger.LogInfo($"Pinned volume for {app.ProcessDisplayName}: {currentVolume}%", "HomePage");
+                App.Logger.LogInfo($"Pinned volume for {app.ExecutableName} (PID: {app.ProcessId}): {currentVolume}%", "HomePage");
             }
         }
         catch (Exception ex)

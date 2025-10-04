@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using NAudio.CoreAudioApi;
+using NAudio.CoreAudioApi.Interfaces;
 using VolumeKeeper.Models;
 using VolumeKeeper.Util;
 using static VolumeKeeper.Util.Util;
@@ -39,8 +40,14 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
         try
         {
             var newDefaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-            _defaultDevice.GetAndSet(newDefaultDevice)?.Dispose();
             _sessions = newDefaultDevice.AudioSessionManager.Sessions;
+            newDefaultDevice.AudioSessionManager.OnSessionCreated += (sender, session) =>
+            {
+                // The session object doesn't contain any useful info, so we need to fallback to UpdateAllSessions
+                App.Logger.LogDebug("New audio session created, refreshing audio sessions", "AudioSessionManager");
+                _ = Task.Run(UpdateAllSessions);
+            };
+            _defaultDevice.GetAndSet(newDefaultDevice)?.Dispose();
         }
         catch (Exception ex)
         {
@@ -132,7 +139,6 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
                 ProcessDisplayName = processInfo.DisplayName,
                 ExecutableName = processInfo.ExecutableName,
                 ExecutablePath = processInfo.ExecutablePath,
-                IsMuted = simpleVolume.Mute,
                 IconPath = sessionControl.IconPath ?? string.Empty,
                 SessionControl = sessionControl
             };
@@ -185,6 +191,23 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
                 AudioSession = session,
                 PinnedVolume = savedVolume
             };
+            session.SessionControl.RegisterEventClient(new ConfigurableAudioSessionEventsHandler
+            {
+                OnVolumeChangedHandler = (_, _) =>
+                {
+                    App.Logger.LogDebug($"App volume {newSession.ExecutableName} (PID: {newSession.ProcessId}) changed externally to {newSession.Volume})",
+                        "AudioSessionManager");
+                    _dispatcherQueue.TryEnqueue(newSession.NotifyVolumeOrMuteChanged);
+                },
+
+                OnStateChangedHandler = state =>
+                {
+                    if (state != AudioSessionState.AudioSessionStateExpired) return;
+
+                    App.Logger.LogDebug($"Audio session disconnected for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
+                    _dispatcherQueue.TryEnqueue(() => AudioSessions.Remove(newSession));
+                }
+            });
             LoadApplicationIconAsync(newSession);
             observableSession = newSession;
             AudioSessions.Add(observableSession);
@@ -224,7 +247,7 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
             }
             catch (Exception ex)
             {
-                App.Logger.LogWarning($"Failed to load icon for {app.ExecutableName}: {ex.Message}", "HomePage");
+                App.Logger.LogWarning($"Failed to load icon for {app.ExecutableName}", ex, "HomePage");
             }
         });
     }
