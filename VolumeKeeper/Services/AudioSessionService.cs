@@ -87,13 +87,13 @@ public partial class AudioSessionService(
         try
         {
             session.SetVolume(volumePercentage);
-            App.Logger.LogInfo($"Set volume for {volumeApplicationId} (PID: {session.ProcessId}) to {volumePercentage}%",
+            App.Logger.LogInfo($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage}%",
                 "AudioSessionManager");
             return true;
         }
         catch (Exception ex)
         {
-            App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex,
+            App.Logger.LogError($"Failed to set volume for {session.ExecutableName} (PID: {session.ProcessId})", ex,
                 "AudioSessionManager");
             return false;
         }

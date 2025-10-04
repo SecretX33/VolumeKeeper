@@ -1,5 +1,4 @@
 using System;
-using System.Drawing;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using WinRT.Interop;
@@ -8,9 +7,6 @@ namespace VolumeKeeper.Util;
 
 internal static partial class NativeMethods
 {
-    [LibraryImport("shell32.dll", EntryPoint = "ExtractIconW", StringMarshalling = StringMarshalling.Utf16)]
-    private static partial IntPtr ExtractIcon(IntPtr hInst, string lpszExeFileName, int nIconIndex);
-
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ShowWindow(IntPtr hWnd, ShowWindowCommand nCmdShow);
@@ -18,6 +14,17 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("comctl32.dll", SetLastError = true)]
+    public static extern bool SetWindowSubclass(IntPtr hWnd, SubclassProc pfnSubclass, nuint uIdSubclass, nuint dwRefData);
+
+    [DllImport("comctl32.dll", SetLastError = true)]
+    public static extern nint DefSubclassProc(IntPtr hWnd, WindowMessage Msg, nuint wParam, nint lParam);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    public delegate nint SubclassProc(IntPtr hWnd, WindowMessage Msg, UIntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData);
 
     private enum ShowWindowCommand
     {
@@ -35,11 +42,15 @@ internal static partial class NativeMethods
         SW_FORCEMINIMIZE = 11,
     }
 
-    public static Icon? ExtractIconFromFile(string filePath)
+    [Flags]
+    public enum WindowLongIndexFlags : int
     {
-        IntPtr hIcon = ExtractIcon(IntPtr.Zero, filePath, 0);
-        if (hIcon == IntPtr.Zero) return null;
-        return Icon.FromHandle(hIcon);
+        GWL_WNDPROC = -4,
+    }
+
+    public enum WindowMessage : int
+    {
+        WM_GETMINMAXINFO = 0x0024,
     }
 
     public static void ShowAndFocus(Window window) => ShowAndFocus(WindowNative.GetWindowHandle(window));

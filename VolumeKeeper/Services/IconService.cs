@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media.Imaging;
 using VolumeKeeper.Util;
 
@@ -13,99 +13,68 @@ namespace VolumeKeeper.Services;
 public class IconService
 {
     private readonly ConcurrentDictionary<string, BitmapImage> _iconCache = new();
-    private readonly string _iconCacheDirectory;
+    private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
-    public IconService()
-    {
-        _iconCacheDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "VolumeKeeper",
-            "icons"
-        );
-
-        Directory.CreateDirectory(_iconCacheDirectory);
-    }
-
-    public async Task<BitmapImage?> GetApplicationIconAsync(string? executablePath, string processName)
-    {
-        if (string.IsNullOrEmpty(executablePath))
-            return null;
+    public async Task<BitmapImage?> GetApplicationIconAsync(
+        string iconPath,
+        string executablePath,
+        string executableName
+    ) {
+        var resolvedIconPath = string.IsNullOrWhiteSpace(iconPath) ? executablePath : iconPath;
 
         try
         {
             // Check cache first
-            if (_iconCache.TryGetValue(executablePath, out var cachedIcon))
+            if (_iconCache.TryGetValue(resolvedIconPath, out var cachedIcon))
                 return cachedIcon;
 
-            // Check file cache
-            var cacheFileName = $"{processName.Replace(".", "_")}.png";
-            var cacheFilePath = Path.Combine(_iconCacheDirectory, cacheFileName);
-
-            BitmapImage? bitmapImage = null;
-
-            if (File.Exists(cacheFilePath))
-            {
-                // Load from file cache
-                bitmapImage = await LoadBitmapFromFileAsync(cacheFilePath);
-            }
-            else
-            {
-                // Extract icon from executable
-                using var icon = await ExtractIconAsync(executablePath);
-                if (icon != null)
-                {
-                    // Save to file cache
-                    await SaveIconToCacheAsync(icon, cacheFilePath);
-                    bitmapImage = await ConvertIconToBitmapImageAsync(icon);
-                }
-            }
-
+            // Extract icon from executable
+            var bitmapImage = await ExtractIconAsync(resolvedIconPath, executablePath);
             if (bitmapImage != null)
             {
-                _iconCache[executablePath] = bitmapImage;
+                _iconCache[resolvedIconPath] = bitmapImage;
             }
 
             return bitmapImage;
         }
         catch (Exception ex)
         {
-            App.Logger.LogWarning($"Failed to get icon for {processName}", ex, "IconService");
+            App.Logger.LogWarning($"Failed to get icon for {executableName}", ex, "IconService");
             return null;
         }
     }
 
-    private async Task<Icon?> ExtractIconAsync(string filePath)
-    {
-        return await Task.Run(() =>
+    private Task<BitmapImage?> ExtractIconAsync(
+        string iconPath,
+        string executablePath
+    ) {
+        var isIconPathAnExecutable = string.Equals(iconPath, executablePath, StringComparison.OrdinalIgnoreCase);
+
+        return Task.Run(async () =>
         {
+            BitmapImage? bitmapImage = null;
             try
             {
                 // Extract the icon from the executable
-                var icon = NativeMethods.ExtractIconFromFile(filePath);
-                return icon;
+                if (isIconPathAnExecutable)
+                {
+                    using var icon = Icon.ExtractAssociatedIcon(iconPath);
+                    if (icon != null)
+                    {
+                        bitmapImage = await ConvertIconToBitmapImageAsync(icon);
+                    }
+                }
+                else
+                {
+                    bitmapImage = await LoadBitmapFromFileAsync(iconPath);
+                }
             }
             catch (Exception ex)
             {
-                App.Logger.LogWarning($"Failed to extract icon from {filePath}", ex, "IconService");
+                App.Logger.LogWarning($"Failed to extract icon from {iconPath}", ex, "IconService");
             }
 
-            return null;
-        });
-    }
-
-    private async Task SaveIconToCacheAsync(Icon icon, string filePath)
-    {
-        await Task.Run(() =>
-        {
-            try
-            {
-                using var bitmap = icon.ToBitmap();
-                bitmap.Save(filePath, ImageFormat.Png);
-            }
-            catch (Exception ex)
-            {
-                App.Logger.LogWarning("Failed to save icon to cache", ex, "IconService");
-            }
+            return bitmapImage;
         });
     }
 
@@ -113,7 +82,7 @@ public class IconService
     {
         var bitmapImage = new BitmapImage();
 
-        using var stream = File.OpenRead(filePath);
+        await using var stream = File.OpenRead(filePath);
         var memoryStream = new MemoryStream();
         await stream.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
@@ -124,36 +93,20 @@ public class IconService
 
     private async Task<BitmapImage> ConvertIconToBitmapImageAsync(Icon icon)
     {
-        return await Task.Run(async () =>
-        {
-            using var bitmap = icon.ToBitmap();
-            using var memoryStream = new MemoryStream();
-            bitmap.Save(memoryStream, ImageFormat.Png);
-            memoryStream.Position = 0;
+        using var bitmap = icon.ToBitmap();
+        using var memoryStream = new MemoryStream();
 
+        bitmap.Save(memoryStream, ImageFormat.Png);
+        memoryStream.Position = 0;
+
+        var bitmapImageTask = await _dispatcherQueue.TryFetch(async () =>
+        {
             var bitmapImage = new BitmapImage();
+            // ReSharper disable once AccessToDisposedClosure
             await bitmapImage.SetSourceAsync(memoryStream.AsRandomAccessStream());
             return bitmapImage;
-        });
-    }
+        }).ConfigureAwait(false);
 
-    public void ClearCache()
-    {
-        _iconCache.Clear();
-
-        try
-        {
-            if (Directory.Exists(_iconCacheDirectory))
-            {
-                foreach (var file in Directory.GetFiles(_iconCacheDirectory, "*.png"))
-                {
-                    File.Delete(file);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            App.Logger.LogError("Failed to clear icon cache", ex, "IconService");
-        }
+        return await bitmapImageTask;
     }
 }

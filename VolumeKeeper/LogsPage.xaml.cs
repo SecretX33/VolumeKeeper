@@ -2,8 +2,10 @@
 using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using VolumeKeeper.Controls;
 using VolumeKeeper.Models.Log;
 using VolumeKeeper.Services.Managers;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper;
 
@@ -25,7 +27,7 @@ public sealed partial class LogsPage : Page
 
             if (AutoScrollToggle.IsOn && LogEntries.Count > 0)
             {
-                DispatcherQueue.TryEnqueue(() =>
+                DispatcherQueue.TryEnqueueImmediate(() =>
                 {
                     // Scroll to top (latest entry)
                     LogScrollViewer.ChangeView(null, 0, null);
@@ -41,10 +43,9 @@ public sealed partial class LogsPage : Page
 
     private void AutoScrollToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (sender is not ToggleSwitch toggle) return;
+        if (sender is not CompactToggleSwitch toggle) return;
         VolumeSettingsManager.SetAutoScrollLogsEnabledAndSave(toggle.IsOn);
     }
-
 
     private void ClearLogsButton_Click(object sender, RoutedEventArgs e)
     {

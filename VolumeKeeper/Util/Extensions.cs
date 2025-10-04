@@ -1,7 +1,7 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Windows.Graphics;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
@@ -12,15 +12,22 @@ public static class Extensions
     public static void ShowAndFocus(this Window window)
     {
         window = window ?? throw new ArgumentNullException(nameof(window));
+        window.DispatcherQueue.TryEnqueueImmediate(() => NativeMethods.ShowAndFocus(window));
+    }
 
-        // Ensure the operation runs on the UI thread
-        if (window.DispatcherQueue.HasThreadAccess)
+    public static void SetMinMaxSize(
+        this Window window,
+        PointInt32? minWindowSize = null,
+        PointInt32? maxWindowSize = null
+    )
+    {
+        try
         {
-            NativeMethods.ShowAndFocus(window);
-        }
-        else
+            var helper = new Win32WindowHelper(window);
+            helper.SetWindowMinMaxSize(minWindowSize, maxWindowSize);
+        } catch (Exception ex)
         {
-            window.DispatcherQueue.TryEnqueue(() => NativeMethods.ShowAndFocus(window));
+            App.Logger.LogWarning("Failed to set window min/max size.", ex, "Extensions");
         }
     }
 
@@ -70,5 +77,22 @@ public static class Extensions
         }
 
         return await tcs.Task;
+    }
+
+    public static void TryEnqueueImmediate(
+        this DispatcherQueue queue,
+        DispatcherQueueHandler callback
+    )
+    {
+        var success = true;
+
+        // Directly invoke the callback if we're already on the correct thread, else enqueue it
+        if (queue.HasThreadAccess) callback.Invoke();
+        else success = queue.TryEnqueue(callback);
+
+        if (!success)
+        {
+            throw new InvalidOperationException("Failed to enqueue operation to DispatcherQueue.");
+        }
     }
 }

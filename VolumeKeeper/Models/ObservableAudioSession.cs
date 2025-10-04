@@ -12,8 +12,6 @@ namespace VolumeKeeper.Models;
 public partial class ObservableAudioSession : INotifyPropertyChanged
 {
     private AudioSession? _audioSession;
-    private string _status = "Active";
-    private string _lastSeen = "Just now";
     private int? _pinnedVolume;
     public DateTimeOffset? LastTimeVolumeOrMuteWereManuallySet { get; private set; }
 
@@ -32,6 +30,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
             if (!Equals(oldValue?.ExecutableName, value.ExecutableName)) changedProperties.Add(nameof(ExecutableName));
             if (!Equals(oldValue?.ExecutablePath, value.ExecutablePath)) changedProperties.Add(nameof(ExecutablePath));
             if (!Equals(oldValue?.IconPath, value.IconPath)) changedProperties.Add(nameof(IconPath));
+            if (!Equals(oldValue?.Icon, value.Icon)) changedProperties.Add(nameof(Icon));
             if (!Equals(oldValue?.SessionControl, value.SessionControl)) changedProperties.Add(nameof(SessionControl));
             if (!Equals(oldValue?.AppId, value.AppId)) changedProperties.Add(nameof(AppId));
             if (oldValue?.Volume != value.Volume)
@@ -40,6 +39,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
                 changedProperties.Add(nameof(VolumeDisplayText));
                 changedProperties.Add(nameof(HasUnsavedChanges));
                 changedProperties.Add(nameof(VolumeIcon));
+                changedProperties.Add(nameof(RevertButtonVisibility));
             }
             IsMuted = value.IsMuted;
 
@@ -52,11 +52,11 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
 
     public int ProcessId => _audioSession?.ProcessId ?? 0;
 
-    public string ProcessDisplayName => _audioSession?.ProcessDisplayName ?? string.Empty;
+    public string ProcessDisplayName => _audioSession?.ProcessDisplayName ?? throw new InvalidOperationException("AudioSession is not set.");
 
-    public string ExecutableName => _audioSession?.ExecutableName ?? string.Empty;
+    public string ExecutableName => _audioSession?.ExecutableName ?? throw new InvalidOperationException("AudioSession is not set.");
 
-    public string? ExecutablePath => _audioSession?.ExecutablePath;
+    public string ExecutablePath => _audioSession?.ExecutablePath ?? throw new InvalidOperationException("AudioSession is not set.");
 
     public int Volume
     {
@@ -99,18 +99,6 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
 
     public AudioSessionControl SessionControl => _audioSession?.SessionControl ?? throw new InvalidOperationException("AudioSession is not set.");
 
-    public string Status
-    {
-        get => _status;
-        set => SetField(ref _status, value);
-    }
-
-    public string LastSeen
-    {
-        get => _lastSeen;
-        set => SetField(ref _lastSeen, value);
-    }
-
     public int? PinnedVolume
     {
         get => _pinnedVolume;
@@ -120,6 +108,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
             {
                 OnPropertyChanged(nameof(HasUnsavedChanges));
                 OnPropertyChanged(nameof(PinnedVolumeDisplay));
+                OnPropertyChanged(nameof(RevertButtonVisibility));
             }
         }
     }
@@ -172,4 +161,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
 
     // ReSharper disable once NonReadonlyMemberInGetHashCode
     public override int GetHashCode() => _audioSession?.ProcessId ?? 0;
+
+    public override string ToString() =>
+        $"ExecutableName={ExecutableName}, ProcessId={ProcessId}, Volume={Volume}, IsMuted={IsMuted}, PinnedVolume={PinnedVolume?.ToString()}, IconPath={IconPath}, HasIcon={Icon != null}";
 }

@@ -1,15 +1,19 @@
-﻿using Windows.Graphics;
+﻿using System;
+using Windows.Graphics;
 using H.NotifyIcon;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VolumeKeeper.Models;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper;
 
 public sealed partial class MainWindow : Window
 {
     private const WindowId WindowId = Models.WindowId.Main;
+    private readonly PointInt32 _minWindowSize = new(400, 350);
+    private Win32WindowHelper? _helper; // Keep a reference to prevent garbage collection
 
     public MainWindow()
     {
@@ -21,6 +25,7 @@ public sealed partial class MainWindow : Window
         Closed += MainWindow_Closed;
         NavigateToPage("Home");
         SizeChanged += MainWindow_SizeChanged;
+        Activated += MainWindow_Activated;
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -54,6 +59,9 @@ public sealed partial class MainWindow : Window
         var appWindow = AppWindow;
         if (appWindow == null) return;
 
+        _helper = new Win32WindowHelper(this);
+        _helper.SetWindowMinMaxSize(minWindowSize: _minWindowSize);
+
         var windowSettings = App.WindowSettingsManager.Get(WindowId);
 
         // Apply maximize state if needed
@@ -66,8 +74,8 @@ public sealed partial class MainWindow : Window
 
         var size = new SizeInt32
         {
-            Width = (int)windowSettings.Width,
-            Height = (int)windowSettings.Height
+            Width = (int)Math.Max(windowSettings.Width, _minWindowSize.X),
+            Height = (int)Math.Max(windowSettings.Height, _minWindowSize.Y)
         };
         appWindow.Resize(size);
 
@@ -76,8 +84,8 @@ public sealed partial class MainWindow : Window
         {
             var position = new PointInt32
             {
-                X = (int)windowSettings.X,
-                Y = (int)windowSettings.Y
+                X = windowSettings.X.Value,
+                Y = windowSettings.Y.Value
             };
             appWindow.Move(position);
         }
@@ -97,7 +105,11 @@ public sealed partial class MainWindow : Window
     {
         // Get the primary display work area
         var displayArea = DisplayArea.Primary;
-        if (displayArea == null) return;
+        if (displayArea == null)
+        {
+            App.Logger.LogWarning("Failed to get primary display area, thus couldn't center window on screen", "MainWindow");
+            return;
+        }
 
         var workArea = displayArea.WorkArea;
         var windowSize = appWindow.Size;
@@ -108,6 +120,32 @@ public sealed partial class MainWindow : Window
         };
 
         appWindow.Move(centeredPosition);
+    }
+
+    private bool IsWindowOutOfBounds(AppWindow appWindow)
+    {
+        // Get the primary display work area
+        var displayArea = DisplayArea.Primary;
+        if (displayArea == null)
+        {
+            App.Logger.LogWarning("Failed to get primary display area, thus couldn't determine if window is out of bounds", "MainWindow");
+            return false;
+        }
+
+        var workArea = displayArea.WorkArea;
+        var windowPosition = appWindow.Position;
+        var windowSize = appWindow.Size;
+
+        var workAreaStartBounds = new PointInt32(workArea.X, workArea.X);
+        var workAreaEndBounds = new PointInt32(workArea.X + workArea.Width, workArea.Y + workArea.Height);
+
+        const double maximumAllowedOutOfBoundsAmount = 0.75;
+        var outOnTopLeftOfTheScreen = windowPosition.X < workAreaStartBounds.X
+            || windowPosition.Y < workAreaStartBounds.Y;
+        var outOnBottomRightOfTheScreen = windowPosition.X + windowSize.Width * maximumAllowedOutOfBoundsAmount >= workAreaEndBounds.X
+            || windowPosition.Y + windowSize.Height * maximumAllowedOutOfBoundsAmount >= workAreaEndBounds.Y;
+
+        return outOnTopLeftOfTheScreen || outOnBottomRightOfTheScreen;
     }
 
     private void SaveWindowSettings(bool saveImmediately = false)
@@ -138,6 +176,12 @@ public sealed partial class MainWindow : Window
     private void MainWindow_SizeChanged(object sender, WindowSizeChangedEventArgs args)
     {
         SaveWindowSettings();
+    }
+
+    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState == WindowActivationState.Deactivated || !IsWindowOutOfBounds(AppWindow)) return;
+        CenterWindowOnScreen(AppWindow);
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)

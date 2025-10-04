@@ -1,0 +1,8 @@
+<UserControl x:Class="VolumeKeeper.Controls.CompactToggleSwitch"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ToggleSwitch x:Name="InternalToggle"
+                Margin="0"
+                Padding="0"
+                MinWidth="0" />
+</UserControl>
