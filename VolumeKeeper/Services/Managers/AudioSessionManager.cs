@@ -161,22 +161,6 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
         return null;
     }
 
-    public void OnProcessStarted(ProcessInfo processInfo)
-    {
-        RefreshDevice();
-
-        var audioSessionControl = GetAudioSessionByProcessId(processInfo.Id);
-        if (audioSessionControl == null) return;
-
-        var simpleVolume = audioSessionControl.SimpleAudioVolume;
-        if (simpleVolume == null) return;
-
-        var session = CreateAudioSession(audioSessionControl, simpleVolume, processInfo);
-        if (session == null) return;
-
-        _dispatcherQueue.TryEnqueue(() => AddOrUpdateSession(session));
-    }
-
     private void AddOrUpdateSession(AudioSession session)
     {
         if (!_dispatcherQueue.HasThreadAccess)
@@ -217,17 +201,6 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
         observableSession.PinnedVolume = savedVolume;
         observableSession.Status = "Active";
         observableSession.LastSeen = "Just now";
-    }
-
-    public void OnProcessStopped(int processId)
-    {
-        _dispatcherQueue.TryEnqueue(() =>
-        {
-            foreach (var session in AudioSessions.Where(it => it.ProcessId == processId))
-            {
-                AudioSessions.Remove(session);
-            }
-        });
     }
 
     private void LoadApplicationIconAsync(ObservableAudioSession app)

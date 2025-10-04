@@ -29,8 +29,6 @@ public partial class App : Application
     private static VolumeSettingsManager? _volumeSettingsManager;
     private static WindowSettingsManager? _windowSettingsManager;
     private static AudioSessionService? _audioSessionService;
-    private ApplicationMonitorService? _applicationMonitorService;
-    // private VolumeRestorationService? _volumeRestorationService;
     public static LoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
     public static AudioSessionManager AudioSessionManager => _audioSessionManager ?? throw new InvalidOperationException("Audio session manager not initialized");
     public static VolumeSettingsManager VolumeSettingsManager => _volumeSettingsManager ?? throw new InvalidOperationException("Volume settings manager not initialized");
@@ -194,21 +192,6 @@ public partial class App : Application
             // Initialize core services with managers
             _audioSessionService = new AudioSessionService(_audioSessionManager);
 
-            // Initialize monitoring services with managers
-            _applicationMonitorService = new ApplicationMonitorService(_audioSessionManager);
-
-            await Task.Run(_applicationMonitorService.Initialize);
-
-            // _volumeRestorationService = new VolumeRestorationService(
-            //     _audioSessionService,
-            //     _audioSessionManager,
-            //     _volumeSettingsManager,
-            //     _applicationMonitorService
-            // );
-            //
-            // // Restore volumes for currently running applications
-            // _ = Task.Run(_volumeRestorationService.RestoreAllCurrentSessionsAsync);
-
             Logger.LogInfo("All services initialized successfully");
         }
         catch (Exception ex)
@@ -232,8 +215,6 @@ public partial class App : Application
         {
             _mainWindow?.Close();
             DisposeAll(
-                _applicationMonitorService,
-                // _volumeRestorationService,
                 _audioSessionManager,
                 _audioSessionService,
                 _trayIcon,
