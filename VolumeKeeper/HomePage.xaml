@@ -2,7 +2,8 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:local="using:VolumeKeeper"
-      xmlns:models="using:VolumeKeeper.Models">
+      xmlns:models="using:VolumeKeeper.Models"
+      xmlns:controls="using:VolumeKeeper.Controls">
 
   <Grid Padding="24,12,24,24">
     <Grid.RowDefinitions>
@@ -45,8 +46,8 @@
                   Spacing="8">
         <TextBlock Text="Auto-restore volumes:"
                    VerticalAlignment="Center" />
-        <ToggleSwitch x:Name="AutoRestoreToggle"
-                      Toggled="AutoRestoreToggle_Toggled" />
+        <controls:CompactToggleSwitch x:Name="AutoRestoreToggle"
+                                      Toggled="AutoRestoreToggle_Toggled" />
       </StackPanel>
     </Grid>
 

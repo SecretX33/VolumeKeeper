@@ -236,7 +236,7 @@ public partial class AudioSessionManager(
             }
             catch (Exception ex)
             {
-                App.Logger.LogWarning($"Failed to load icon for {app.ExecutableName}", ex, "HomePage");
+                App.Logger.LogWarning($"Failed to load icon for {app.ExecutableName} (PID: {app.ProcessId})", ex, "HomePage");
             }
         });
     }

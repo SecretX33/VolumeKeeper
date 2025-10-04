@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using VolumeKeeper.Controls;
 using VolumeKeeper.Models;
 using VolumeKeeper.Services;
 using VolumeKeeper.Services.Managers;
@@ -43,7 +44,7 @@ public sealed partial class HomePage : Page, IDisposable
     {
         try
         {
-            if (sender is not ToggleSwitch toggle) return;
+            if (sender is not CompactToggleSwitch toggle) return;
             VolumeSettingsManager.SetAutoRestoreEnabledAndSave(toggle.IsOn);
             App.Logger.LogInfo($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
         }
