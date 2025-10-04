@@ -3,6 +3,7 @@ using NAudio.CoreAudioApi.Interfaces;
 
 namespace VolumeKeeper.Services.Managers;
 
+// ReSharper disable PropertyCanBeMadeInitOnly.Global UnusedAutoPropertyAccessor.Global
 public class ConfigurableAudioSessionEventsHandler : IAudioSessionEventsHandler
 {
     public Action<float, bool>? OnVolumeChangedHandler { get; set; }

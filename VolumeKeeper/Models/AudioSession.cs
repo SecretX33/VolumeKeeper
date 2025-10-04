@@ -6,13 +6,13 @@ namespace VolumeKeeper.Models;
 
 public class AudioSession
 {
-    public int ProcessId { get; init; }
-    public string ProcessDisplayName { get; init; } = string.Empty;
-    public string ExecutableName { get; init; } = string.Empty;
-    public string ExecutablePath { get; init; } = string.Empty;
-    public string IconPath { get; init; } = string.Empty;
+    public required int ProcessId { get; init; }
+    public required string ProcessDisplayName { get; init; }
+    public required string ExecutableName { get; init; }
+    public required string ExecutablePath { get; init; }
+    public required string IconPath { get; init; }
     public BitmapImage? Icon { get; init; }
-    public AudioSessionControl SessionControl { get; init; } = null!;
+    public required AudioSessionControl SessionControl { get; init; }
 
     public int Volume
     {
