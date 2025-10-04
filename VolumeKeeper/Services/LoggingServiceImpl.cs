@@ -11,25 +11,36 @@ using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
-public interface ILoggingService
+public abstract class LoggingService
 {
-    ObservableCollection<LogEntry> LogEntries { get; }
-    void LogDebug(string message, string? source = null);
-    void LogInfo(string message, string? source = null);
-    void LogWarning(string message, string? source = null);
-    void LogError(string message, Exception? exception = null, string? source = null);
-    Task FlushAsync();
+    public ObservableCollection<LogEntry> LogEntries { get; } = [];
+    public abstract Task FlushAsync();
+
+    protected abstract void Log(
+        Models.Log.LogLevel level,
+        string message,
+        string? source,
+        Exception? exception = null
+    );
+
+    public void LogDebug(string message, string? source = null) => LogDebug(message, null, source);
+    public void LogInfo(string message, string? source = null) => LogInfo(message, null, source);
+    public void LogWarning(string message, string? source = null) => LogWarning(message, null, source);
+    public void LogError(string message, string? source = null) => LogError(message, null, source);
+
+    public void LogDebug(string message, Exception? exception, string? source = null) => Log(Models.Log.LogLevel.Debug, message, source, exception);
+    public void LogInfo(string message, Exception? exception, string? source = null) => Log(Models.Log.LogLevel.Info, message, source, exception);
+    public void LogWarning(string message, Exception? exception, string? source = null) => Log(Models.Log.LogLevel.Warning, message, source, exception);
+    public void LogError(string message, Exception? exception, string? source = null) => Log(Models.Log.LogLevel.Error, message, source, exception);
 }
 
-public partial class LoggingService : ILoggingService, IDisposable
+public partial class LoggingServiceImpl : LoggingService, IDisposable
 {
     private readonly DispatcherQueue _dispatcherQueue;
     private const int MaxInMemoryEntries = 1000;
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
-    public ObservableCollection<LogEntry> LogEntries { get; } = [];
-
-    public LoggingService(DispatcherQueue dispatcherQueue)
+    public LoggingServiceImpl(DispatcherQueue dispatcherQueue)
     {
         _dispatcherQueue = dispatcherQueue;
 
@@ -43,33 +54,17 @@ public partial class LoggingService : ILoggingService, IDisposable
         LogInfo("VolumeKeeper logging service started", "LoggingService");
     }
 
-    public void LogDebug(string message, string? source = null)
-    {
-        Log(Models.Log.LogLevel.Debug, message, null, source);
-    }
+    protected override void Log(
+        Models.Log.LogLevel level,
+        string message,
+        string? source,
+        Exception? exception = null
+    ) {
+        if (_isDisposed.Get()) return;
 
-    public void LogInfo(string message, string? source = null)
-    {
-        Log(Models.Log.LogLevel.Info, message, null, source);
-    }
-
-    public void LogWarning(string message, string? source = null)
-    {
-        Log(Models.Log.LogLevel.Warning, message, null, source);
-    }
-
-    public void LogError(string message, Exception? exception = null, string? source = null)
-    {
         var details = exception != null
             ? $"{exception.GetType().Name}: {exception.Message}"
             : null;
-
-        Log(Models.Log.LogLevel.Error, message, details, source, exception);
-    }
-
-    private void Log(Models.Log.LogLevel level, string message, string? details, string? source, Exception? exception = null)
-    {
-        if (_isDisposed.Get()) return;
 
         source ??= GetCallerSource();
 
@@ -164,7 +159,7 @@ public partial class LoggingService : ILoggingService, IDisposable
         return "Unknown";
     }
 
-    public async Task FlushAsync()
+    public override async Task FlushAsync()
     {
         if (_isDisposed.Get()) return;
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -11,7 +12,7 @@ namespace VolumeKeeper.Services;
 
 public class IconService
 {
-    private readonly Dictionary<string, BitmapImage> _iconCache = new();
+    private readonly ConcurrentDictionary<string, BitmapImage> _iconCache = new();
     private readonly string _iconCacheDirectory;
 
     public IconService()
@@ -68,7 +69,7 @@ public class IconService
         }
         catch (Exception ex)
         {
-            App.Logger.LogWarning($"Failed to get icon for {processName}: {ex.Message}", "IconService");
+            App.Logger.LogWarning($"Failed to get icon for {processName}", ex, "IconService");
             return null;
         }
     }
@@ -85,7 +86,7 @@ public class IconService
             }
             catch (Exception ex)
             {
-                App.Logger.LogWarning($"Failed to extract icon from {filePath}: {ex.Message}", "IconService");
+                App.Logger.LogWarning($"Failed to extract icon from {filePath}", ex, "IconService");
             }
 
             return null;
@@ -103,7 +104,7 @@ public class IconService
             }
             catch (Exception ex)
             {
-                App.Logger.LogWarning($"Failed to save icon to cache: {ex.Message}", "IconService");
+                App.Logger.LogWarning("Failed to save icon to cache", ex, "IconService");
             }
         });
     }

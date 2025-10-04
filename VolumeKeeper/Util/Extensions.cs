@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
 namespace VolumeKeeper.Util;
@@ -41,5 +43,32 @@ public static class Extensions
         {
             dict[item.Key] = item.Value;
         }
+    }
+
+    public static async Task<T> TryFetch<T>(
+        this DispatcherQueue queue,
+        Func<T> function
+    )
+    {
+        var tcs = new TaskCompletionSource<T>();
+
+        var added = queue.TryEnqueue(() =>
+        {
+            try
+            {
+                var result = function();
+                tcs.SetResult(result);
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
+        if (!added)
+        {
+            throw new InvalidOperationException("Failed to enqueue operation to DispatcherQueue.");
+        }
+
+        return await tcs.Task;
     }
 }

@@ -2,7 +2,7 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:local="using:VolumeKeeper"
-      xmlns:ui="using:VolumeKeeper.Models.UI">
+      xmlns:models="using:VolumeKeeper.Models">
 
   <Grid Padding="24,12,24,24">
     <Grid.RowDefinitions>
@@ -26,6 +26,7 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
 
       <StackPanel Grid.Column="0"
@@ -39,9 +40,8 @@
         </Button>
       </StackPanel>
 
-      <StackPanel Grid.Column="1"
+      <StackPanel Grid.Column="2"
                   Orientation="Horizontal"
-                  HorizontalAlignment="Right"
                   Spacing="8">
         <TextBlock Text="Auto-restore volumes:"
                    VerticalAlignment="Center" />
@@ -56,7 +56,7 @@
               SelectionMode="None"
               ItemsSource="{x:Bind Applications}">
       <ListView.ItemTemplate>
-        <DataTemplate x:DataType="ui:ApplicationVolume">
+        <DataTemplate x:DataType="models:ObservableAudioSession">
           <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                   BorderThickness="1"
                   CornerRadius="8"
@@ -93,7 +93,7 @@
 
               <!-- App Name and Status -->
               <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock Text="{x:Bind ApplicationName}"
+                <TextBlock Text="{x:Bind ProcessDisplayName}"
                            Style="{ThemeResource BodyStrongTextBlockStyle}"
                            Margin="0,0,0,2" />
                 <StackPanel Orientation="Horizontal" Spacing="4">
@@ -106,7 +106,7 @@
                   <TextBlock Text="{x:Bind LastSeen}"
                              Style="{ThemeResource CaptionTextBlockStyle}"
                              Opacity="0.6" />
-                  <TextBlock Text="{x:Bind SavedVolumeDisplay, Mode=OneWay}"
+                  <TextBlock Text="{x:Bind PinnedVolumeDisplay, Mode=OneWay}"
                              Style="{ThemeResource CaptionTextBlockStyle}"
                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                              Opacity="0.8"
@@ -120,12 +120,11 @@
                           Spacing="6"
                           VerticalAlignment="Center"
                           Margin="8,0,8,0">
-                <Button Click="SaveVolume_Click"
+                <Button Click="PinVolume_Click"
                         CommandParameter="{x:Bind}"
                         VerticalAlignment="Center"
-                        Visibility="{x:Bind SaveButtonVisibility, Mode=OneWay}"
-                        ToolTipService.ToolTip="Save volume">
-                  <SymbolIcon Symbol="Save" />
+                        ToolTipService.ToolTip="Pin volume">
+                  <SymbolIcon Symbol="Pin" />
                 </Button>
                 <Button Click="RevertVolume_Click"
                         CommandParameter="{x:Bind}"
