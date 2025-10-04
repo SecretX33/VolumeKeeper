@@ -99,7 +99,7 @@ public class IconService
         bitmap.Save(memoryStream, ImageFormat.Png);
         memoryStream.Position = 0;
 
-        var tryFetch = await _dispatcherQueue.TryFetch(async () =>
+        var bitmapImageTask = await _dispatcherQueue.TryFetch(async () =>
         {
             var bitmapImage = new BitmapImage();
             // ReSharper disable once AccessToDisposedClosure
@@ -107,6 +107,6 @@ public class IconService
             return bitmapImage;
         }).ConfigureAwait(false);
 
-        return await tryFetch;
+        return await bitmapImageTask;
     }
 }
