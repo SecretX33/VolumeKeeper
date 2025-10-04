@@ -97,7 +97,7 @@ public partial class AudioSessionManager(
             var currentSessions = GetAllAudioSessions();
             var currentSessionIds = currentSessions.Select(s => s.AppId).ToHashSet();
 
-            _dispatcherQueue.TryEnqueue(() =>
+            _dispatcherQueue.TryEnqueueImmediate(() =>
             {
                 foreach (var session in currentSessions)
                 {
@@ -175,7 +175,7 @@ public partial class AudioSessionManager(
                 OnSessionDisconnectedHandler = _ =>
                 {
                     App.Logger.LogDebug($"Audio session disconnected for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
-                    _dispatcherQueue.TryEnqueue(() => AudioSessions.Remove(newSession));
+                    _dispatcherQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
                 },
 
                 OnStateChangedHandler = state =>
@@ -183,7 +183,7 @@ public partial class AudioSessionManager(
                     if (state != AudioSessionState.AudioSessionStateExpired) return;
 
                     App.Logger.LogDebug($"Audio session expired for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
-                    _dispatcherQueue.TryEnqueue(() => AudioSessions.Remove(newSession));
+                    _dispatcherQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
                 }
             });
             RestoreSessionVolume(newSession);

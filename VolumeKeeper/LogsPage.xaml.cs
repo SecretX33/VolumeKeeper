@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using VolumeKeeper.Controls;
 using VolumeKeeper.Models.Log;
 using VolumeKeeper.Services.Managers;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper;
 
@@ -26,7 +27,7 @@ public sealed partial class LogsPage : Page
 
             if (AutoScrollToggle.IsOn && LogEntries.Count > 0)
             {
-                DispatcherQueue.TryEnqueue(() =>
+                DispatcherQueue.TryEnqueueImmediate(() =>
                 {
                     // Scroll to top (latest entry)
                     LogScrollViewer.ChangeView(null, 0, null);

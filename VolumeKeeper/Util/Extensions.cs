@@ -12,16 +12,7 @@ public static class Extensions
     public static void ShowAndFocus(this Window window)
     {
         window = window ?? throw new ArgumentNullException(nameof(window));
-
-        // Ensure the operation runs on the UI thread
-        if (window.DispatcherQueue.HasThreadAccess)
-        {
-            NativeMethods.ShowAndFocus(window);
-        }
-        else
-        {
-            window.DispatcherQueue.TryEnqueue(() => NativeMethods.ShowAndFocus(window));
-        }
+        window.DispatcherQueue.TryEnqueueImmediate(() => NativeMethods.ShowAndFocus(window));
     }
 
     public static TValue? GetOrNull<TKey, TValue>(
@@ -77,16 +68,12 @@ public static class Extensions
         DispatcherQueueHandler callback
     )
     {
-        bool success;
-        if (queue.HasThreadAccess)
-        {
-            success = true;
-            callback.Invoke();
-        }
-        else
-        {
-            success = queue.TryEnqueue(callback);
-        }
+        var success = true;
+
+        // Directly invoke the callback if we're already on the correct thread, else enqueue it
+        if (queue.HasThreadAccess) callback.Invoke();
+        else success = queue.TryEnqueue(callback);
+
         if (!success)
         {
             throw new InvalidOperationException("Failed to enqueue operation to DispatcherQueue.");
