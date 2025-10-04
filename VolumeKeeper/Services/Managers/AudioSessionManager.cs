@@ -107,7 +107,7 @@ public partial class AudioSessionManager(
                 var sessionsToRemove = AudioSessions.Where(s => !currentSessionIds.Contains(s.AppId)).ToList();
                 foreach (var session in sessionsToRemove)
                 {
-                    App.Logger.LogInfo($"Audio session ended for {session.ProcessDisplayName}", "AudioSessionManager");
+                    App.Logger.LogInfo($"Audio session ended for {session.ExecutableName} (PID: {session.ProcessId})", "AudioSessionManager");
                     AudioSessions.Remove(session);
                 }
             });

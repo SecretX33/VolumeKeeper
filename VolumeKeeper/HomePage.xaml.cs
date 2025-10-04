@@ -69,7 +69,7 @@ public sealed partial class HomePage : Page, IDisposable
                 // Mute
                 _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, true);
                 App.Logger.LogInfo(
-                    $"Muted {app.ProcessDisplayName} (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)",
+                    $"Muted {app.ExecutableName} (PID: {app.ProcessId}) (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)",
                     "HomePage");
             }
             else
@@ -79,7 +79,7 @@ public sealed partial class HomePage : Page, IDisposable
 
                 _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, false);
                 _ = audioSessionService.SetSessionVolumeImmediate(app.AppId, lastVolume);
-                App.Logger.LogInfo($"Unmuted {app.ProcessDisplayName} to {lastVolume}%", "HomePage");
+                App.Logger.LogInfo($"Unmuted {app.ExecutableName} (PID: {app.ProcessId}) to {lastVolume}%", "HomePage");
             }
         }
         catch (Exception ex)
@@ -141,7 +141,7 @@ public sealed partial class HomePage : Page, IDisposable
         }
     }
 
-    private async void RevertVolume_Click(object sender, RoutedEventArgs e)
+    private void RevertVolume_Click(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -150,9 +150,9 @@ public sealed partial class HomePage : Page, IDisposable
 
             var savedVolume = app.PinnedVolume.Value;
 
-            await AudioSessionService.SetSessionVolumeAsync(app.AppId, savedVolume);
+            AudioSessionService.SetSessionVolumeImmediate(app.AppId, savedVolume);
 
-            App.Logger.LogInfo($"Reverted volume for {app.ProcessDisplayName} to {savedVolume}%", "HomePage");
+            App.Logger.LogInfo($"Reverted volume for {app.ExecutableName} (PID: {app.ProcessId}) to {savedVolume}%", "HomePage");
         }
         catch (Exception ex)
         {
