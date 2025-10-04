@@ -12,7 +12,7 @@ namespace VolumeKeeper;
 public sealed partial class MainWindow : Window
 {
     private const WindowId WindowId = Models.WindowId.Main;
-    private readonly PointInt32 _minWindowSize = new(400, 300);
+    private readonly PointInt32 _minWindowSize = new(400, 350);
     private Win32WindowHelper? _helper; // Keep a reference to prevent garbage collection
 
     public MainWindow()
@@ -25,6 +25,7 @@ public sealed partial class MainWindow : Window
         Closed += MainWindow_Closed;
         NavigateToPage("Home");
         SizeChanged += MainWindow_SizeChanged;
+        Activated += MainWindow_Activated;
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -83,17 +84,10 @@ public sealed partial class MainWindow : Window
         {
             var position = new PointInt32
             {
-                X = (int)windowSettings.X,
-                Y = (int)windowSettings.Y
+                X = windowSettings.X.Value,
+                Y = windowSettings.Y.Value
             };
             appWindow.Move(position);
-
-            // Check if window is out of bounds after moving
-            // if (IsWindowOutOfBounds(appWindow))
-            // {
-                // CenterWindowOnScreen(appWindow);
-                // SaveWindowSettings(true);
-            // }
         }
         else
         {
@@ -111,7 +105,11 @@ public sealed partial class MainWindow : Window
     {
         // Get the primary display work area
         var displayArea = DisplayArea.Primary;
-        if (displayArea == null) return;
+        if (displayArea == null)
+        {
+            App.Logger.LogWarning("Failed to get primary display area, thus couldn't center window on screen", "MainWindow");
+            return;
+        }
 
         var workArea = displayArea.WorkArea;
         var windowSize = appWindow.Size;
@@ -126,29 +124,28 @@ public sealed partial class MainWindow : Window
 
     private bool IsWindowOutOfBounds(AppWindow appWindow)
     {
-        // Get all display areas to check if window is visible on any monitor
-        var displays = DisplayArea.FindAll();
-        if (displays == null || displays.Count == 0) return false;
+        // Get the primary display work area
+        var displayArea = DisplayArea.Primary;
+        if (displayArea == null)
+        {
+            App.Logger.LogWarning("Failed to get primary display area, thus couldn't determine if window is out of bounds", "MainWindow");
+            return false;
+        }
 
+        var workArea = displayArea.WorkArea;
         var windowPosition = appWindow.Position;
         var windowSize = appWindow.Size;
 
-        // Check if window is within any display's work area
-        foreach (var display in displays)
-        {
-            var workArea = display.WorkArea;
+        var workAreaStartBounds = new PointInt32(workArea.X, workArea.X);
+        var workAreaEndBounds = new PointInt32(workArea.X + workArea.Width, workArea.Y + workArea.Height);
 
-            // Window is considered in bounds if its top-left corner is within the work area
-            if (windowPosition.X >= workArea.X &&
-                windowPosition.X < workArea.X + workArea.Width &&
-                windowPosition.Y >= workArea.Y &&
-                windowPosition.Y < workArea.Y + workArea.Height)
-            {
-                return false; // Window is in bounds
-            }
-        }
+        const double maximumAllowedOutOfBoundsAmount = 0.75;
+        var outOnTopLeftOfTheScreen = windowPosition.X < workAreaStartBounds.X
+            || windowPosition.Y < workAreaStartBounds.Y;
+        var outOnBottomRightOfTheScreen = windowPosition.X + windowSize.Width * maximumAllowedOutOfBoundsAmount >= workAreaEndBounds.X
+            || windowPosition.Y + windowSize.Height * maximumAllowedOutOfBoundsAmount >= workAreaEndBounds.Y;
 
-        return true; // Window is out of bounds
+        return outOnTopLeftOfTheScreen || outOnBottomRightOfTheScreen;
     }
 
     private void SaveWindowSettings(bool saveImmediately = false)
@@ -179,6 +176,12 @@ public sealed partial class MainWindow : Window
     private void MainWindow_SizeChanged(object sender, WindowSizeChangedEventArgs args)
     {
         SaveWindowSettings();
+    }
+
+    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState == WindowActivationState.Deactivated || !IsWindowOutOfBounds(AppWindow)) return;
+        CenterWindowOnScreen(AppWindow);
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
