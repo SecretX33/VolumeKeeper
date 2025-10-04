@@ -18,7 +18,7 @@ UninstallDisplayName=VolumeKeeper
 LicenseFile=.\LICENSE
 
 [Files]
-Source: "{{SOURCE_DIR}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs replacesameversion
+Source: "{{SOURCE_DIR}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"

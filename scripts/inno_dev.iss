@@ -18,7 +18,7 @@ UninstallDisplayName=VolumeKeeper
 LicenseFile=..\LICENSE
 
 [Files]
-Source: "..\VolumeKeeper\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs replacesameversion
+Source: "..\VolumeKeeper\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"
