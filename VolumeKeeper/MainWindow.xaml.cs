@@ -1,15 +1,19 @@
-﻿using Windows.Graphics;
+﻿using System;
+using Windows.Graphics;
 using H.NotifyIcon;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VolumeKeeper.Models;
+using VolumeKeeper.Util;
 
 namespace VolumeKeeper;
 
 public sealed partial class MainWindow : Window
 {
     private const WindowId WindowId = Models.WindowId.Main;
+    private readonly PointInt32 _minWindowSize = new(400, 300);
+    private Win32WindowHelper? _helper; // Keep a reference to prevent garbage collection
 
     public MainWindow()
     {
@@ -54,6 +58,9 @@ public sealed partial class MainWindow : Window
         var appWindow = AppWindow;
         if (appWindow == null) return;
 
+        _helper = new Win32WindowHelper(this);
+        _helper.SetWindowMinMaxSize(minWindowSize: _minWindowSize);
+
         var windowSettings = App.WindowSettingsManager.Get(WindowId);
 
         // Apply maximize state if needed
@@ -66,8 +73,8 @@ public sealed partial class MainWindow : Window
 
         var size = new SizeInt32
         {
-            Width = (int)windowSettings.Width,
-            Height = (int)windowSettings.Height
+            Width = (int)Math.Max(windowSettings.Width, _minWindowSize.X),
+            Height = (int)Math.Max(windowSettings.Height, _minWindowSize.Y)
         };
         appWindow.Resize(size);
 
@@ -80,6 +87,13 @@ public sealed partial class MainWindow : Window
                 Y = (int)windowSettings.Y
             };
             appWindow.Move(position);
+
+            // Check if window is out of bounds after moving
+            // if (IsWindowOutOfBounds(appWindow))
+            // {
+                // CenterWindowOnScreen(appWindow);
+                // SaveWindowSettings(true);
+            // }
         }
         else
         {
@@ -108,6 +122,33 @@ public sealed partial class MainWindow : Window
         };
 
         appWindow.Move(centeredPosition);
+    }
+
+    private bool IsWindowOutOfBounds(AppWindow appWindow)
+    {
+        // Get all display areas to check if window is visible on any monitor
+        var displays = DisplayArea.FindAll();
+        if (displays == null || displays.Count == 0) return false;
+
+        var windowPosition = appWindow.Position;
+        var windowSize = appWindow.Size;
+
+        // Check if window is within any display's work area
+        foreach (var display in displays)
+        {
+            var workArea = display.WorkArea;
+
+            // Window is considered in bounds if its top-left corner is within the work area
+            if (windowPosition.X >= workArea.X &&
+                windowPosition.X < workArea.X + workArea.Width &&
+                windowPosition.Y >= workArea.Y &&
+                windowPosition.Y < workArea.Y + workArea.Height)
+            {
+                return false; // Window is in bounds
+            }
+        }
+
+        return true; // Window is out of bounds
     }
 
     private void SaveWindowSettings(bool saveImmediately = false)

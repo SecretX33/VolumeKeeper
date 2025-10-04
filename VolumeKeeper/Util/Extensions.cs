@@ -1,7 +1,7 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Windows.Graphics;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
@@ -13,6 +13,22 @@ public static class Extensions
     {
         window = window ?? throw new ArgumentNullException(nameof(window));
         window.DispatcherQueue.TryEnqueueImmediate(() => NativeMethods.ShowAndFocus(window));
+    }
+
+    public static void SetMinMaxSize(
+        this Window window,
+        PointInt32? minWindowSize = null,
+        PointInt32? maxWindowSize = null
+    )
+    {
+        try
+        {
+            var helper = new Win32WindowHelper(window);
+            helper.SetWindowMinMaxSize(minWindowSize, maxWindowSize);
+        } catch (Exception ex)
+        {
+            App.Logger.LogWarning("Failed to set window min/max size.", ex, "Extensions");
+        }
     }
 
     public static TValue? GetOrNull<TKey, TValue>(
