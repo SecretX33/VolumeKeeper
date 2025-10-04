@@ -79,7 +79,7 @@ public partial class LoggingServiceImpl : LoggingService, IDisposable
         };
 
         // Update UI collection
-        _dispatcherQueue.TryEnqueue(() =>
+        _dispatcherQueue.TryEnqueueImmediate(() =>
         {
             LogEntries.Insert(0, entry); // Insert at beginning for newest-first order
 
