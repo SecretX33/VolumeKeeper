@@ -71,4 +71,25 @@ public static class Extensions
 
         return await tcs.Task;
     }
+
+    public static void TryEnqueueImmediate(
+        this DispatcherQueue queue,
+        DispatcherQueueHandler callback
+    )
+    {
+        bool success;
+        if (queue.HasThreadAccess)
+        {
+            success = true;
+            callback.Invoke();
+        }
+        else
+        {
+            success = queue.TryEnqueue(callback);
+        }
+        if (!success)
+        {
+            throw new InvalidOperationException("Failed to enqueue operation to DispatcherQueue.");
+        }
+    }
 }

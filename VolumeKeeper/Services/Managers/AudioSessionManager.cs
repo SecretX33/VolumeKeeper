@@ -129,7 +129,7 @@ public partial class AudioSessionManager(
             if (processInfo == null) return null;
 
 #if DEBUG
-            App.Logger.LogDebug($"Found audio session: PID={processId}, Name={processInfo.DisplayName} ({processInfo.ExecutableName}), Path={processInfo.ExecutablePath}");
+            App.Logger.LogDebug($"Creating audio session. PID={processId}, ExecutableName={processInfo.ExecutableName}, DisplayName='{processInfo.DisplayName}', ExecutablePath='{processInfo.ExecutablePath}'");
 #endif
 
             return new AudioSession
@@ -219,26 +219,25 @@ public partial class AudioSessionManager(
         });
     }
 
-    private void LoadApplicationIconAsync(ObservableAudioSession app)
+    private async void LoadApplicationIconAsync(ObservableAudioSession app)
     {
-        Task.Run(async () =>
+        try
         {
-            try
+            var icon = await iconService.GetApplicationIconAsync(
+                iconPath: app.IconPath,
+                executablePath: app.ExecutablePath,
+                executableName: app.ExecutableName
+            ).ConfigureAwait(false);
+
+            if (icon != null)
             {
-                var icon = await iconService.GetApplicationIconAsync(app.IconPath, app.ProcessDisplayName);
-                if (icon != null)
-                {
-                    _dispatcherQueue.TryEnqueue(() =>
-                    {
-                        app.AudioSession = app.AudioSession.With(icon: icon);
-                    });
-                }
+                _dispatcherQueue.TryEnqueueImmediate(() => { app.AudioSession = app.AudioSession.With(icon: icon); });
             }
-            catch (Exception ex)
-            {
-                App.Logger.LogWarning($"Failed to load icon for {app.ExecutableName} (PID: {app.ProcessId})", ex, "HomePage");
-            }
-        });
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogWarning($"Failed to load icon for {app.ExecutableName} (PID: {app.ProcessId})", ex, "HomePage");
+        }
     }
 
     public void Dispose()
