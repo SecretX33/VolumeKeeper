@@ -9,7 +9,7 @@ public class AudioSession
     public int ProcessId { get; init; }
     public string ProcessDisplayName { get; init; } = string.Empty;
     public string ExecutableName { get; init; } = string.Empty;
-    public string? ExecutablePath { get; init; } = null;
+    public string ExecutablePath { get; init; } = string.Empty;
     public string IconPath { get; init; } = string.Empty;
     public BitmapImage? Icon { get; init; }
     public AudioSessionControl SessionControl { get; init; } = null!;
@@ -26,7 +26,7 @@ public class AudioSession
         set => SessionControl.SimpleAudioVolume.Mute = value;
     }
 
-    public VolumeApplicationId AppId => VolumeApplicationId.Create(ExecutablePath, ExecutableName);
+    public VolumeApplicationId AppId => new(ExecutablePath);
 
     public AudioSession With(
         int? processId = null,
@@ -46,4 +46,6 @@ public class AudioSession
             Icon = icon ?? Icon,
             SessionControl = sessionControl ?? SessionControl
         };
+
+    public override string ToString() => $"{ExecutableName} [PID: {ProcessId}]";
 }

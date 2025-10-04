@@ -23,7 +23,7 @@ public class WindowSettingsManager
         "window_settings.json"
     );
 
-    public async void InitializeAsync()
+    public async Task InitializeAsync()
     {
         try {
             var json = await File.ReadAllTextAsync(SettingsPath).ConfigureAwait(false);

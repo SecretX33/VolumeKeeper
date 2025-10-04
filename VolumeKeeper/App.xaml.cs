@@ -181,13 +181,14 @@ public partial class App : Application
             var iconService = new IconService();
             _volumeSettingsManager = new VolumeSettingsManager();
             _windowSettingsManager = new WindowSettingsManager();
-            _audioSessionManager = new AudioSessionManager(iconService);
 
             await Task.WhenAll(
                 Task.Run(_volumeSettingsManager.InitializeAsync),
-                Task.Run(_windowSettingsManager.InitializeAsync),
-                Task.Run(_audioSessionManager.Initialize)
+                Task.Run(_windowSettingsManager.InitializeAsync)
             );
+
+            _audioSessionManager = new AudioSessionManager(iconService, _volumeSettingsManager);
+            await Task.Run(_audioSessionManager.Initialize);
 
             // Initialize core services with managers
             _audioSessionService = new AudioSessionService(_audioSessionManager);

@@ -15,6 +15,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
     private string _status = "Active";
     private string _lastSeen = "Just now";
     private int? _pinnedVolume;
+    public DateTimeOffset? LastTimeVolumeOrMuteWereManuallySet { get; private set; }
 
     public AudioSession AudioSession
     {
@@ -60,30 +61,36 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
     public int Volume
     {
         get => _audioSession?.Volume ?? 0;
-        set
-        {
-            var currentValue = AudioSession.Volume;
-            if (currentValue == value) return;
-            AudioSession.Volume = value;
-            NotifyVolumeOrMuteChanged();
+        set => SetVolume(value);
+    }
 
-            if (value > 0 && IsMuted)
-            {
-                IsMuted = false;
-            }
+    public void SetVolume(int value, bool setLastSet = true)
+    {
+        var currentValue = AudioSession.Volume;
+        if (currentValue == value) return;
+        if (setLastSet) LastTimeVolumeOrMuteWereManuallySet = DateTimeOffset.Now;
+        AudioSession.Volume = value;
+        NotifyVolumeOrMuteChanged();
+
+        if (value > 0 && IsMuted)
+        {
+            SetMute(false, setLastSet: setLastSet);
         }
     }
 
     public bool IsMuted
     {
         get => _audioSession?.IsMuted ?? false;
-        set
-        {
-            var currentValue = AudioSession.IsMuted;
-            if (currentValue == value) return;
-            AudioSession.IsMuted = value;
-            NotifyVolumeOrMuteChanged();
-        }
+        set => SetMute(value);
+    }
+
+    public void SetMute(bool value, bool setLastSet = true)
+    {
+        var currentValue = AudioSession.IsMuted;
+        if (currentValue == value) return;
+        if (setLastSet) LastTimeVolumeOrMuteWereManuallySet = DateTimeOffset.Now;
+        AudioSession.IsMuted = value;
+        NotifyVolumeOrMuteChanged();
     }
 
     public string IconPath => _audioSession?.IconPath ?? string.Empty;
@@ -119,7 +126,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
 
     public VolumeApplicationId AppId => _audioSession?.AppId ?? throw new InvalidOperationException("AudioSession is not set.");
 
-    public bool HasUnsavedChanges => PinnedVolume.HasValue && Math.Abs(PinnedVolume.Value - Volume) > 1.0;
+    public bool HasUnsavedChanges => PinnedVolume.HasValue && PinnedVolume.Value != Volume;
 
     public string PinnedVolumeDisplay => !PinnedVolume.HasValue ? "No pinned volume" : $"Pinned: {PinnedVolume}%";
 
@@ -136,6 +143,7 @@ public partial class ObservableAudioSession : INotifyPropertyChanged
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(VolumeDisplayText));
         OnPropertyChanged(nameof(VolumeIcon));
+        OnPropertyChanged(nameof(RevertButtonVisibility));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

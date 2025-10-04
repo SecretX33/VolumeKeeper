@@ -13,8 +13,12 @@ using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services.Managers;
 
-public partial class AudioSessionManager(IconService iconService) : IDisposable
+public partial class AudioSessionManager(
+    IconService iconService,
+    VolumeSettingsManager volumeSettingsManager
+) : IDisposable
 {
+    private readonly TimeSpan _volumeChangedFromProgramThreshold = TimeSpan.FromMilliseconds(200);
     private readonly MMDeviceEnumerator _deviceEnumerator = new();
     private readonly AtomicReference<MMDevice?> _defaultDevice = new(null);
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
@@ -71,11 +75,7 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
                 if (sessionControl == null)
                     continue;
 
-                var simpleVolume = sessionControl.SimpleAudioVolume;
-                if (simpleVolume == null)
-                    continue;
-
-                var session = CreateAudioSession(sessionControl, simpleVolume);
+                var session = CreateAudioSession(sessionControl);
                 if (session != null && !string.IsNullOrWhiteSpace(session.ExecutableName))
                 {
                     sessions.Add(session);
@@ -120,7 +120,6 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
 
     private AudioSession? CreateAudioSession(
         AudioSessionControl sessionControl,
-        SimpleAudioVolume simpleVolume,
         ProcessInfo? fetchedProcessInfo = null
     ) {
         try
@@ -166,8 +165,8 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
         if (!_dispatcherQueue.HasThreadAccess)
             throw new InvalidOperationException("AddOrUpdateSession must be called on the UI thread.");
 
-        var savedVolume = App.VolumeSettingsManager.GetVolume(session.AppId);
-        var observableSession = GetSessionByProcessId(session.ProcessId);
+        var savedVolume = volumeSettingsManager.GetVolume(session.AppId);
+        var observableSession = GetSessionById(session.AppId);
         if (observableSession == null)
         {
             var newSession = new ObservableAudioSession
@@ -181,7 +180,7 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
                 {
                     App.Logger.LogDebug($"App volume {newSession.ExecutableName} (PID: {newSession.ProcessId}) changed externally to {newSession.Volume})",
                         "AudioSessionManager");
-                    _dispatcherQueue.TryEnqueue(newSession.NotifyVolumeOrMuteChanged);
+                    RestoreSessionVolume(newSession);
                 },
 
                 OnStateChangedHandler = state =>
@@ -192,6 +191,7 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
                     _dispatcherQueue.TryEnqueue(() => AudioSessions.Remove(newSession));
                 }
             });
+            RestoreSessionVolume(newSession);
             LoadApplicationIconAsync(newSession);
             observableSession = newSession;
             AudioSessions.Add(observableSession);
@@ -201,6 +201,29 @@ public partial class AudioSessionManager(IconService iconService) : IDisposable
         observableSession.PinnedVolume = savedVolume;
         observableSession.Status = "Active";
         observableSession.LastSeen = "Just now";
+    }
+
+    private void RestoreSessionVolume(ObservableAudioSession newSession)
+    {
+        if (!volumeSettingsManager.AutoRestoreEnabled) return;
+
+        var pinnedVolume = newSession.PinnedVolume;
+        var wasSetFromProgram = newSession.LastTimeVolumeOrMuteWereManuallySet.HasValue
+            && (DateTimeOffset.Now - newSession.LastTimeVolumeOrMuteWereManuallySet).Value < _volumeChangedFromProgramThreshold;
+
+        _dispatcherQueue.TryEnqueue(() =>
+        {
+            if (!wasSetFromProgram && pinnedVolume != null && newSession.Volume != pinnedVolume)
+            {
+                App.Logger.LogDebug($"Reverting volume for {newSession.ExecutableName} (PID: {newSession.ProcessId}) to pinned volume {pinnedVolume}%",
+                    "AudioSessionManager");
+                newSession.SetVolume(pinnedVolume.Value, setLastSet: false);
+            }
+            else
+            {
+                newSession.NotifyVolumeOrMuteChanged();
+            }
+        });
     }
 
     private void LoadApplicationIconAsync(ObservableAudioSession app)

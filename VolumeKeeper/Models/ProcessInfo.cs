@@ -4,8 +4,8 @@ public record ProcessInfo(
     int Id,
     string DisplayName,
     string ExecutableName,
-    string? ExecutablePath
+    string ExecutablePath
 )
 {
-    public VolumeApplicationId AppId => VolumeApplicationId.Create(ExecutablePath, ExecutableName);
+    public VolumeApplicationId AppId => new(ExecutablePath);
 }

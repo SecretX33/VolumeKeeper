@@ -14,31 +14,17 @@ public class ApplicationIdJsonConverter : JsonConverter<VolumeApplicationId>
         var root = doc.RootElement;
 
         // Read the discriminator
-        var matchType = root.GetProperty("NameMatchType").GetString();
-
-        return matchType switch
+        var path = root.GetString();
+        if (string.IsNullOrWhiteSpace(path))
         {
-            "Name" => new NamedVolumeApplicationId(root.GetProperty("Name").GetString()!),
-            "Path" => new PathVolumeApplicationId(root.GetProperty("Path").GetString()!),
-            _ => throw new JsonException("Unknown NameMatchType")
-        };
+            throw new JsonException("Path cannot be null or empty.");
+        }
+
+        return new VolumeApplicationId(path);
     }
 
     public override void Write(Utf8JsonWriter writer, VolumeApplicationId value, JsonSerializerOptions options)
     {
-        writer.WriteStartObject();
-        writer.WriteString("NameMatchType", value.NameMatchType.ToString());
-
-        switch (value)
-        {
-            case NamedVolumeApplicationId named:
-                writer.WriteString("Name", named.Name);
-                break;
-            case PathVolumeApplicationId path:
-                writer.WriteString("Path", path.Path);
-                break;
-        }
-
-        writer.WriteEndObject();
+        writer.WriteStringValue(value.Path);
     }
 }

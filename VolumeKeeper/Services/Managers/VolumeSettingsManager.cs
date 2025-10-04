@@ -41,7 +41,7 @@ public class VolumeSettingsManager
         "volume_settings.json"
     );
 
-    public async void InitializeAsync()
+    public async Task InitializeAsync()
     {
         try {
             var json = await File.ReadAllTextAsync(SettingsPath).ConfigureAwait(false);
@@ -183,8 +183,7 @@ public class VolumeSettingsManager
             }
 
             var sortedApplicationVolumeConfigs = applicationVolumeConfigs
-                .OrderBy(x => x.Id.NameMatchType)
-                .ThenBy(x => x.Id is PathVolumeApplicationId pathId ? pathId.Path : x.Id.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x.Id.Path, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             var settingsToSave = new VolumeSettings

@@ -91,7 +91,9 @@ public static class Util
         {
             using var process = Process.GetProcessById(processId);
             var fullPath = process.MainModule?.FileName;
-            var executableName = Path.GetFileName(fullPath ?? process.ProcessName);
+            if (string.IsNullOrWhiteSpace(fullPath)) return null;
+
+            var executableName = Path.GetFileName(fullPath);
             var displayName = new[]
                 {
                     process.MainWindowTitle,
