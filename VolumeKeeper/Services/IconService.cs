@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media.Imaging;
+using VolumeKeeper.Services.Log;
 using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
@@ -13,6 +14,7 @@ namespace VolumeKeeper.Services;
 public sealed class IconService(
     DispatcherQueue mainThreadQueue
 ) {
+    private readonly LoggingService _logger = App.Logger.Named();
     private readonly ConcurrentDictionary<string, BitmapImage> _iconCache = new();
 
     public async Task<BitmapImage?> GetApplicationIconAsync(
@@ -39,7 +41,7 @@ public sealed class IconService(
         }
         catch (Exception ex)
         {
-            App.Logger.Warning($"Failed to get icon for {executableName}", ex, "IconService");
+            _logger.Warning($"Failed to get icon for {executableName}", ex);
             return null;
         }
     }
@@ -71,7 +73,7 @@ public sealed class IconService(
             }
             catch (Exception ex)
             {
-                App.Logger.Warning($"Failed to extract icon from {iconPath}", ex, "IconService");
+                _logger.Warning($"Failed to extract icon from {iconPath}", ex);
             }
 
             return bitmapImage;

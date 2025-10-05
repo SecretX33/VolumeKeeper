@@ -109,7 +109,7 @@ public sealed partial class MainWindow : Window
         var displayArea = DisplayArea.Primary;
         if (displayArea == null)
         {
-            _logger.Warning("Failed to get primary display area, thus couldn't center window on screen", "MainWindow");
+            _logger.Warning("Failed to get primary display area, thus couldn't center window on screen");
             return;
         }
 
@@ -130,7 +130,7 @@ public sealed partial class MainWindow : Window
         var displayArea = DisplayArea.Primary;
         if (displayArea == null)
         {
-            _logger.Warning("Failed to get primary display area, thus couldn't determine if window is out of bounds", "MainWindow");
+            _logger.Warning("Failed to get primary display area, thus couldn't determine if window is out of bounds");
             return false;
         }
 

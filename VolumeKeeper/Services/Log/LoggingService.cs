@@ -26,6 +26,10 @@ public abstract class LoggingService : IDisposable
     public void Warning(string message, Exception? exception, string? source = null) => Log(LogLevel.Warning, message, source, exception);
     public void Error(string message, Exception? exception, string? source = null) => Log(LogLevel.Error, message, source, exception);
 
+    /**
+     * Creates a named logging service that prefixes all log entries with the specified source name,
+     * or infers it from the caller's data.
+     */
     public LoggingService Named(string? source = null, [CallerFilePath] string filePath = "")
     {
         var resolvedLoggingService = this;

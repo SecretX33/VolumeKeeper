@@ -9,12 +9,14 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using VolumeKeeper.Controls;
 using VolumeKeeper.Models;
 using VolumeKeeper.Services;
+using VolumeKeeper.Services.Log;
 using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper;
 
 public sealed partial class HomePage : Page, IDisposable
 {
+    private readonly LoggingService _logger = App.Logger.Named();
     private static VolumeSettingsManager VolumeSettingsManager => App.VolumeSettingsManager;
     private static AudioSessionManager AudioSessionManager => App.AudioSessionManager;
     private static AudioSessionService AudioSessionService => App.AudioSessionService;
@@ -46,11 +48,11 @@ public sealed partial class HomePage : Page, IDisposable
         {
             if (sender is not CompactToggleSwitch toggle) return;
             VolumeSettingsManager.SetAutoRestoreEnabledAndSave(toggle.IsOn);
-            App.Logger.Debug($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
+            _logger.Debug($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}");
         }
         catch (Exception ex)
         {
-            App.Logger.Error("Failed to update auto-restore setting", ex, "HomePage");
+            _logger.Error("Failed to update auto-restore setting", ex);
         }
     }
 
@@ -69,9 +71,8 @@ public sealed partial class HomePage : Page, IDisposable
 
                 // Mute
                 _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, true);
-                App.Logger.Info(
-                    $"Muted {app.ExecutableName} (PID: {app.ProcessId}) (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)",
-                    "HomePage");
+                _logger.Info(
+                    $"Muted {app.ExecutableName} (PID: {app.ProcessId}) (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)");
             }
             else
             {
@@ -80,12 +81,12 @@ public sealed partial class HomePage : Page, IDisposable
 
                 _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, false);
                 _ = audioSessionService.SetSessionVolumeImmediate(app.AppId, lastVolume);
-                App.Logger.Info($"Unmuted {app.ExecutableName} (PID: {app.ProcessId}) to {lastVolume}%", "HomePage");
+                _logger.Info($"Unmuted {app.ExecutableName} (PID: {app.ProcessId}) to {lastVolume}%");
             }
         }
         catch (Exception ex)
         {
-            App.Logger.Error("Failed to toggle mute for application", ex, "HomePage");
+            _logger.Error("Failed to toggle mute for application", ex);
         }
     }
 
@@ -107,7 +108,7 @@ public sealed partial class HomePage : Page, IDisposable
             await App.AudioSessionService.SetSessionVolumeAsync(app.AppId, newVolume);
         } catch (Exception ex)
         {
-            App.Logger.Error("Failed to change volume", ex, "HomePage");
+            _logger.Error("Failed to change volume", ex);
         }
     }
 
@@ -125,7 +126,7 @@ public sealed partial class HomePage : Page, IDisposable
                 VolumeSettingsManager.DeleteVolumeAndSave(app.AppId);
                 app.PinnedVolume = null;
 
-                App.Logger.Info($"Unpinned volume for {app.ExecutableName} (PID: {app.ProcessId})", "HomePage");
+                _logger.Info($"Unpinned volume for {app.ExecutableName} (PID: {app.ProcessId})");
             }
             else
             {
@@ -133,12 +134,12 @@ public sealed partial class HomePage : Page, IDisposable
                 VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
                 app.PinnedVolume = currentVolume;
 
-                App.Logger.Info($"Pinned volume for {app.ExecutableName} (PID: {app.ProcessId}): {currentVolume}%", "HomePage");
+                _logger.Info($"Pinned volume for {app.ExecutableName} (PID: {app.ProcessId}): {currentVolume}%");
             }
         }
         catch (Exception ex)
         {
-            App.Logger.Error("Failed to pin/unpin volume", ex, "HomePage");
+            _logger.Error("Failed to pin/unpin volume", ex);
         }
     }
 
@@ -153,11 +154,11 @@ public sealed partial class HomePage : Page, IDisposable
 
             AudioSessionService.SetSessionVolumeImmediate(app.AppId, savedVolume);
 
-            App.Logger.Info($"Reverted volume for {app.ExecutableName} (PID: {app.ProcessId}) to {savedVolume}%", "HomePage");
+            _logger.Info($"Reverted volume for {app.ExecutableName} (PID: {app.ProcessId}) to {savedVolume}%");
         }
         catch (Exception ex)
         {
-            App.Logger.Error("Failed to revert volume", ex, "HomePage");
+            _logger.Error("Failed to revert volume", ex);
         }
     }
 

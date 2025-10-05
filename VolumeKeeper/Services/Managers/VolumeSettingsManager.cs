@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using VolumeKeeper.Models;
+using VolumeKeeper.Services.Log;
 using VolumeKeeper.Util;
 using VolumeKeeper.Util.Converter;
 
@@ -14,6 +15,7 @@ namespace VolumeKeeper.Services.Managers;
 
 public sealed class VolumeSettingsManager
 {
+    private readonly LoggingService _logger = App.Logger.Named();
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly AtomicReference<CancellationTokenSource?> _saveDebounceTokenSource = new(null);
@@ -61,7 +63,7 @@ public sealed class VolumeSettingsManager
             _autoRestoreEnabled = parsedValue.AutoRestoreEnabled;
             _autoScrollLogsEnabled = parsedValue.AutoScrollLogsEnabled;
         } catch (Exception ex) {
-            App.Logger.Error("Failed to initialize volume settings", ex, "VolumeSettingsManager");
+            _logger.Error("Failed to initialize volume settings", ex);
         }
     }
 
@@ -195,11 +197,11 @@ public sealed class VolumeSettingsManager
 
             var json = JsonSerializer.Serialize(settingsToSave, _jsonSerializerOptions);
             await File.WriteAllTextAsync(SettingsPath, json).ConfigureAwait(false);
-            App.Logger.Debug("Volume settings saved successfully", "VolumeSettingsManager");
+            _logger.Debug("Volume settings saved successfully");
         }
         catch (Exception ex)
         {
-            App.Logger.Error("Failed to save volume settings", ex, "VolumeSettingsManager");
+            _logger.Error("Failed to save volume settings", ex);
         }
         finally
         {
