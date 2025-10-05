@@ -18,12 +18,12 @@ public abstract class LoggingService : IDisposable
 
     public void Debug(string message, string? source = null) => Debug(message, null, source);
     public void Info(string message, string? source = null) => Info(message, null, source);
-    public void Warning(string message, string? source = null) => Warning(message, null, source);
+    public void Warn(string message, string? source = null) => Warn(message, null, source);
     public void Error(string message, string? source = null) => Error(message, null, source);
 
     public void Debug(string message, Exception? exception, string? source = null) => Log(LogLevel.Debug, message, source, exception);
     public void Info(string message, Exception? exception, string? source = null) => Log(LogLevel.Info, message, source, exception);
-    public void Warning(string message, Exception? exception, string? source = null) => Log(LogLevel.Warning, message, source, exception);
+    public void Warn(string message, Exception? exception, string? source = null) => Log(LogLevel.Warning, message, source, exception);
     public void Error(string message, Exception? exception, string? source = null) => Log(LogLevel.Error, message, source, exception);
 
     /**

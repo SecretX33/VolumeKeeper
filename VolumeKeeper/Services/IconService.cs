@@ -41,7 +41,7 @@ public sealed class IconService(
         }
         catch (Exception ex)
         {
-            _logger.Warning($"Failed to get icon for {executableName}", ex);
+            _logger.Warn($"Failed to get icon for {executableName}", ex);
             return null;
         }
     }
@@ -73,7 +73,7 @@ public sealed class IconService(
             }
             catch (Exception ex)
             {
-                _logger.Warning($"Failed to extract icon from {iconPath}", ex);
+                _logger.Warn($"Failed to extract icon from {iconPath}", ex);
             }
 
             return bitmapImage;

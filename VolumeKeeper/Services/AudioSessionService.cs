@@ -82,7 +82,7 @@ public sealed partial class AudioSessionService(
         var session = sessionManager.GetSessionById(volumeApplicationId);
         if (session == null)
         {
-            _logger.Warning($"No audio session found for {volumeApplicationId}");
+            _logger.Warn($"No audio session found for {volumeApplicationId}");
             return false;
         }
 
@@ -106,7 +106,7 @@ public sealed partial class AudioSessionService(
             var session = sessionManager.GetSessionById(volumeApplicationId);
             if (session == null)
             {
-                _logger.Warning($"No audio session found for {volumeApplicationId}");
+                _logger.Warn($"No audio session found for {volumeApplicationId}");
                 return false;
             }
 

@@ -242,7 +242,7 @@ public sealed partial class AudioSessionManager(
         }
         catch (Exception ex)
         {
-            _logger.Warning($"Failed to load icon for {app.ExecutableName} (PID: {app.ProcessId})", ex);
+            _logger.Warn($"Failed to load icon for {app.ExecutableName} (PID: {app.ProcessId})", ex);
         }
     }
 
