@@ -12,7 +12,7 @@ using VolumeKeeper.Util.Converter;
 
 namespace VolumeKeeper.Services.Managers;
 
-public class VolumeSettingsManager
+public sealed class VolumeSettingsManager
 {
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);

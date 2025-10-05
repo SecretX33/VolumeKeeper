@@ -9,7 +9,7 @@ using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services.Managers;
 
-public class WindowSettingsManager
+public sealed class WindowSettingsManager
 {
     private static readonly TimeSpan NormalSaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);

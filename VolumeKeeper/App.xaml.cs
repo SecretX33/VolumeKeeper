@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using VolumeKeeper.Services;
@@ -20,7 +19,7 @@ using FileLoggingService = VolumeKeeper.Services.Log.FileLoggingService;
 
 namespace VolumeKeeper;
 
-public partial class App : Application
+public sealed partial class App : Application
 {
     private const string MutexName = "Global\\VolumeKeeper_SingleInstance_Mutex";
     private static Mutex? _singleInstanceMutex;

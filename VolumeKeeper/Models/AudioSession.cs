@@ -4,7 +4,7 @@ using NAudio.CoreAudioApi;
 
 namespace VolumeKeeper.Models;
 
-public class AudioSession
+public sealed class AudioSession
 {
     public required int ProcessId { get; init; }
     public required string ProcessDisplayName { get; init; }

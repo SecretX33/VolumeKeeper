@@ -12,7 +12,7 @@ using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services;
 
-public partial class AudioSessionService(
+public sealed partial class AudioSessionService(
     AudioSessionManager sessionManager,
     DispatcherQueue mainThreadQueue
 ) : IDisposable

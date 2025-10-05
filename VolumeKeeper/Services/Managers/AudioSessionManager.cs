@@ -13,7 +13,7 @@ using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services.Managers;
 
-public partial class AudioSessionManager(
+public sealed partial class AudioSessionManager(
     IconService iconService,
     VolumeSettingsManager volumeSettingsManager,
     DispatcherQueue mainThreadQueue

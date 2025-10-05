@@ -6,7 +6,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public class ApplicationIdJsonConverter : JsonConverter<VolumeApplicationId>
+public sealed class ApplicationIdJsonConverter : JsonConverter<VolumeApplicationId>
 {
     public override VolumeApplicationId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

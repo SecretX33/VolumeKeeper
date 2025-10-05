@@ -9,7 +9,7 @@ using NAudio.CoreAudioApi;
 
 namespace VolumeKeeper.Models;
 
-public partial class ObservableAudioSession : INotifyPropertyChanged
+public sealed partial class ObservableAudioSession : INotifyPropertyChanged
 {
     private AudioSession? _audioSession;
     private int? _pinnedVolume;

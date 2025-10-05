@@ -10,7 +10,7 @@ using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
-public class IconService(
+public sealed class IconService(
     DispatcherQueue mainThreadQueue
 ) {
     private readonly ConcurrentDictionary<string, BitmapImage> _iconCache = new();

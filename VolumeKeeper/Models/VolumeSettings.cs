@@ -6,21 +6,21 @@ using VolumeKeeper.Util.Converter;
 
 namespace VolumeKeeper.Models;
 
-public record VolumeSettings {
+public sealed record VolumeSettings {
     public IReadOnlyCollection<ApplicationVolumeConfig> ApplicationVolumes { get; init; } = ReadOnlyCollection<ApplicationVolumeConfig>.Empty;
     public bool AutoRestoreEnabled { get; init; } = true;
     public bool AutoScrollLogsEnabled { get; init; } = true;
     public DateTime LastUpdated { get; init; } = DateTime.Now;
 }
 
-public record ApplicationVolumeConfig(
+public sealed record ApplicationVolumeConfig(
     [property: JsonConverter(typeof(ApplicationIdJsonConverter))]
     VolumeApplicationId Id,
     int? Volume,
     int? LastVolumeBeforeMute = null
 );
 
-public class VolumeApplicationId {
+public sealed class VolumeApplicationId {
     public readonly string Path;
     private int? _cachedHashCode;
     public string Name { get; }

@@ -11,7 +11,7 @@ namespace VolumeKeeper.Services.Log;
 * appropriate logging service cannot be used.</p>
 */
 // ReSharper disable ExplicitCallerInfoArgument
-public partial class ConsoleLoggingService(
+public sealed partial class ConsoleLoggingService(
     string? defaultSource = null,
     [CallerFilePath] string callerFilePath = ""
 ) : LoggingService(defaultSource, callerFilePath)
