@@ -1,6 +1,5 @@
 using System;
 using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using VolumeKeeper.Models.Log;
 
 namespace VolumeKeeper.Services.Log;
@@ -8,7 +7,6 @@ namespace VolumeKeeper.Services.Log;
 public abstract class LoggingService
 {
     public ObservableCollection<LogEntry> LogEntries { get; } = [];
-    public abstract Task FlushAsync();
 
     protected abstract void Log(
         LogLevel level,

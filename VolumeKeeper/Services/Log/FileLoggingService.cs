@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using NLog;
 using NLog.Config;
@@ -136,14 +135,6 @@ public partial class FileLoggingService : LoggingService, IDisposable
         }
 
         return "Unknown";
-    }
-
-    public override async Task FlushAsync()
-    {
-        if (_isDisposed.Get()) return;
-
-        // Flush NLog targets
-        await Task.Run(() => LogManager.Flush());
     }
 
     public void Dispose()
