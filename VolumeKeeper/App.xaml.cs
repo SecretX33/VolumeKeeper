@@ -26,7 +26,7 @@ public sealed partial class App : Application
     private MainWindow? _mainWindow;
     private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
-    private static LoggingService _loggingService = new ConsoleLoggingService();
+    private static LoggingService _loggingService = new ConsoleLoggingService().Named();
     private static AudioSessionManager? _audioSessionManager;
     private static VolumeSettingsManager? _volumeSettingsManager;
     private static WindowSettingsManager? _windowSettingsManager;
@@ -58,7 +58,7 @@ public sealed partial class App : Application
 
             // Initialize logging service first
             _loggingService.Dispose();
-            _loggingService = new FileLoggingService(mainThreadQueue);
+            _loggingService = new FileLoggingService(mainThreadQueue).Named();
             Logger.Debug("VolumeKeeper initialization started");
 
             ParseCommandLineArgs();

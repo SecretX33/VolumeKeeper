@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.CompilerServices;
 using VolumeKeeper.Models.Log;
 
 namespace VolumeKeeper.Services.Log;
@@ -10,20 +9,17 @@ namespace VolumeKeeper.Services.Log;
 * <p>It doesn't store log entries anywhere because it's meant to be used in scenarios where a more
 * appropriate logging service cannot be used.</p>
 */
-// ReSharper disable ExplicitCallerInfoArgument
-public sealed partial class ConsoleLoggingService(
-    string? defaultSource = null,
-    [CallerFilePath] string callerFilePath = ""
-) : LoggingService(defaultSource, callerFilePath)
+public sealed partial class ConsoleLoggingService : LoggingService
 {
-    protected override void LogInternal(
+    public override void Log(
         LogLevel level,
         string message,
-        string source,
+        string? source,
         Exception? exception = null
     ) {
         var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         var levelStr = level.ToString().ToUpper().PadRight(7);
+        source ??= string.Empty;
 
         var logMessage = $"[{timestamp}] [{levelStr}] [{source}] {message}";
 
@@ -38,7 +34,4 @@ public sealed partial class ConsoleLoggingService(
 
         Console.WriteLine(logMessage);
     }
-
-    public override LoggingService Named(string? source = null, [CallerFilePath] string callerFilePath = "") =>
-        new ConsoleLoggingService(source, callerFilePath);
 }
