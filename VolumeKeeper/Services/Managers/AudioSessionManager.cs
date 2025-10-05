@@ -136,11 +136,7 @@ public sealed partial class AudioSessionManager(
             }.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item))
                 ?? string.Empty;
 
-#if DEBUG
-            App.Logger.Debug($"Creating audio session. PID={processId}, ExecutableName={processInfo.ExecutableName}, DisplayName='{processInfo.DisplayName}', ExecutablePath='{processInfo.ExecutablePath}'");
-#endif
-
-            return new AudioSession
+            var audioSession = new AudioSession
             {
                 ProcessId = processId,
                 ProcessDisplayName = processDisplayName,
@@ -149,6 +145,12 @@ public sealed partial class AudioSessionManager(
                 IconPath = sessionControl.IconPath ?? string.Empty,
                 SessionControl = sessionControl
             };
+
+#if DEBUG
+            App.Logger.Debug($"Creating audio session. PID={audioSession.ProcessId}, ExecutableName={audioSession.ExecutableName}, ProcessDisplayName='{audioSession.ProcessDisplayName}', ExecutablePath='{audioSession.ExecutablePath}'");
+#endif
+
+            return audioSession;
         }
         catch (Exception ex)
         {
