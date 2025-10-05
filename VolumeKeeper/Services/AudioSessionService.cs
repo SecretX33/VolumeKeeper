@@ -46,7 +46,7 @@ public partial class AudioSessionService(
                     await _volumeSetSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
-                        return await mainThreadQueue.TryFetch(() => SetSessionVolumeImmediate(volumeApplicationId, volumePercentage))
+                        return await mainThreadQueue.TryFetchImmediate(() => SetSessionVolumeImmediate(volumeApplicationId, volumePercentage))
                             .ConfigureAwait(false);
                     }
                     finally
