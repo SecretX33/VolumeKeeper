@@ -21,11 +21,11 @@ public sealed partial class MainWindow : Window
         Title = "VolumeKeeper";
         ExtendsContentIntoTitleBar = true;
         LoadWindowSettings();
-        NavigationViewControl.SelectedItem = NavigationViewControl.MenuItems[0];
         Closed += MainWindow_Closed;
-        NavigateToPage("Home");
         SizeChanged += MainWindow_SizeChanged;
         Activated += MainWindow_Activated;
+        NavigationViewControl.SelectedItem = NavigationViewControl.MenuItems[0];
+        NavigateToPage("Home");
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

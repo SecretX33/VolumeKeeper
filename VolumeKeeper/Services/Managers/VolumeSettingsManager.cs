@@ -14,7 +14,7 @@ namespace VolumeKeeper.Services.Managers;
 
 public class VolumeSettingsManager
 {
-    private static readonly TimeSpan NormalSaveDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly AtomicReference<CancellationTokenSource?> _saveDebounceTokenSource = new(null);
     private readonly JsonSerializerOptions _jsonSerializerOptions = new()
@@ -74,7 +74,7 @@ public class VolumeSettingsManager
 
         DeleteVolume(id);
         _applicationVolumes[id] = value;
-        ScheduleSave(NormalSaveDelay);
+        ScheduleSave();
     }
 
     private bool DeleteVolume(VolumeApplicationId id) => _applicationVolumes.TryRemove(id, out _);
@@ -82,7 +82,7 @@ public class VolumeSettingsManager
     public bool DeleteVolumeAndSave(VolumeApplicationId id)
     {
         var removed = DeleteVolume(id);
-        ScheduleSave(NormalSaveDelay);
+        ScheduleSave();
         return removed;
     }
 
@@ -95,7 +95,7 @@ public class VolumeSettingsManager
 
         DeleteLastVolumeBeforeMute(id);
         _applicationLastVolumeBeforeMute[id] = value;
-        ScheduleSave(NormalSaveDelay);
+        ScheduleSave();
     }
 
     private bool DeleteLastVolumeBeforeMute(VolumeApplicationId id) => _applicationLastVolumeBeforeMute.TryRemove(id, out _);
@@ -103,25 +103,25 @@ public class VolumeSettingsManager
     public bool DeleteLastVolumeBeforeMuteAndSave(VolumeApplicationId id)
     {
         var removed = DeleteLastVolumeBeforeMute(id);
-        ScheduleSave(NormalSaveDelay);
+        ScheduleSave();
         return removed;
     }
 
     public void SetAutoRestoreEnabledAndSave(bool enabled)
     {
         _autoRestoreEnabled = enabled;
-        ScheduleSave(NormalSaveDelay);
+        ScheduleSave();
     }
 
     public void SetAutoScrollLogsEnabledAndSave(bool enabled)
     {
         _autoScrollLogsEnabled = enabled;
-        ScheduleSave(NormalSaveDelay);
+        ScheduleSave();
     }
 
     // Debounce save operations to avoid excessive disk writes
     // If multiple calls happen within 2 seconds, only the last one will trigger a save
-    private Task ScheduleSave(TimeSpan saveDelay)
+    private Task ScheduleSave()
     {
         var cancellationTokenSource = new CancellationTokenSource();
         var oldCancellationTokenSource = _saveDebounceTokenSource.GetAndSet(cancellationTokenSource);
@@ -136,7 +136,7 @@ public class VolumeSettingsManager
                     await oldCancellationTokenSource.CancelAsync().ConfigureAwait(false);
                 }
 
-                await Task.Delay(saveDelay, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(SaveDelay, cancellationToken).ConfigureAwait(false);
                 if (cancellationToken.IsCancellationRequested) return;
 
                 await SaveSettingsToDiskAsync(cancellationToken).ConfigureAwait(false);

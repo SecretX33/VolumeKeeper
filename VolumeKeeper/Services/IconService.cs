@@ -10,10 +10,10 @@ using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
-public class IconService
-{
+public class IconService(
+    DispatcherQueue mainThreadQueue
+) {
     private readonly ConcurrentDictionary<string, BitmapImage> _iconCache = new();
-    private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
     public async Task<BitmapImage?> GetApplicationIconAsync(
         string iconPath,
@@ -61,7 +61,7 @@ public class IconService
                     using var icon = Icon.ExtractAssociatedIcon(iconPath);
                     if (icon != null)
                     {
-                        bitmapImage = await ConvertIconToBitmapImageAsync(icon);
+                        bitmapImage = await ConvertToBitmapImageAsync(icon);
                     }
                 }
                 else
@@ -80,18 +80,16 @@ public class IconService
 
     private async Task<BitmapImage> LoadBitmapFromFileAsync(string filePath)
     {
-        var bitmapImage = new BitmapImage();
-
         await using var stream = File.OpenRead(filePath);
-        var memoryStream = new MemoryStream();
+        using var memoryStream = new MemoryStream();
+
         await stream.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
 
-        await bitmapImage.SetSourceAsync(memoryStream.AsRandomAccessStream());
-        return bitmapImage;
+        return await ConvertIntoBitmapImageAsync(memoryStream).ConfigureAwait(false);
     }
 
-    private async Task<BitmapImage> ConvertIconToBitmapImageAsync(Icon icon)
+    private async Task<BitmapImage> ConvertToBitmapImageAsync(Icon icon)
     {
         using var bitmap = icon.ToBitmap();
         using var memoryStream = new MemoryStream();
@@ -99,14 +97,15 @@ public class IconService
         bitmap.Save(memoryStream, ImageFormat.Png);
         memoryStream.Position = 0;
 
-        var bitmapImageTask = await _dispatcherQueue.TryFetch(async () =>
+        return await ConvertIntoBitmapImageAsync(memoryStream).ConfigureAwait(false);
+    }
+
+    private Task<BitmapImage> ConvertIntoBitmapImageAsync(Stream stream) =>
+        mainThreadQueue.TryFetchImmediate(async () =>
         {
             var bitmapImage = new BitmapImage();
             // ReSharper disable once AccessToDisposedClosure
-            await bitmapImage.SetSourceAsync(memoryStream.AsRandomAccessStream());
+            await bitmapImage.SetSourceAsync(stream.AsRandomAccessStream());
             return bitmapImage;
-        }).ConfigureAwait(false);
-
-        return await bitmapImageTask;
-    }
+        });
 }

@@ -15,7 +15,8 @@ namespace VolumeKeeper.Services.Managers;
 
 public partial class AudioSessionManager(
     IconService iconService,
-    VolumeSettingsManager volumeSettingsManager
+    VolumeSettingsManager volumeSettingsManager,
+    DispatcherQueue mainThreadQueue
 ) : IDisposable
 {
     private readonly TimeSpan _volumeChangedFromProgramThreshold = TimeSpan.FromMilliseconds(200);
@@ -23,7 +24,6 @@ public partial class AudioSessionManager(
     private readonly AtomicReference<MMDevice?> _defaultDevice = new(null);
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private readonly AtomicReference<bool> _isDisposed = new(false);
-    private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
     private volatile SessionCollection? _sessions;
     public ObservableCollection<ObservableAudioSession> AudioSessions { get; } = [];
@@ -97,7 +97,7 @@ public partial class AudioSessionManager(
             var currentSessions = GetAllAudioSessions();
             var currentSessionIds = currentSessions.Select(s => s.AppId).ToHashSet();
 
-            _dispatcherQueue.TryEnqueueImmediate(() =>
+            mainThreadQueue.TryEnqueueImmediate(() =>
             {
                 foreach (var session in currentSessions)
                 {
@@ -127,6 +127,12 @@ public partial class AudioSessionManager(
             var processId = (int)sessionControl.GetProcessID;
             var processInfo = fetchedProcessInfo ?? GetProcessInfoOrNull(processId);
             if (processInfo == null) return null;
+            var processDisplayName = new[]
+            {
+                sessionControl.DisplayName,
+                processInfo.DisplayName
+            }.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item))
+                ?? string.Empty;
 
 #if DEBUG
             App.Logger.LogDebug($"Creating audio session. PID={processId}, ExecutableName={processInfo.ExecutableName}, DisplayName='{processInfo.DisplayName}', ExecutablePath='{processInfo.ExecutablePath}'");
@@ -135,7 +141,7 @@ public partial class AudioSessionManager(
             return new AudioSession
             {
                 ProcessId = processId,
-                ProcessDisplayName = processInfo.DisplayName,
+                ProcessDisplayName = processDisplayName,
                 ExecutableName = processInfo.ExecutableName,
                 ExecutablePath = processInfo.ExecutablePath,
                 IconPath = sessionControl.IconPath ?? string.Empty,
@@ -151,7 +157,7 @@ public partial class AudioSessionManager(
 
     private void AddOrUpdateSession(AudioSession session)
     {
-        if (!_dispatcherQueue.HasThreadAccess)
+        if (!mainThreadQueue.HasThreadAccess)
             throw new InvalidOperationException("AddOrUpdateSession must be called on the UI thread.");
 
         var savedVolume = volumeSettingsManager.GetVolume(session.AppId);
@@ -175,7 +181,7 @@ public partial class AudioSessionManager(
                 OnSessionDisconnectedHandler = _ =>
                 {
                     App.Logger.LogDebug($"Audio session disconnected for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
-                    _dispatcherQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
+                    mainThreadQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
                 },
 
                 OnStateChangedHandler = state =>
@@ -183,17 +189,17 @@ public partial class AudioSessionManager(
                     if (state != AudioSessionState.AudioSessionStateExpired) return;
 
                     App.Logger.LogDebug($"Audio session expired for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
-                    _dispatcherQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
+                    mainThreadQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
                 }
             });
             RestoreSessionVolume(newSession);
-            LoadApplicationIconAsync(newSession);
             observableSession = newSession;
             AudioSessions.Add(observableSession);
         }
 
         observableSession.AudioSession = session;
         observableSession.PinnedVolume = savedVolume;
+        LoadApplicationIconAsync(observableSession);
     }
 
     private void RestoreSessionVolume(ObservableAudioSession newSession)
@@ -204,7 +210,7 @@ public partial class AudioSessionManager(
         var wasSetFromProgram = newSession.LastTimeVolumeOrMuteWereManuallySet.HasValue
             && (DateTimeOffset.Now - newSession.LastTimeVolumeOrMuteWereManuallySet).Value < _volumeChangedFromProgramThreshold;
 
-        _dispatcherQueue.TryEnqueue(() =>
+        mainThreadQueue.TryEnqueue(() =>
         {
             if (!wasSetFromProgram && pinnedVolume != null && newSession.Volume != pinnedVolume)
             {
@@ -231,7 +237,7 @@ public partial class AudioSessionManager(
 
             if (icon != null)
             {
-                _dispatcherQueue.TryEnqueueImmediate(() => { app.AudioSession = app.AudioSession.With(icon: icon); });
+                mainThreadQueue.TryEnqueueImmediate(() => { app.AudioSession = app.AudioSession.With(icon: icon); });
             }
         }
         catch (Exception ex)

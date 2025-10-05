@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using VolumeKeeper.Services;
@@ -178,7 +179,9 @@ public partial class App : Application
             Logger.LogDebug("Initializing volume management services");
 
             // Initialize settings managers first
-            var iconService = new IconService();
+            var mainThreadQueue = DispatcherQueue.GetForCurrentThread();
+            var iconService = new IconService(mainThreadQueue);
+
             _volumeSettingsManager = new VolumeSettingsManager();
             _windowSettingsManager = new WindowSettingsManager();
 
@@ -187,11 +190,11 @@ public partial class App : Application
                 Task.Run(_windowSettingsManager.InitializeAsync)
             );
 
-            _audioSessionManager = new AudioSessionManager(iconService, _volumeSettingsManager);
+            _audioSessionManager = new AudioSessionManager(iconService, _volumeSettingsManager, mainThreadQueue);
             await Task.Run(_audioSessionManager.Initialize);
 
             // Initialize core services with managers
-            _audioSessionService = new AudioSessionService(_audioSessionManager);
+            _audioSessionService = new AudioSessionService(_audioSessionManager, mainThreadQueue);
 
             Logger.LogInfo("All services initialized successfully");
         }

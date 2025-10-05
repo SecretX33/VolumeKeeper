@@ -15,22 +15,6 @@ public static class Extensions
         window.DispatcherQueue.TryEnqueueImmediate(() => NativeMethods.ShowAndFocus(window));
     }
 
-    public static void SetMinMaxSize(
-        this Window window,
-        PointInt32? minWindowSize = null,
-        PointInt32? maxWindowSize = null
-    )
-    {
-        try
-        {
-            var helper = new Win32WindowHelper(window);
-            helper.SetWindowMinMaxSize(minWindowSize, maxWindowSize);
-        } catch (Exception ex)
-        {
-            App.Logger.LogWarning("Failed to set window min/max size.", ex, "Extensions");
-        }
-    }
-
     public static TValue? GetOrNull<TKey, TValue>(
         this IDictionary<TKey, TValue> dict,
         TKey key
@@ -52,14 +36,14 @@ public static class Extensions
         }
     }
 
-    public static async Task<T> TryFetch<T>(
+    public static Task<T> TryFetchImmediate<T>(
         this DispatcherQueue queue,
         Func<T> function
     )
     {
         var tcs = new TaskCompletionSource<T>();
 
-        var added = queue.TryEnqueue(() =>
+        queue.TryEnqueueImmediate(() =>
         {
             try
             {
@@ -71,10 +55,29 @@ public static class Extensions
                 tcs.SetException(ex);
             }
         });
-        if (!added)
+
+        return tcs.Task;
+    }
+
+    public static async Task<T> TryFetchImmediate<T>(
+        this DispatcherQueue queue,
+        Func<Task<T>> asyncFunction
+    )
+    {
+        var tcs = new TaskCompletionSource<T>();
+
+        queue.TryEnqueueImmediate(async void () =>
         {
-            throw new InvalidOperationException("Failed to enqueue operation to DispatcherQueue.");
-        }
+            try
+            {
+                var result = await asyncFunction();
+                tcs.SetResult(result);
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
 
         return await tcs.Task;
     }
