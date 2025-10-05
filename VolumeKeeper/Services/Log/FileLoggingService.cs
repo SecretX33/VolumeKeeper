@@ -31,7 +31,7 @@ public sealed partial class FileLoggingService : LoggingService
             LogManager.Configuration = new XmlLoggingConfiguration(configFile);
         }
 
-        LogInfo("VolumeKeeper logging service started", "LoggingService");
+        Info("VolumeKeeper logging service started", "LoggingService");
     }
 
     protected override void LogInternal(

@@ -49,7 +49,7 @@ public sealed partial class App : Application
             // Check for single instance
             if (!EnsureSingleInstance())
             {
-                Logger.LogDebug("Multiple instances detected. Bringing existing instance to front and exiting.");
+                Logger.Debug("Multiple instances detected. Bringing existing instance to front and exiting.");
                 BringExistingInstanceToFront();
                 ExitApplication();
                 return;
@@ -59,7 +59,7 @@ public sealed partial class App : Application
             // Initialize logging service first
             _loggingService.Dispose();
             _loggingService = new FileLoggingService(mainThreadQueue);
-            Logger.LogDebug("VolumeKeeper initialization started");
+            Logger.Debug("VolumeKeeper initialization started");
 
             ParseCommandLineArgs();
             await InitializeServicesAsync(mainThreadQueue);
@@ -68,7 +68,7 @@ public sealed partial class App : Application
             if (!_startMinimized) ShowMainWindow();
         } catch (Exception ex)
         {
-            Logger.LogError("Unhandled exception during application launch", ex, "App");
+            Logger.Error("Unhandled exception during application launch", ex, "App");
             ExitApplication();
         }
     }
@@ -111,7 +111,7 @@ public sealed partial class App : Application
         }
         catch (Exception ex)
         {
-            Logger.LogError("Failed to bring existing instance to front", ex);
+            Logger.Error("Failed to bring existing instance to front", ex);
         }
     }
 
@@ -123,7 +123,7 @@ public sealed partial class App : Application
 
         if (_startMinimized)
         {
-            Logger.LogDebug("Starting in minimized mode");
+            Logger.Debug("Starting in minimized mode");
         }
     }
 
@@ -143,7 +143,7 @@ public sealed partial class App : Application
         catch (Exception ex)
         {
             // If tray icon creation fails, we'll just run without it
-            Logger.LogError("Failed to create tray icon", ex, "App");
+            Logger.Error("Failed to create tray icon", ex, "App");
             _trayIcon = null;
         }
     }
@@ -170,7 +170,7 @@ public sealed partial class App : Application
         }
         catch (Exception ex)
         {
-            Logger.LogError("Failed to show main window", ex, "App");
+            Logger.Error("Failed to show main window", ex, "App");
         }
     }
 
@@ -178,7 +178,7 @@ public sealed partial class App : Application
     {
         try
         {
-            Logger.LogDebug("Initializing volume management services");
+            Logger.Debug("Initializing volume management services");
 
             // Initialize settings managers first
             var iconService = new IconService(mainThreadQueue);
@@ -197,17 +197,17 @@ public sealed partial class App : Application
             // Initialize core services with managers
             _audioSessionService = new AudioSessionService(_audioSessionManager, mainThreadQueue);
 
-            Logger.LogDebug("All services initialized successfully");
+            Logger.Debug("All services initialized successfully");
         }
         catch (Exception ex)
         {
-            Logger.LogError("Failed to initialize services", ex, "App");
+            Logger.Error("Failed to initialize services", ex, "App");
         }
     }
 
     private void ExitApplication()
     {
-        Logger.LogDebug("VolumeKeeper application shutting down");
+        Logger.Debug("VolumeKeeper application shutting down");
 
         // Ensure the application closes even if some services hang during disposal
         Task.Run(async () =>

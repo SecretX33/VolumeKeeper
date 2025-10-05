@@ -37,15 +37,15 @@ public abstract class LoggingService : IDisposable
         Exception? exception = null
     );
 
-    public void LogDebug(string message, string? source = null) => LogDebug(message, null, source);
-    public void LogInfo(string message, string? source = null) => LogInfo(message, null, source);
-    public void LogWarning(string message, string? source = null) => LogWarning(message, null, source);
-    public void LogError(string message, string? source = null) => LogError(message, null, source);
+    public void Debug(string message, string? source = null) => Debug(message, null, source);
+    public void Info(string message, string? source = null) => Info(message, null, source);
+    public void Warning(string message, string? source = null) => Warning(message, null, source);
+    public void Error(string message, string? source = null) => Error(message, null, source);
 
-    public void LogDebug(string message, Exception? exception, string? source = null) => Log(LogLevel.Debug, message, source, exception);
-    public void LogInfo(string message, Exception? exception, string? source = null) => Log(LogLevel.Info, message, source, exception);
-    public void LogWarning(string message, Exception? exception, string? source = null) => Log(LogLevel.Warning, message, source, exception);
-    public void LogError(string message, Exception? exception, string? source = null) => Log(LogLevel.Error, message, source, exception);
+    public void Debug(string message, Exception? exception, string? source = null) => Log(LogLevel.Debug, message, source, exception);
+    public void Info(string message, Exception? exception, string? source = null) => Log(LogLevel.Info, message, source, exception);
+    public void Warning(string message, Exception? exception, string? source = null) => Log(LogLevel.Warning, message, source, exception);
+    public void Error(string message, Exception? exception, string? source = null) => Log(LogLevel.Error, message, source, exception);
 
     public abstract LoggingService Named(string? source = null, [CallerFilePath] string callerFilePath = "");
 

@@ -35,7 +35,7 @@ public sealed class WindowSettingsManager
                 _cachedSettings[kvp.Key] = kvp.Value;
             }
         } catch (Exception ex) {
-            App.Logger.LogError("Failed to initialize window settings", ex, "WindowStorageService");
+            App.Logger.Error("Failed to initialize window settings", ex, "WindowStorageService");
         }
     }
 
@@ -102,11 +102,11 @@ public sealed class WindowSettingsManager
 
             var json = JsonSerializer.Serialize(_cachedSettings, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(SettingsPath, json).ConfigureAwait(false);
-            App.Logger.LogDebug("Window settings saved successfully", "WindowSettingsService");
+            App.Logger.Debug("Window settings saved successfully", "WindowSettingsService");
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to save window settings", ex, "WindowSettingsService");
+            App.Logger.Error("Failed to save window settings", ex, "WindowSettingsService");
         }
         finally
         {

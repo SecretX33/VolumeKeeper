@@ -61,7 +61,7 @@ public sealed class VolumeSettingsManager
             _autoRestoreEnabled = parsedValue.AutoRestoreEnabled;
             _autoScrollLogsEnabled = parsedValue.AutoScrollLogsEnabled;
         } catch (Exception ex) {
-            App.Logger.LogError("Failed to initialize volume settings", ex, "VolumeSettingsManager");
+            App.Logger.Error("Failed to initialize volume settings", ex, "VolumeSettingsManager");
         }
     }
 
@@ -195,11 +195,11 @@ public sealed class VolumeSettingsManager
 
             var json = JsonSerializer.Serialize(settingsToSave, _jsonSerializerOptions);
             await File.WriteAllTextAsync(SettingsPath, json).ConfigureAwait(false);
-            App.Logger.LogDebug("Volume settings saved successfully", "VolumeSettingsManager");
+            App.Logger.Debug("Volume settings saved successfully", "VolumeSettingsManager");
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to save volume settings", ex, "VolumeSettingsManager");
+            App.Logger.Error("Failed to save volume settings", ex, "VolumeSettingsManager");
         }
         finally
         {

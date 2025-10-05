@@ -48,14 +48,14 @@ public sealed partial class AudioSessionManager(
             newDefaultDevice.AudioSessionManager.OnSessionCreated += (sender, session) =>
             {
                 // The session object doesn't contain any useful info, so we need to fallback to UpdateAllSessions
-                App.Logger.LogDebug("New audio session created, refreshing audio sessions", "AudioSessionManager");
+                App.Logger.Debug("New audio session created, refreshing audio sessions", "AudioSessionManager");
                 _ = Task.Run(UpdateAllSessions);
             };
             _defaultDevice.GetAndSet(newDefaultDevice)?.Dispose();
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to get default audio device", ex, "AudioSessionDataManager");
+            App.Logger.Error("Failed to get default audio device", ex, "AudioSessionDataManager");
         }
     }
 
@@ -84,7 +84,7 @@ public sealed partial class AudioSessionManager(
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to enumerate audio sessions", ex, "AudioSessionDataManager");
+            App.Logger.Error("Failed to enumerate audio sessions", ex, "AudioSessionDataManager");
         }
 
         return sessions;
@@ -107,14 +107,14 @@ public sealed partial class AudioSessionManager(
                 var sessionsToRemove = AudioSessions.Where(s => !currentSessionIds.Contains(s.AppId)).ToList();
                 foreach (var session in sessionsToRemove)
                 {
-                    App.Logger.LogInfo($"Audio session ended for {session.ExecutableName} (PID: {session.ProcessId})", "AudioSessionManager");
+                    App.Logger.Info($"Audio session ended for {session.ExecutableName} (PID: {session.ProcessId})", "AudioSessionManager");
                     AudioSessions.Remove(session);
                 }
             });
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to update audio sessions", ex, "AudioSessionManager");
+            App.Logger.Error("Failed to update audio sessions", ex, "AudioSessionManager");
         }
     }
 
@@ -135,7 +135,7 @@ public sealed partial class AudioSessionManager(
                 ?? string.Empty;
 
 #if DEBUG
-            App.Logger.LogDebug($"Creating audio session. PID={processId}, ExecutableName={processInfo.ExecutableName}, DisplayName='{processInfo.DisplayName}', ExecutablePath='{processInfo.ExecutablePath}'");
+            App.Logger.Debug($"Creating audio session. PID={processId}, ExecutableName={processInfo.ExecutableName}, DisplayName='{processInfo.DisplayName}', ExecutablePath='{processInfo.ExecutablePath}'");
 #endif
 
             return new AudioSession
@@ -150,7 +150,7 @@ public sealed partial class AudioSessionManager(
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to create audio session", ex, "AudioSessionDataManager");
+            App.Logger.Error("Failed to create audio session", ex, "AudioSessionDataManager");
             return null;
         }
     }
@@ -173,14 +173,14 @@ public sealed partial class AudioSessionManager(
             {
                 OnVolumeChangedHandler = (_, _) =>
                 {
-                    App.Logger.LogDebug($"App volume {newSession.ExecutableName} (PID: {newSession.ProcessId}) changed to {newSession.Volume}",
+                    App.Logger.Debug($"App volume {newSession.ExecutableName} (PID: {newSession.ProcessId}) changed to {newSession.Volume}",
                         "AudioSessionManager");
                     RestoreSessionVolume(newSession);
                 },
 
                 OnSessionDisconnectedHandler = _ =>
                 {
-                    App.Logger.LogDebug($"Audio session disconnected for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
+                    App.Logger.Debug($"Audio session disconnected for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
                     mainThreadQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
                 },
 
@@ -188,7 +188,7 @@ public sealed partial class AudioSessionManager(
                 {
                     if (state != AudioSessionState.AudioSessionStateExpired) return;
 
-                    App.Logger.LogDebug($"Audio session expired for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
+                    App.Logger.Debug($"Audio session expired for {newSession.ExecutableName} (PID: {newSession.ProcessId})", "AudioSessionManager");
                     mainThreadQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
                 }
             });
@@ -214,7 +214,7 @@ public sealed partial class AudioSessionManager(
         {
             if (!wasSetFromProgram && pinnedVolume != null && newSession.Volume != pinnedVolume)
             {
-                App.Logger.LogDebug($"Reverting volume for {newSession.ExecutableName} (PID: {newSession.ProcessId}) to pinned volume {pinnedVolume}%",
+                App.Logger.Debug($"Reverting volume for {newSession.ExecutableName} (PID: {newSession.ProcessId}) to pinned volume {pinnedVolume}%",
                     "AudioSessionManager");
                 newSession.SetVolume(pinnedVolume.Value, setLastSet: false);
             }
@@ -242,7 +242,7 @@ public sealed partial class AudioSessionManager(
         }
         catch (Exception ex)
         {
-            App.Logger.LogWarning($"Failed to load icon for {app.ExecutableName} (PID: {app.ProcessId})", ex, "HomePage");
+            App.Logger.Warning($"Failed to load icon for {app.ExecutableName} (PID: {app.ProcessId})", ex, "HomePage");
         }
     }
 

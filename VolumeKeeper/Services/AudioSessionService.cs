@@ -61,7 +61,7 @@ public sealed partial class AudioSessionService(
             }
             catch (Exception ex)
             {
-                App.Logger.LogError($"Error setting volume for {volumeApplicationId}", ex, "AudioSessionManager");
+                App.Logger.Error($"Error setting volume for {volumeApplicationId}", ex, "AudioSessionManager");
             }
             finally
             {
@@ -80,20 +80,20 @@ public sealed partial class AudioSessionService(
         var session = sessionManager.GetSessionById(volumeApplicationId);
         if (session == null)
         {
-            App.Logger.LogWarning($"No audio session found for {volumeApplicationId}", "AudioSessionManager");
+            App.Logger.Warning($"No audio session found for {volumeApplicationId}", "AudioSessionManager");
             return false;
         }
 
         try
         {
             session.SetVolume(volumePercentage);
-            App.Logger.LogInfo($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage}%",
+            App.Logger.Info($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage}%",
                 "AudioSessionManager");
             return true;
         }
         catch (Exception ex)
         {
-            App.Logger.LogError($"Failed to set volume for {session.ExecutableName} (PID: {session.ProcessId})", ex,
+            App.Logger.Error($"Failed to set volume for {session.ExecutableName} (PID: {session.ProcessId})", ex,
                 "AudioSessionManager");
             return false;
         }
@@ -106,19 +106,19 @@ public sealed partial class AudioSessionService(
             var session = sessionManager.GetSessionById(volumeApplicationId);
             if (session == null)
             {
-                App.Logger.LogWarning($"No audio session found for {volumeApplicationId}", "AudioSessionManager");
+                App.Logger.Warning($"No audio session found for {volumeApplicationId}", "AudioSessionManager");
                 return false;
             }
 
             try
             {
                 session.IsMuted = mute;
-                App.Logger.LogInfo($"Set mute for {volumeApplicationId} (PID: {session.ProcessId}) to {(mute ? "muted" : "unmuted")}", "AudioSessionManager");
+                App.Logger.Info($"Set mute for {volumeApplicationId} (PID: {session.ProcessId}) to {(mute ? "muted" : "unmuted")}", "AudioSessionManager");
                 return true;
             }
             catch (Exception ex)
             {
-                App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex, "AudioSessionManager");
+                App.Logger.Error($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex, "AudioSessionManager");
                 return false;
             }
         });
@@ -140,7 +140,7 @@ public sealed partial class AudioSessionService(
                 }
                 catch
                 {
-                    App.Logger.LogDebug($"Exception was throw when attempting to cancel debounce token for {kvp.Key}", "AudioSessionManager");
+                    App.Logger.Debug($"Exception was throw when attempting to cancel debounce token for {kvp.Key}", "AudioSessionManager");
                 }
             }
 

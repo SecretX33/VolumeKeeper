@@ -30,7 +30,7 @@ public static class Util
     public static void EnsureAdminPrivileges()
     {
         if (IsElevated() || !IsAdministrator()) return;
-        App.Logger.LogDebug("Not running with elevated privileges. Attempting to restart as administrator...");
+        App.Logger.Debug("Not running with elevated privileges. Attempting to restart as administrator...");
         RestartAsAdmin();
     }
 
@@ -51,13 +51,13 @@ public static class Util
 
         try
         {
-            App.Logger.LogDebug("Restarting with elevated privileges...");
+            App.Logger.Debug("Restarting with elevated privileges...");
             Process.Start(startInfo);
             Application.Current.Exit(); // Close current instance
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to restart as administrator", ex, "Util");
+            App.Logger.Error("Failed to restart as administrator", ex, "Util");
             MessageBox.Show($"Failed to restart as administrator: {ex.Message}");
         }
     }
@@ -128,7 +128,7 @@ public static class Util
         }
         catch (Exception ex)
         {
-            App.Logger.LogDebug($"Failed to get file version info for process {processId} at path: {executablePath}", ex, "Util");
+            App.Logger.Debug($"Failed to get file version info for process {processId} at path: {executablePath}", ex, "Util");
             return null;
         }
     }

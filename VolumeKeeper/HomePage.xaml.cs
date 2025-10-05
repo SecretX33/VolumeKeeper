@@ -46,11 +46,11 @@ public sealed partial class HomePage : Page, IDisposable
         {
             if (sender is not CompactToggleSwitch toggle) return;
             VolumeSettingsManager.SetAutoRestoreEnabledAndSave(toggle.IsOn);
-            App.Logger.LogDebug($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
+            App.Logger.Debug($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to update auto-restore setting", ex, "HomePage");
+            App.Logger.Error("Failed to update auto-restore setting", ex, "HomePage");
         }
     }
 
@@ -69,7 +69,7 @@ public sealed partial class HomePage : Page, IDisposable
 
                 // Mute
                 _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, true);
-                App.Logger.LogInfo(
+                App.Logger.Info(
                     $"Muted {app.ExecutableName} (PID: {app.ProcessId}) (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)",
                     "HomePage");
             }
@@ -80,12 +80,12 @@ public sealed partial class HomePage : Page, IDisposable
 
                 _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, false);
                 _ = audioSessionService.SetSessionVolumeImmediate(app.AppId, lastVolume);
-                App.Logger.LogInfo($"Unmuted {app.ExecutableName} (PID: {app.ProcessId}) to {lastVolume}%", "HomePage");
+                App.Logger.Info($"Unmuted {app.ExecutableName} (PID: {app.ProcessId}) to {lastVolume}%", "HomePage");
             }
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to toggle mute for application", ex, "HomePage");
+            App.Logger.Error("Failed to toggle mute for application", ex, "HomePage");
         }
     }
 
@@ -107,7 +107,7 @@ public sealed partial class HomePage : Page, IDisposable
             await App.AudioSessionService.SetSessionVolumeAsync(app.AppId, newVolume);
         } catch (Exception ex)
         {
-            App.Logger.LogError("Failed to change volume", ex, "HomePage");
+            App.Logger.Error("Failed to change volume", ex, "HomePage");
         }
     }
 
@@ -125,7 +125,7 @@ public sealed partial class HomePage : Page, IDisposable
                 VolumeSettingsManager.DeleteVolumeAndSave(app.AppId);
                 app.PinnedVolume = null;
 
-                App.Logger.LogInfo($"Unpinned volume for {app.ExecutableName} (PID: {app.ProcessId})", "HomePage");
+                App.Logger.Info($"Unpinned volume for {app.ExecutableName} (PID: {app.ProcessId})", "HomePage");
             }
             else
             {
@@ -133,12 +133,12 @@ public sealed partial class HomePage : Page, IDisposable
                 VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
                 app.PinnedVolume = currentVolume;
 
-                App.Logger.LogInfo($"Pinned volume for {app.ExecutableName} (PID: {app.ProcessId}): {currentVolume}%", "HomePage");
+                App.Logger.Info($"Pinned volume for {app.ExecutableName} (PID: {app.ProcessId}): {currentVolume}%", "HomePage");
             }
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to pin/unpin volume", ex, "HomePage");
+            App.Logger.Error("Failed to pin/unpin volume", ex, "HomePage");
         }
     }
 
@@ -153,11 +153,11 @@ public sealed partial class HomePage : Page, IDisposable
 
             AudioSessionService.SetSessionVolumeImmediate(app.AppId, savedVolume);
 
-            App.Logger.LogInfo($"Reverted volume for {app.ExecutableName} (PID: {app.ProcessId}) to {savedVolume}%", "HomePage");
+            App.Logger.Info($"Reverted volume for {app.ExecutableName} (PID: {app.ProcessId}) to {savedVolume}%", "HomePage");
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to revert volume", ex, "HomePage");
+            App.Logger.Error("Failed to revert volume", ex, "HomePage");
         }
     }
 
