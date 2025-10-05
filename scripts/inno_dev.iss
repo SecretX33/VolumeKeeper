@@ -5,7 +5,7 @@ AppVerName=VolumeKeeper v0.1
 AppPublisher=SecretX
 DefaultDirName={autopf}\VolumeKeeper
 DefaultGroupName=VolumeKeeper
-OutputDir=..\VolumeKeeper\bin\Release\installer
+OutputDir=..\VolumeKeeper\bin\Debug\installer
 OutputBaseFilename=VolumeKeeper-Setup-x64-dev
 Compression=none
 SolidCompression=no
@@ -13,12 +13,12 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile=..\docs\icons\app_icon.ico
-UninstallDisplayIcon=..\docs\icons\app_icon_config.ico
+UninstallDisplayIcon={app}\VolumeKeeper.exe
 UninstallDisplayName=VolumeKeeper
 LicenseFile=..\LICENSE
 
 [Files]
-Source: "..\VolumeKeeper\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "..\VolumeKeeper\bin\Debug\net9.0-windows10.0.19041.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\VolumeKeeper"; Filename: "{app}\VolumeKeeper.exe"
