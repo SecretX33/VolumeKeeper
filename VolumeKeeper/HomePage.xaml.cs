@@ -70,18 +70,14 @@ public sealed partial class HomePage : Page, IDisposable
                 VolumeSettingsManager.SetLastVolumeBeforeMuteAndSave(app.AppId, app.Volume);
 
                 // Mute
-                _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, true);
-                _logger.Info(
-                    $"Muted {app.ExecutableName} (PID: {app.ProcessId}) (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}%)");
+                audioSessionService.SetMuteSessionImmediate(app.AppId, true);
+                _logger.Info($"Muted {app.ExecutableName} (PID: {app.ProcessId}) (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}");
             }
             else
             {
-                var lastVolume = VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId) ?? 50;
+                var lastVolume = VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId) ?? (app.Volume <= 0 ? 100 : app.Volume);
                 VolumeSettingsManager.DeleteLastVolumeBeforeMuteAndSave(app.AppId);
-
-                _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, false);
-                _ = audioSessionService.SetSessionVolumeImmediate(app.AppId, lastVolume);
-                _logger.Info($"Unmuted {app.ExecutableName} (PID: {app.ProcessId}) to {lastVolume}");
+                audioSessionService.SetSessionVolumeAndMuteImmediate(app.AppId, lastVolume, false);
             }
         }
         catch (Exception ex)
