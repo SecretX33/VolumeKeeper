@@ -6,7 +6,7 @@ using WinRT.Interop;
 
 namespace VolumeKeeper.Util;
 
-public class Win32WindowHelper(Window window)
+public sealed class Win32WindowHelper(Window window)
 {
     private PointInt32? _minWindowSize;
     private PointInt32? _maxWindowSize;

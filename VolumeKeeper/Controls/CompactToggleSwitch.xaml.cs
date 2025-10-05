@@ -5,6 +5,8 @@ namespace VolumeKeeper.Controls;
 
 public sealed partial class CompactToggleSwitch : UserControl
 {
+    private int _clickedCount;
+
     public static readonly DependencyProperty IsOnProperty = DependencyProperty.Register(
         nameof(IsOn),
         typeof(bool),
@@ -58,6 +60,7 @@ public sealed partial class CompactToggleSwitch : UserControl
     private void InternalToggle_Toggled(object sender, RoutedEventArgs e)
     {
         IsOn = InternalToggle.IsOn;
+        if (_clickedCount++ == 0) return; // Ignore the first event which is triggered on initialization
         Toggled?.Invoke(this, e);
     }
 }

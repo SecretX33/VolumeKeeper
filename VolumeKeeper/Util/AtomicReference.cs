@@ -5,7 +5,7 @@ namespace VolumeKeeper.Util;
 using System;
 using System.Threading;
 
-public class AtomicReference<T>(T value) {
+public sealed class AtomicReference<T>(T value) {
     private T _value = value;
     private const int MaxUpdateAttempts = 100;
 

@@ -7,10 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using VolumeKeeper.Services;
+using VolumeKeeper.Services.Log;
 using VolumeKeeper.Services.Managers;
 using VolumeKeeper.Util;
 using static VolumeKeeper.Util.Util;
@@ -18,19 +18,19 @@ using Application = Microsoft.UI.Xaml.Application;
 
 namespace VolumeKeeper;
 
-public partial class App : Application
+public sealed partial class App : Application
 {
     private const string MutexName = "Global\\VolumeKeeper_SingleInstance_Mutex";
     private static Mutex? _singleInstanceMutex;
     private MainWindow? _mainWindow;
     private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
-    private static LoggingServiceImpl? _loggingService;
+    private static Logger _logger = new ConsoleLogger().Named();
     private static AudioSessionManager? _audioSessionManager;
     private static VolumeSettingsManager? _volumeSettingsManager;
     private static WindowSettingsManager? _windowSettingsManager;
     private static AudioSessionService? _audioSessionService;
-    public static LoggingService Logger => _loggingService ?? throw new InvalidOperationException("Logging service not initialized");
+    public static Logger Logger => _logger ?? throw new InvalidOperationException("Logging service not initialized");
     public static AudioSessionManager AudioSessionManager => _audioSessionManager ?? throw new InvalidOperationException("Audio session manager not initialized");
     public static VolumeSettingsManager VolumeSettingsManager => _volumeSettingsManager ?? throw new InvalidOperationException("Volume settings manager not initialized");
     public static WindowSettingsManager WindowSettingsManager => _windowSettingsManager ?? throw new InvalidOperationException("Window settings service not initialized");
@@ -48,25 +48,26 @@ public partial class App : Application
             // Check for single instance
             if (!EnsureSingleInstance())
             {
-                Console.WriteLine("Multiple instances detected. Bringing existing instance to front and exiting.");
+                Logger.Debug("Multiple instances detected. Bringing existing instance to front and exiting.");
                 BringExistingInstanceToFront();
                 ExitApplication();
                 return;
             }
+            var mainThreadQueue = DispatcherQueue.GetForCurrentThread();
 
             // Initialize logging service first
-            _loggingService = new LoggingServiceImpl(DispatcherQueue.GetForCurrentThread());
-            Logger.LogDebug("VolumeKeeper initialization started");
-            ParseCommandLineArgs();
+            _logger.Dispose();
+            _logger = new FileLogger(mainThreadQueue).Named();
+            Logger.Debug("VolumeKeeper initialization started");
 
-            // Initialize volume management services
-            await InitializeServicesAsync();
+            ParseCommandLineArgs();
+            await InitializeServicesAsync(mainThreadQueue);
 
             InitializeTrayIcon();
             if (!_startMinimized) ShowMainWindow();
         } catch (Exception ex)
         {
-            Logger.LogError("Unhandled exception during application launch", ex, "App");
+            Logger.Error("Unhandled exception during application launch", ex, "App");
             ExitApplication();
         }
     }
@@ -109,7 +110,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Failed to bring existing instance to front: " + ex.Message);
+            Logger.Error("Failed to bring existing instance to front", ex);
         }
     }
 
@@ -121,7 +122,7 @@ public partial class App : Application
 
         if (_startMinimized)
         {
-            Logger.LogDebug("Starting in minimized mode");
+            Logger.Debug("Starting in minimized mode");
         }
     }
 
@@ -141,7 +142,7 @@ public partial class App : Application
         catch (Exception ex)
         {
             // If tray icon creation fails, we'll just run without it
-            Logger.LogError("Failed to create tray icon", ex, "App");
+            Logger.Error("Failed to create tray icon", ex, "App");
             _trayIcon = null;
         }
     }
@@ -168,18 +169,17 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Logger.LogError("Failed to show main window", ex, "App");
+            Logger.Error("Failed to show main window", ex, "App");
         }
     }
 
-    private async Task InitializeServicesAsync()
+    private async Task InitializeServicesAsync(DispatcherQueue mainThreadQueue)
     {
         try
         {
-            Logger.LogDebug("Initializing volume management services");
+            Logger.Debug("Initializing volume management services");
 
             // Initialize settings managers first
-            var mainThreadQueue = DispatcherQueue.GetForCurrentThread();
             var iconService = new IconService(mainThreadQueue);
 
             _volumeSettingsManager = new VolumeSettingsManager();
@@ -196,17 +196,17 @@ public partial class App : Application
             // Initialize core services with managers
             _audioSessionService = new AudioSessionService(_audioSessionManager, mainThreadQueue);
 
-            Logger.LogInfo("All services initialized successfully");
+            Logger.Debug("All services initialized successfully");
         }
         catch (Exception ex)
         {
-            Logger.LogError("Failed to initialize services", ex, "App");
+            Logger.Error("Failed to initialize services", ex, "App");
         }
     }
 
     private void ExitApplication()
     {
-        Logger.LogDebug("VolumeKeeper application shutting down");
+        Logger.Debug("VolumeKeeper application shutting down");
 
         // Ensure the application closes even if some services hang during disposal
         Task.Run(async () =>
@@ -222,7 +222,7 @@ public partial class App : Application
                 _audioSessionManager,
                 _audioSessionService,
                 _trayIcon,
-                _loggingService
+                _logger
             );
         }
         finally

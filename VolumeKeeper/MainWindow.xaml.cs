@@ -5,12 +5,14 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VolumeKeeper.Models;
+using VolumeKeeper.Services.Log;
 using VolumeKeeper.Util;
 
 namespace VolumeKeeper;
 
 public sealed partial class MainWindow : Window
 {
+    private readonly Logger _logger = App.Logger.Named();
     private const WindowId WindowId = Models.WindowId.Main;
     private readonly PointInt32 _minWindowSize = new(400, 350);
     private Win32WindowHelper? _helper; // Keep a reference to prevent garbage collection
@@ -107,7 +109,7 @@ public sealed partial class MainWindow : Window
         var displayArea = DisplayArea.Primary;
         if (displayArea == null)
         {
-            App.Logger.LogWarning("Failed to get primary display area, thus couldn't center window on screen", "MainWindow");
+            _logger.Warn("Failed to get primary display area, thus couldn't center window on screen");
             return;
         }
 
@@ -128,7 +130,7 @@ public sealed partial class MainWindow : Window
         var displayArea = DisplayArea.Primary;
         if (displayArea == null)
         {
-            App.Logger.LogWarning("Failed to get primary display area, thus couldn't determine if window is out of bounds", "MainWindow");
+            _logger.Warn("Failed to get primary display area, thus couldn't determine if window is out of bounds");
             return false;
         }
 

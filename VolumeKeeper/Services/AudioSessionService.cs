@@ -6,17 +6,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using VolumeKeeper.Models;
+using VolumeKeeper.Services.Log;
 using VolumeKeeper.Services.Managers;
 using VolumeKeeper.Util;
 using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services;
 
-public partial class AudioSessionService(
+public sealed partial class AudioSessionService(
     AudioSessionManager sessionManager,
     DispatcherQueue mainThreadQueue
 ) : IDisposable
 {
+    private readonly Logger _logger = App.Logger.Named();
     private const int VolumeDebounceDelayMs = 300;
     private readonly ConcurrentDictionary<VolumeApplicationId, CancellationTokenSource> _volumeDebounceTokens = new();
     private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);
@@ -61,7 +63,7 @@ public partial class AudioSessionService(
             }
             catch (Exception ex)
             {
-                App.Logger.LogError($"Error setting volume for {volumeApplicationId}", ex, "AudioSessionManager");
+                _logger.Error($"Error setting volume for {volumeApplicationId}", ex);
             }
             finally
             {
@@ -74,54 +76,81 @@ public partial class AudioSessionService(
 
     public bool SetSessionVolumeImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
-        if (!mainThreadQueue.HasThreadAccess)
-            throw new InvalidOperationException($"{nameof(SetSessionVolumeImmediate)} must be called on the UI thread");
+        RequireMainThreadAccess();
 
         var session = sessionManager.GetSessionById(volumeApplicationId);
         if (session == null)
         {
-            App.Logger.LogWarning($"No audio session found for {volumeApplicationId}", "AudioSessionManager");
+            _logger.Warn($"No audio session found for {volumeApplicationId}");
             return false;
         }
 
         try
         {
             session.SetVolume(volumePercentage);
-            App.Logger.LogInfo($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage}%",
-                "AudioSessionManager");
+            _logger.Info($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage}");
             return true;
         }
         catch (Exception ex)
         {
-            App.Logger.LogError($"Failed to set volume for {session.ExecutableName} (PID: {session.ProcessId})", ex,
-                "AudioSessionManager");
+            _logger.Error($"Failed to set volume for {session.ExecutableName} (PID: {session.ProcessId})", ex);
             return false;
         }
     }
 
-    public Task<bool> SetMuteSessionImmediateAsync(VolumeApplicationId volumeApplicationId, bool mute)
+    public bool SetMuteSessionImmediate(VolumeApplicationId volumeApplicationId, bool mute)
     {
-        return Task.Run(() =>
-        {
-            var session = sessionManager.GetSessionById(volumeApplicationId);
-            if (session == null)
-            {
-                App.Logger.LogWarning($"No audio session found for {volumeApplicationId}", "AudioSessionManager");
-                return false;
-            }
+        RequireMainThreadAccess();
 
-            try
-            {
-                session.IsMuted = mute;
-                App.Logger.LogInfo($"Set mute for {volumeApplicationId} (PID: {session.ProcessId}) to {(mute ? "muted" : "unmuted")}", "AudioSessionManager");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                App.Logger.LogError($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex, "AudioSessionManager");
-                return false;
-            }
-        });
+        var session = sessionManager.GetSessionById(volumeApplicationId);
+        if (session == null)
+        {
+            _logger.Warn($"No audio session found for {volumeApplicationId}");
+            return false;
+        }
+
+        try
+        {
+            session.IsMuted = mute;
+            _logger.Info($"Set mute for {volumeApplicationId} (PID: {session.ProcessId}) to {(mute ? "muted" : "unmuted")}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex);
+            return false;
+        }
+}
+
+    public bool SetSessionVolumeAndMuteImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage, bool mute)
+    {
+        RequireMainThreadAccess();
+
+        var session = sessionManager.GetSessionById(volumeApplicationId);
+        if (session == null)
+        {
+            _logger.Warn($"No audio session found for {volumeApplicationId}");
+            return false;
+        }
+
+        try
+        {
+            session.SetVolume(volumePercentage);
+            session.IsMuted = mute;
+            _logger.Info($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage} and {(mute ? "muted" : "unmuted")}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to set volume and mute for {session.ExecutableName} (PID: {session.ProcessId})", ex);
+            return false;
+        }
+    }
+
+    private void RequireMainThreadAccess([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+    {
+        if (!mainThreadQueue.HasThreadAccess)
+            throw new InvalidOperationException($"{caller} must be called on the UI thread");
     }
 
     public void Dispose()
@@ -140,7 +169,7 @@ public partial class AudioSessionService(
                 }
                 catch
                 {
-                    App.Logger.LogDebug($"Exception was throw when attempting to cancel debounce token for {kvp.Key}", "AudioSessionManager");
+                    _logger.Debug($"Exception was throw when attempting to cancel debounce token for {kvp.Key}");
                 }
             }
 

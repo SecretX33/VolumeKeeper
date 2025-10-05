@@ -5,12 +5,14 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using VolumeKeeper.Models;
+using VolumeKeeper.Services.Log;
 using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services.Managers;
 
-public class WindowSettingsManager
+public sealed class WindowSettingsManager
 {
+    private readonly Logger _logger = App.Logger.Named();
     private static readonly TimeSpan NormalSaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly ConcurrentDictionary<WindowId, WindowSettings> _cachedSettings = new();
@@ -35,7 +37,7 @@ public class WindowSettingsManager
                 _cachedSettings[kvp.Key] = kvp.Value;
             }
         } catch (Exception ex) {
-            App.Logger.LogError("Failed to initialize window settings", ex, "WindowStorageService");
+            _logger.Error("Failed to initialize window settings", ex);
         }
     }
 
@@ -102,11 +104,11 @@ public class WindowSettingsManager
 
             var json = JsonSerializer.Serialize(_cachedSettings, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(SettingsPath, json).ConfigureAwait(false);
-            App.Logger.LogInfo("Window settings saved successfully", "WindowSettingsService");
+            _logger.Debug("Window settings saved successfully");
         }
         catch (Exception ex)
         {
-            App.Logger.LogError("Failed to save window settings", ex, "WindowSettingsService");
+            _logger.Error("Failed to save window settings", ex);
         }
         finally
         {

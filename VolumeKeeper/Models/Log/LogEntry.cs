@@ -5,7 +5,7 @@ using Microsoft.UI.Xaml.Media;
 
 namespace VolumeKeeper.Models.Log;
 
-public record LogEntry
+public sealed record LogEntry
 {
     public DateTime Timestamp { get; set; }
     public LogLevel Level { get; set; }

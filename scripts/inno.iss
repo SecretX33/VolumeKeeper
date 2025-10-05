@@ -13,7 +13,7 @@ PrivilegesRequired=admin
 ArchitecturesAllowed={{ARCHITECTURES_ALLOWED}}
 ArchitecturesInstallIn64BitMode={{ARCHITECTURES_INSTALL_IN_64BIT_MODE}}
 SetupIconFile=.\docs\icons\app_icon.ico
-UninstallDisplayIcon=.\docs\icons\app_icon_config.ico
+UninstallDisplayIcon={app}\VolumeKeeper.exe
 UninstallDisplayName=VolumeKeeper
 LicenseFile=.\LICENSE
 

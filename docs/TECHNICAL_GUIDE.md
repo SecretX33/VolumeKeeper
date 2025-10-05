@@ -105,12 +105,12 @@ The pin button works as follows:
 
 ### How Application Matching Works
 
-VolumeKeeper identifies applications **exclusively by their executable name** (e.g., `firefox.exe`, `spotify.exe`).
+VolumeKeeper identifies applications by their **full executable path** with case-insensitive matching (e.g., `C:\Program Files\Mozilla Firefox\firefox.exe`).
 
 This means:
-- ✅ All instances of the same executable share the same pinned volume
-- ✅ Case-insensitive matching (`Firefox.exe` = `firefox.exe`)
-- ❌ File path is **not** considered
+- ✅ Case-insensitive matching (`C:\Firefox\firefox.exe` = `c:\firefox\FIREFOX.EXE`)
+- ✅ Different installations of the same executable can have different pinned volumes (e.g., `C:\Firefox\firefox.exe` vs `D:\Apps\firefox.exe`)
+- ✅ All audio sessions from the same program share the same pinned volume
 - ❌ Application icon is **not** considered
 - ❌ Window title is **not** considered
 - ❌ Command line arguments are **not** considered
@@ -119,7 +119,7 @@ This means:
 
 When an application launches:
 1. VolumeKeeper detects the new audio session
-2. Checks if a pinned volume exists for that executable name
+2. Checks if a pinned volume exists for that executable path
 3. If found, automatically applies the pinned volume
 4. Logs the restoration in the activity log
 

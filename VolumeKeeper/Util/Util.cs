@@ -7,12 +7,15 @@ using System.Security.Principal;
 using System.Windows.Forms;
 using Microsoft.Diagnostics.Tracing.Session;
 using VolumeKeeper.Models;
+using VolumeKeeper.Services.Log;
 using Application = Microsoft.UI.Xaml.Application;
 
 namespace VolumeKeeper.Util;
 
 public static class Util
 {
+    private static Logger Logger => App.Logger.Named();
+
     /**
      * Returns <b>true</b> if the current user is a member of the local Administrators group, even if the process is not running
      * with elevated privileges.
@@ -30,7 +33,7 @@ public static class Util
     public static void EnsureAdminPrivileges()
     {
         if (IsElevated() || !IsAdministrator()) return;
-        Console.WriteLine("Not running with elevated privileges. Attempting to restart as administrator...");
+        Logger.Debug("Not running with elevated privileges. Attempting to restart as administrator...");
         RestartAsAdmin();
     }
 
@@ -51,12 +54,13 @@ public static class Util
 
         try
         {
-            Console.WriteLine("Restarting with elevated privileges...");
+            Logger.Debug("Restarting with elevated privileges...");
             Process.Start(startInfo);
             Application.Current.Exit(); // Close current instance
         }
         catch (Exception ex)
         {
+            Logger.Error("Failed to restart as administrator", ex);
             MessageBox.Show($"Failed to restart as administrator: {ex.Message}");
         }
     }
@@ -127,7 +131,7 @@ public static class Util
         }
         catch (Exception ex)
         {
-            App.Logger.LogDebug($"Failed to get file version info for process {processId} at path: {executablePath}", ex, "Util");
+            Logger.Debug($"Failed to get file version info for process {processId} at path: {executablePath}", ex);
             return null;
         }
     }
