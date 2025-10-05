@@ -8,12 +8,12 @@ using VolumeKeeper.Models.Log;
 
 namespace VolumeKeeper.Services.Log;
 
-internal sealed partial class NamedLoggingService : LoggingService
+internal sealed partial class NamedLogger : Logger
 {
-    public LoggingService Delegate { get; }
+    public Logger Delegate { get; }
     private readonly string? _defaultSource;
 
-    internal NamedLoggingService(LoggingService loggerDelegate, string? source, string filePath)
+    internal NamedLogger(Logger loggerDelegate, string? source, string filePath)
     {
         Delegate = loggerDelegate;
         _defaultSource = source ?? InferSource(filePath);
@@ -34,12 +34,12 @@ internal sealed partial class NamedLoggingService : LoggingService
             var stackTrace = new StackTrace(true);
             var frames = stackTrace.GetFrames();
 
-            // Skip frames from NamedLoggingService itself
+            // Skip frames from NamedLogger itself
             foreach (var frame in frames.Skip(1))
             {
                 var method = frame.GetMethod();
                 if (method?.DeclaringType == null ||
-                    !method.DeclaringType.FullName?.Contains("LoggingService") != true) continue;
+                    !method.DeclaringType.FullName?.Contains("Logger") != true) continue;
 
                 var className = method.DeclaringType.FullName ?? method.DeclaringType.Name;
                 if (className.Contains('+')) // Nested class

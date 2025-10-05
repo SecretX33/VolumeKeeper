@@ -9,7 +9,7 @@ namespace VolumeKeeper.Services.Log;
 * <p>It doesn't store log entries anywhere because it's meant to be used in scenarios where a more
 * appropriate logging service cannot be used.</p>
 */
-public sealed partial class ConsoleLoggingService : LoggingService
+public sealed partial class ConsoleLogger : Logger
 {
     public override void Log(
         LogLevel level,

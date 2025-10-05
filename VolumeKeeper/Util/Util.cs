@@ -14,7 +14,7 @@ namespace VolumeKeeper.Util;
 
 public static class Util
 {
-    private static LoggingService Logger => App.Logger.Named();
+    private static Logger Logger => App.Logger.Named();
 
     /**
      * Returns <b>true</b> if the current user is a member of the local Administrators group, even if the process is not running

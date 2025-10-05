@@ -5,7 +5,7 @@ using VolumeKeeper.Models.Log;
 
 namespace VolumeKeeper.Services.Log;
 
-public abstract class LoggingService : IDisposable
+public abstract class Logger : IDisposable
 {
     public static ObservableCollection<LogEntry> LogEntries { get; } = [];
 
@@ -30,14 +30,14 @@ public abstract class LoggingService : IDisposable
      * Creates a named logging service that prefixes all log entries with the specified source name,
      * or infers it from the caller's data.
      */
-    public LoggingService Named(string? source = null, [CallerFilePath] string filePath = "")
+    public Logger Named(string? source = null, [CallerFilePath] string filePath = "")
     {
         var resolvedLoggingService = this;
-        while (resolvedLoggingService is NamedLoggingService service)
+        while (resolvedLoggingService is NamedLogger service)
         {
             resolvedLoggingService = service.Delegate;
         }
-        return new NamedLoggingService(loggerDelegate: resolvedLoggingService, source: source, filePath: filePath);
+        return new NamedLogger(loggerDelegate: resolvedLoggingService, source: source, filePath: filePath);
     }
 
     public virtual void Dispose()

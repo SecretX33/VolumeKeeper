@@ -12,7 +12,7 @@ namespace VolumeKeeper;
 
 public sealed partial class LogsPage : Page
 {
-    public ObservableCollection<LogEntry> LogEntries => LoggingService.LogEntries;
+    public ObservableCollection<LogEntry> LogEntries => Logger.LogEntries;
     private static VolumeSettingsManager VolumeSettingsManager => App.VolumeSettingsManager;
 
     public LogsPage()

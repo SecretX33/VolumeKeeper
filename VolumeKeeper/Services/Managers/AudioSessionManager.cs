@@ -20,7 +20,7 @@ public sealed partial class AudioSessionManager(
     DispatcherQueue mainThreadQueue
 ) : IDisposable
 {
-    private readonly LoggingService _logger = App.Logger.Named();
+    private readonly Logger _logger = App.Logger.Named();
     private readonly TimeSpan _volumeChangedFromProgramThreshold = TimeSpan.FromMilliseconds(200);
     private readonly MMDeviceEnumerator _deviceEnumerator = new();
     private readonly AtomicReference<MMDevice?> _defaultDevice = new(null);

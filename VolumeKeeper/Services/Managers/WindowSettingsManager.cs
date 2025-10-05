@@ -12,7 +12,7 @@ namespace VolumeKeeper.Services.Managers;
 
 public sealed class WindowSettingsManager
 {
-    private readonly LoggingService _logger = App.Logger.Named();
+    private readonly Logger _logger = App.Logger.Named();
     private static readonly TimeSpan NormalSaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly ConcurrentDictionary<WindowId, WindowSettings> _cachedSettings = new();

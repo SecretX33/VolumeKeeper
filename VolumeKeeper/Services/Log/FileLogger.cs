@@ -9,13 +9,13 @@ using LogLevel = VolumeKeeper.Models.Log.LogLevel;
 
 namespace VolumeKeeper.Services.Log;
 
-public sealed partial class FileLoggingService : LoggingService
+public sealed partial class FileLogger : Logger
 {
     private readonly DispatcherQueue _dispatcherQueue;
     private const int MaxInMemoryEntries = 1000;
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
-    public FileLoggingService(DispatcherQueue dispatcherQueue)
+    public FileLogger(DispatcherQueue dispatcherQueue)
     {
         _dispatcherQueue = dispatcherQueue;
 
@@ -26,7 +26,7 @@ public sealed partial class FileLoggingService : LoggingService
             LogManager.Configuration = new XmlLoggingConfiguration(configFile);
         }
 
-        Info("VolumeKeeper logging service started", "LoggingService");
+        Info("VolumeKeeper logging service started", "FileLogger");
     }
 
     public override void Log(

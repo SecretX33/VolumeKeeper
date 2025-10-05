@@ -18,7 +18,7 @@ public sealed partial class AudioSessionService(
     DispatcherQueue mainThreadQueue
 ) : IDisposable
 {
-    private readonly LoggingService _logger = App.Logger.Named();
+    private readonly Logger _logger = App.Logger.Named();
     private const int VolumeDebounceDelayMs = 300;
     private readonly ConcurrentDictionary<VolumeApplicationId, CancellationTokenSource> _volumeDebounceTokens = new();
     private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);

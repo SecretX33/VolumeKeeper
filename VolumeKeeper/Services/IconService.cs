@@ -14,7 +14,7 @@ namespace VolumeKeeper.Services;
 public sealed class IconService(
     DispatcherQueue mainThreadQueue
 ) {
-    private readonly LoggingService _logger = App.Logger.Named();
+    private readonly Logger _logger = App.Logger.Named();
     private readonly ConcurrentDictionary<string, BitmapImage> _iconCache = new();
 
     public async Task<BitmapImage?> GetApplicationIconAsync(

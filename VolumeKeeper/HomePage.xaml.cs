@@ -16,7 +16,7 @@ namespace VolumeKeeper;
 
 public sealed partial class HomePage : Page, IDisposable
 {
-    private readonly LoggingService _logger = App.Logger.Named();
+    private readonly Logger _logger = App.Logger.Named();
     private static VolumeSettingsManager VolumeSettingsManager => App.VolumeSettingsManager;
     private static AudioSessionManager AudioSessionManager => App.AudioSessionManager;
     private static AudioSessionService AudioSessionService => App.AudioSessionService;

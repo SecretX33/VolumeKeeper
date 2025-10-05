@@ -12,7 +12,7 @@ namespace VolumeKeeper;
 
 public sealed partial class MainWindow : Window
 {
-    private readonly LoggingService _logger = App.Logger.Named();
+    private readonly Logger _logger = App.Logger.Named();
     private const WindowId WindowId = Models.WindowId.Main;
     private readonly PointInt32 _minWindowSize = new(400, 350);
     private Win32WindowHelper? _helper; // Keep a reference to prevent garbage collection

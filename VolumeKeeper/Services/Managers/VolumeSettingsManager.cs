@@ -15,7 +15,7 @@ namespace VolumeKeeper.Services.Managers;
 
 public sealed class VolumeSettingsManager
 {
-    private readonly LoggingService _logger = App.Logger.Named();
+    private readonly Logger _logger = App.Logger.Named();
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly AtomicReference<CancellationTokenSource?> _saveDebounceTokenSource = new(null);
