@@ -27,7 +27,7 @@ Ever adjust an app's volume perfectly, only to have it reset when you restart it
 
 ## Download
 
-**[⬇️ Download the Latest Release](https://github.com/yourusername/VolumeKeeper/releases/latest)**
+**[Download the Latest Release](https://github.com/SecretX33/VolumeKeeper/releases/latest)**
 
 Get the newest version of VolumeKeeper with all the latest features and improvements.
 
@@ -39,7 +39,7 @@ Get the newest version of VolumeKeeper with all the latest features and improvem
 
 ### Installing VolumeKeeper
 
-1. Download the latest release from the [releases page](https://github.com/yourusername/VolumeKeeper/releases)
+1. Download the latest release from the [releases page](https://github.com/SecretX33/VolumeKeeper/releases)
 2. Extract the ZIP file to any folder on your computer
 3. Run `VolumeKeeper.exe`
 4. VolumeKeeper will appear in your system tray (look for the icon near your clock)
