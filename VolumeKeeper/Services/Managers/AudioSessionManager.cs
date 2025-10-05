@@ -127,6 +127,12 @@ public partial class AudioSessionManager(
             var processId = (int)sessionControl.GetProcessID;
             var processInfo = fetchedProcessInfo ?? GetProcessInfoOrNull(processId);
             if (processInfo == null) return null;
+            var processDisplayName = new[]
+            {
+                sessionControl.DisplayName,
+                processInfo.DisplayName
+            }.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item))
+                ?? string.Empty;
 
 #if DEBUG
             App.Logger.LogDebug($"Creating audio session. PID={processId}, ExecutableName={processInfo.ExecutableName}, DisplayName='{processInfo.DisplayName}', ExecutablePath='{processInfo.ExecutablePath}'");
@@ -135,7 +141,7 @@ public partial class AudioSessionManager(
             return new AudioSession
             {
                 ProcessId = processId,
-                ProcessDisplayName = processInfo.DisplayName,
+                ProcessDisplayName = processDisplayName,
                 ExecutableName = processInfo.ExecutableName,
                 ExecutablePath = processInfo.ExecutablePath,
                 IconPath = sessionControl.IconPath ?? string.Empty,

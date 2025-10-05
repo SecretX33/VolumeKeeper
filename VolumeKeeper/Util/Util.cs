@@ -93,10 +93,12 @@ public static class Util
             var fullPath = process.MainModule?.FileName;
             if (string.IsNullOrWhiteSpace(fullPath)) return null;
 
+            var info = GetFileVersionInfoOrNull(processId, fullPath);
             var executableName = Path.GetFileName(fullPath);
             var displayName = new[]
                 {
                     process.MainWindowTitle,
+                    info?.FileDescription,
                     process.MainModule?.ModuleName
                 }
                 .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
@@ -111,6 +113,21 @@ public static class Util
         }
         catch
         {
+            return null;
+        }
+    }
+
+    private static FileVersionInfo? GetFileVersionInfoOrNull(
+        int processId,
+        string executablePath
+    ) {
+        try
+        {
+            return FileVersionInfo.GetVersionInfo(executablePath);
+        }
+        catch (Exception ex)
+        {
+            App.Logger.LogDebug($"Failed to get file version info for process {processId} at path: {executablePath}", ex, "Util");
             return null;
         }
     }
