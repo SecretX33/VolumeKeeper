@@ -195,7 +195,7 @@ public class VolumeSettingsManager
 
             var json = JsonSerializer.Serialize(settingsToSave, _jsonSerializerOptions);
             await File.WriteAllTextAsync(SettingsPath, json).ConfigureAwait(false);
-            App.Logger.LogInfo("Volume settings saved successfully", "VolumeSettingsManager");
+            App.Logger.LogDebug("Volume settings saved successfully", "VolumeSettingsManager");
         }
         catch (Exception ex)
         {

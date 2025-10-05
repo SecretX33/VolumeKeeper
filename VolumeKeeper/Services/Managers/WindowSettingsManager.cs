@@ -102,7 +102,7 @@ public class WindowSettingsManager
 
             var json = JsonSerializer.Serialize(_cachedSettings, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(SettingsPath, json).ConfigureAwait(false);
-            App.Logger.LogInfo("Window settings saved successfully", "WindowSettingsService");
+            App.Logger.LogDebug("Window settings saved successfully", "WindowSettingsService");
         }
         catch (Exception ex)
         {

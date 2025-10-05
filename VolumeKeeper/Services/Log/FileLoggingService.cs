@@ -1,61 +1,40 @@
 using System;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using NLog;
+using NLog.Config;
 using VolumeKeeper.Models.Log;
 using VolumeKeeper.Util;
+using LogLevel = VolumeKeeper.Models.Log.LogLevel;
 
-namespace VolumeKeeper.Services;
+namespace VolumeKeeper.Services.Log;
 
-public abstract class LoggingService
-{
-    public ObservableCollection<LogEntry> LogEntries { get; } = [];
-    public abstract Task FlushAsync();
-
-    protected abstract void Log(
-        Models.Log.LogLevel level,
-        string message,
-        string? source,
-        Exception? exception = null
-    );
-
-    public void LogDebug(string message, string? source = null) => LogDebug(message, null, source);
-    public void LogInfo(string message, string? source = null) => LogInfo(message, null, source);
-    public void LogWarning(string message, string? source = null) => LogWarning(message, null, source);
-    public void LogError(string message, string? source = null) => LogError(message, null, source);
-
-    public void LogDebug(string message, Exception? exception, string? source = null) => Log(Models.Log.LogLevel.Debug, message, source, exception);
-    public void LogInfo(string message, Exception? exception, string? source = null) => Log(Models.Log.LogLevel.Info, message, source, exception);
-    public void LogWarning(string message, Exception? exception, string? source = null) => Log(Models.Log.LogLevel.Warning, message, source, exception);
-    public void LogError(string message, Exception? exception, string? source = null) => Log(Models.Log.LogLevel.Error, message, source, exception);
-}
-
-public partial class LoggingServiceImpl : LoggingService, IDisposable
+public partial class FileLoggingService : LoggingService, IDisposable
 {
     private readonly DispatcherQueue _dispatcherQueue;
     private const int MaxInMemoryEntries = 1000;
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
-    public LoggingServiceImpl(DispatcherQueue dispatcherQueue)
+    public FileLoggingService(DispatcherQueue dispatcherQueue)
     {
         _dispatcherQueue = dispatcherQueue;
 
         // Configure NLog to use our config file
-        var configFile = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NLog.config");
-        if (System.IO.File.Exists(configFile))
+        var configFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NLog.config");
+        if (File.Exists(configFile))
         {
-            LogManager.Configuration = new NLog.Config.XmlLoggingConfiguration(configFile);
+            LogManager.Configuration = new XmlLoggingConfiguration(configFile);
         }
 
         LogInfo("VolumeKeeper logging service started", "LoggingService");
     }
 
     protected override void Log(
-        Models.Log.LogLevel level,
+        LogLevel level,
         string message,
         string? source,
         Exception? exception = null
@@ -95,25 +74,25 @@ public partial class LoggingServiceImpl : LoggingService, IDisposable
         // Map our log level to NLog level and log with exception if present
         switch (level)
         {
-            case Models.Log.LogLevel.Debug:
+            case LogLevel.Debug:
                 if (exception != null)
                     nlogLogger.Debug(exception, message);
                 else
                     nlogLogger.Debug(message);
                 break;
-            case Models.Log.LogLevel.Info:
+            case LogLevel.Info:
                 if (exception != null)
                     nlogLogger.Info(exception, message);
                 else
                     nlogLogger.Info(message);
                 break;
-            case Models.Log.LogLevel.Warning:
+            case LogLevel.Warning:
                 if (exception != null)
                     nlogLogger.Warn(exception, message);
                 else
                     nlogLogger.Warn(message);
                 break;
-            case Models.Log.LogLevel.Error:
+            case LogLevel.Error:
                 if (exception != null)
                     nlogLogger.Error(exception, message);
                 else
@@ -152,7 +131,7 @@ public partial class LoggingServiceImpl : LoggingService, IDisposable
         // Fallback to file name without extension if available
         if (!string.IsNullOrEmpty(filePath))
         {
-            var fileName = System.IO.Path.GetFileNameWithoutExtension(filePath);
+            var fileName = Path.GetFileNameWithoutExtension(filePath);
             return fileName;
         }
 

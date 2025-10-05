@@ -46,7 +46,7 @@ public sealed partial class HomePage : Page, IDisposable
         {
             if (sender is not CompactToggleSwitch toggle) return;
             VolumeSettingsManager.SetAutoRestoreEnabledAndSave(toggle.IsOn);
-            App.Logger.LogInfo($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
+            App.Logger.LogDebug($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}", "HomePage");
         }
         catch (Exception ex)
         {

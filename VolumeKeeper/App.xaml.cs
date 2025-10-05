@@ -11,10 +11,12 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using VolumeKeeper.Services;
+using VolumeKeeper.Services.Log;
 using VolumeKeeper.Services.Managers;
 using VolumeKeeper.Util;
 using static VolumeKeeper.Util.Util;
 using Application = Microsoft.UI.Xaml.Application;
+using FileLoggingService = VolumeKeeper.Services.Log.FileLoggingService;
 
 namespace VolumeKeeper;
 
@@ -25,7 +27,7 @@ public partial class App : Application
     private MainWindow? _mainWindow;
     private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
-    private static LoggingServiceImpl? _loggingService;
+    private static FileLoggingService? _loggingService;
     private static AudioSessionManager? _audioSessionManager;
     private static VolumeSettingsManager? _volumeSettingsManager;
     private static WindowSettingsManager? _windowSettingsManager;
@@ -55,7 +57,7 @@ public partial class App : Application
             }
 
             // Initialize logging service first
-            _loggingService = new LoggingServiceImpl(DispatcherQueue.GetForCurrentThread());
+            _loggingService = new FileLoggingService(DispatcherQueue.GetForCurrentThread());
             Logger.LogDebug("VolumeKeeper initialization started");
             ParseCommandLineArgs();
 
@@ -196,7 +198,7 @@ public partial class App : Application
             // Initialize core services with managers
             _audioSessionService = new AudioSessionService(_audioSessionManager, mainThreadQueue);
 
-            Logger.LogInfo("All services initialized successfully");
+            Logger.LogDebug("All services initialized successfully");
         }
         catch (Exception ex)
         {
