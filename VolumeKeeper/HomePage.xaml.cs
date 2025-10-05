@@ -81,7 +81,7 @@ public sealed partial class HomePage : Page, IDisposable
 
                 _ = audioSessionService.SetMuteSessionImmediateAsync(app.AppId, false);
                 _ = audioSessionService.SetSessionVolumeImmediate(app.AppId, lastVolume);
-                _logger.Info($"Unmuted {app.ExecutableName} (PID: {app.ProcessId}) to {lastVolume}%");
+                _logger.Info($"Unmuted {app.ExecutableName} (PID: {app.ProcessId}) to {lastVolume}");
             }
         }
         catch (Exception ex)
@@ -134,7 +134,7 @@ public sealed partial class HomePage : Page, IDisposable
                 VolumeSettingsManager.SetVolumeAndSave(app.AppId, currentVolume);
                 app.PinnedVolume = currentVolume;
 
-                _logger.Info($"Pinned volume for {app.ExecutableName} (PID: {app.ProcessId}): {currentVolume}%");
+                _logger.Info($"Pinned volume for {app.ExecutableName} (PID: {app.ProcessId}): {currentVolume}");
             }
         }
         catch (Exception ex)
@@ -154,7 +154,7 @@ public sealed partial class HomePage : Page, IDisposable
 
             AudioSessionService.SetSessionVolumeImmediate(app.AppId, savedVolume);
 
-            _logger.Info($"Reverted volume for {app.ExecutableName} (PID: {app.ProcessId}) to {savedVolume}%");
+            _logger.Info($"Reverted volume for {app.ExecutableName} (PID: {app.ProcessId}) to {savedVolume}");
         }
         catch (Exception ex)
         {

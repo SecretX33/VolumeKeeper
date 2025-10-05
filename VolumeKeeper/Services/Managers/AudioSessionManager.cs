@@ -215,7 +215,7 @@ public sealed partial class AudioSessionManager(
         {
             if (!wasSetFromProgram && pinnedVolume != null && newSession.Volume != pinnedVolume)
             {
-                _logger.Debug($"Reverting volume for {newSession.ExecutableName} (PID: {newSession.ProcessId}) to pinned volume {pinnedVolume}%");
+                _logger.Debug($"Reverting volume for {newSession.ExecutableName} (PID: {newSession.ProcessId}) to pinned volume {pinnedVolume}");
                 newSession.SetVolume(pinnedVolume.Value, setLastSet: false);
             }
             else

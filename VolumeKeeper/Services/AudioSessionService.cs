@@ -89,7 +89,7 @@ public sealed partial class AudioSessionService(
         try
         {
             session.SetVolume(volumePercentage);
-            _logger.Info($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage}%");
+            _logger.Info($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage}");
             return true;
         }
         catch (Exception ex)
