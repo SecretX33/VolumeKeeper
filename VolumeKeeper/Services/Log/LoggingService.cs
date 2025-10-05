@@ -4,7 +4,7 @@ using VolumeKeeper.Models.Log;
 
 namespace VolumeKeeper.Services.Log;
 
-public abstract class LoggingService
+public abstract class LoggingService : IDisposable
 {
     public ObservableCollection<LogEntry> LogEntries { get; } = [];
 
@@ -24,4 +24,9 @@ public abstract class LoggingService
     public void LogInfo(string message, Exception? exception, string? source = null) => Log(LogLevel.Info, message, source, exception);
     public void LogWarning(string message, Exception? exception, string? source = null) => Log(LogLevel.Warning, message, source, exception);
     public void LogError(string message, Exception? exception, string? source = null) => Log(LogLevel.Error, message, source, exception);
+
+    public virtual void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
 }

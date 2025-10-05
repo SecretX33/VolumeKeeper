@@ -30,7 +30,7 @@ public static class Util
     public static void EnsureAdminPrivileges()
     {
         if (IsElevated() || !IsAdministrator()) return;
-        Console.WriteLine("Not running with elevated privileges. Attempting to restart as administrator...");
+        App.Logger.LogDebug("Not running with elevated privileges. Attempting to restart as administrator...");
         RestartAsAdmin();
     }
 
@@ -51,12 +51,13 @@ public static class Util
 
         try
         {
-            Console.WriteLine("Restarting with elevated privileges...");
+            App.Logger.LogDebug("Restarting with elevated privileges...");
             Process.Start(startInfo);
             Application.Current.Exit(); // Close current instance
         }
         catch (Exception ex)
         {
+            App.Logger.LogError("Failed to restart as administrator", ex, "Util");
             MessageBox.Show($"Failed to restart as administrator: {ex.Message}");
         }
     }

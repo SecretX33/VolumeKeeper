@@ -27,7 +27,7 @@ public partial class App : Application
     private MainWindow? _mainWindow;
     private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
-    private static FileLoggingService? _loggingService;
+    private static LoggingService? _loggingService = new ConsoleLoggingService();
     private static AudioSessionManager? _audioSessionManager;
     private static VolumeSettingsManager? _volumeSettingsManager;
     private static WindowSettingsManager? _windowSettingsManager;
@@ -50,19 +50,20 @@ public partial class App : Application
             // Check for single instance
             if (!EnsureSingleInstance())
             {
-                Console.WriteLine("Multiple instances detected. Bringing existing instance to front and exiting.");
+                Logger.LogDebug("Multiple instances detected. Bringing existing instance to front and exiting.");
                 BringExistingInstanceToFront();
                 ExitApplication();
                 return;
             }
+            var mainThreadQueue = DispatcherQueue.GetForCurrentThread();
 
             // Initialize logging service first
-            _loggingService = new FileLoggingService(DispatcherQueue.GetForCurrentThread());
+            _loggingService = new FileLoggingService(mainThreadQueue);
             Logger.LogDebug("VolumeKeeper initialization started");
             ParseCommandLineArgs();
 
             // Initialize volume management services
-            await InitializeServicesAsync();
+            await InitializeServicesAsync(mainThreadQueue);
 
             InitializeTrayIcon();
             if (!_startMinimized) ShowMainWindow();
@@ -111,7 +112,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Failed to bring existing instance to front: " + ex.Message);
+            Logger.LogError("Failed to bring existing instance to front", ex);
         }
     }
 
@@ -174,14 +175,13 @@ public partial class App : Application
         }
     }
 
-    private async Task InitializeServicesAsync()
+    private async Task InitializeServicesAsync(DispatcherQueue mainThreadQueue)
     {
         try
         {
             Logger.LogDebug("Initializing volume management services");
 
             // Initialize settings managers first
-            var mainThreadQueue = DispatcherQueue.GetForCurrentThread();
             var iconService = new IconService(mainThreadQueue);
 
             _volumeSettingsManager = new VolumeSettingsManager();

@@ -137,7 +137,7 @@ public partial class FileLoggingService : LoggingService, IDisposable
         return "Unknown";
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         if (!_isDisposed.CompareAndSet(false, true)) return;
 
