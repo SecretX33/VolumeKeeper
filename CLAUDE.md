@@ -235,10 +235,10 @@ The main feature of VolumeKeeper is to persist and restore application volume le
 - Store as percentage values (0-100) for user clarity
 
 #### Application Matching
-- Match applications EXCLUSIVELY by executable name
-- Case-insensitive matching (e.g., "Firefox.exe" = "firefox.exe")
+- Match applications by full executable path
+- Case-insensitive matching (e.g., "C:\Firefox\firefox.exe" = "c:\firefox\FIREFOX.EXE")
+- Different installations of the same executable can have different pinned volumes
 - Ignore all other attributes:
-  - File path
   - Icon
   - File hash
   - Command line arguments
@@ -246,7 +246,7 @@ The main feature of VolumeKeeper is to persist and restore application volume le
 
 #### Volume Restoration
 - Detect when applications launch
-- Check if saved volume exists for the executable
+- Check if saved volume exists for the executable path
 - Automatically apply the saved volume level
 - Log all restoration activities
 
