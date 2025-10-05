@@ -13,14 +13,14 @@ using static VolumeKeeper.Util.Util;
 namespace VolumeKeeper.Services;
 
 public partial class AudioSessionService(
-    AudioSessionManager sessionManager
+    AudioSessionManager sessionManager,
+    DispatcherQueue mainThreadQueue
 ) : IDisposable
 {
     private const int VolumeDebounceDelayMs = 300;
     private readonly ConcurrentDictionary<VolumeApplicationId, CancellationTokenSource> _volumeDebounceTokens = new();
     private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);
     private readonly AtomicReference<bool> _isDisposed = new(false);
-    private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
     public Task<bool> SetSessionVolumeAsync(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
@@ -46,7 +46,7 @@ public partial class AudioSessionService(
                     await _volumeSetSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
-                        return await _dispatcherQueue.TryFetch(() => SetSessionVolumeImmediate(volumeApplicationId, volumePercentage))
+                        return await mainThreadQueue.TryFetch(() => SetSessionVolumeImmediate(volumeApplicationId, volumePercentage))
                             .ConfigureAwait(false);
                     }
                     finally
@@ -74,7 +74,7 @@ public partial class AudioSessionService(
 
     public bool SetSessionVolumeImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
-        if (!_dispatcherQueue.HasThreadAccess)
+        if (!mainThreadQueue.HasThreadAccess)
             throw new InvalidOperationException($"{nameof(SetSessionVolumeImmediate)} must be called on the UI thread");
 
         var session = sessionManager.GetSessionById(volumeApplicationId);

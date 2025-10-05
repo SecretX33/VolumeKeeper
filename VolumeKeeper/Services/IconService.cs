@@ -10,10 +10,10 @@ using VolumeKeeper.Util;
 
 namespace VolumeKeeper.Services;
 
-public class IconService
-{
+public class IconService(
+    DispatcherQueue mainThreadQueue
+) {
     private readonly ConcurrentDictionary<string, BitmapImage> _iconCache = new();
-    private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
     public async Task<BitmapImage?> GetApplicationIconAsync(
         string iconPath,
@@ -99,7 +99,7 @@ public class IconService
         bitmap.Save(memoryStream, ImageFormat.Png);
         memoryStream.Position = 0;
 
-        var bitmapImageTask = await _dispatcherQueue.TryFetch(async () =>
+        var bitmapImageTask = await mainThreadQueue.TryFetch(async () =>
         {
             var bitmapImage = new BitmapImage();
             // ReSharper disable once AccessToDisposedClosure
