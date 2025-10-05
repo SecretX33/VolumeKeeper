@@ -11,7 +11,7 @@ namespace VolumeKeeper.Services.Log;
  */
 public partial class ConsoleLoggingService : LoggingService
 {
-    protected override void Log(
+    public override void Log(
         LogLevel level,
         string message,
         string? source,

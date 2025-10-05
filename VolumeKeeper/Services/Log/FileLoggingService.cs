@@ -12,7 +12,7 @@ using LogLevel = VolumeKeeper.Models.Log.LogLevel;
 
 namespace VolumeKeeper.Services.Log;
 
-public partial class FileLoggingService : LoggingService, IDisposable
+public sealed partial class FileLoggingService : LoggingService
 {
     private readonly DispatcherQueue _dispatcherQueue;
     private const int MaxInMemoryEntries = 1000;
@@ -32,7 +32,7 @@ public partial class FileLoggingService : LoggingService, IDisposable
         LogInfo("VolumeKeeper logging service started", "LoggingService");
     }
 
-    protected override void Log(
+    public override void Log(
         LogLevel level,
         string message,
         string? source,
@@ -152,6 +152,6 @@ public partial class FileLoggingService : LoggingService, IDisposable
             // Ignore exceptions during dispose
         }
 
-        GC.SuppressFinalize(this);
+        base.Dispose();
     }
 }

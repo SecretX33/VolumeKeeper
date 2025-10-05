@@ -8,7 +8,7 @@ public abstract class LoggingService : IDisposable
 {
     public ObservableCollection<LogEntry> LogEntries { get; } = [];
 
-    protected abstract void Log(
+    public abstract void Log(
         LogLevel level,
         string message,
         string? source,
