@@ -187,13 +187,13 @@ public partial class AudioSessionManager(
                 }
             });
             RestoreSessionVolume(newSession);
-            LoadApplicationIconAsync(newSession);
             observableSession = newSession;
             AudioSessions.Add(observableSession);
         }
 
         observableSession.AudioSession = session;
         observableSession.PinnedVolume = savedVolume;
+        LoadApplicationIconAsync(observableSession);
     }
 
     private void RestoreSessionVolume(ObservableAudioSession newSession)
