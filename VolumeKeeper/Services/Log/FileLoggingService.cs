@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using Microsoft.UI.Dispatching;
 using NLog;
 using NLog.Config;
@@ -9,14 +10,18 @@ using LogLevel = VolumeKeeper.Models.Log.LogLevel;
 
 namespace VolumeKeeper.Services.Log;
 
+// ReSharper disable ExplicitCallerInfoArgument
 public sealed partial class FileLoggingService : LoggingService
 {
     private readonly DispatcherQueue _dispatcherQueue;
     private const int MaxInMemoryEntries = 1000;
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
-    public FileLoggingService(DispatcherQueue dispatcherQueue)
-    {
+    public FileLoggingService(
+        DispatcherQueue dispatcherQueue,
+        string? defaultSource = null,
+        [CallerFilePath] string callerFilePath = ""
+    ) : base(defaultSource, callerFilePath) {
         _dispatcherQueue = dispatcherQueue;
 
         // Configure NLog to use our config file
@@ -29,10 +34,10 @@ public sealed partial class FileLoggingService : LoggingService
         LogInfo("VolumeKeeper logging service started", "LoggingService");
     }
 
-    public override void Log(
+    protected override void LogInternal(
         LogLevel level,
         string message,
-        string? source,
+        string source,
         Exception? exception = null
     ) {
         if (_isDisposed.Get()) return;
@@ -96,6 +101,9 @@ public sealed partial class FileLoggingService : LoggingService
                 throw new ArgumentOutOfRangeException(nameof(level), level, null);
         }
     }
+
+    public override LoggingService Named(string? source = null, [CallerFilePath] string callerFilePath = "") =>
+        new FileLoggingService(_dispatcherQueue, source, callerFilePath);
 
     public override void Dispose()
     {
