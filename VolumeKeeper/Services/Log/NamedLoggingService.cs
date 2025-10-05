@@ -10,48 +10,63 @@ namespace VolumeKeeper.Services.Log;
 
 public sealed partial class NamedLoggingService : LoggingService
 {
-    private readonly LoggingService _delegate;
+    public LoggingService Delegate { get; }
     private readonly string? _defaultSource;
-    public new ObservableCollection<LogEntry> LogEntries => _delegate.LogEntries;
 
-    public NamedLoggingService(LoggingService loggerDelegate, string? source = null)
+    public NamedLoggingService(LoggingService loggerDelegate, string? source, string filePath)
     {
-        _delegate = loggerDelegate;
-        _defaultSource = source ?? InferSource();
+        Delegate = loggerDelegate;
+        _defaultSource = source ?? InferSource(filePath);
     }
 
     public override void Log(LogLevel level, string message, string? source, Exception? exception = null)
     {
         source ??= _defaultSource;
-        _delegate.Log(level, message, source, exception);
+        Delegate.Log(level, message, source, exception);
     }
 
-    private string? InferSource([CallerFilePath] string filePath = "")
+    private string? InferSource(string filePath)
     {
-        var stackTrace = new StackTrace(true);
-        var frames = stackTrace.GetFrames();
-
-        // Skip frames from NamedLoggingService itself
-        foreach (var frame in frames.Skip(1))
+        try
         {
-            var method = frame.GetMethod();
-            if (method?.DeclaringType == null ||
-                !method.DeclaringType.FullName?.Contains("LoggingService") != true) continue;
+            var stackTrace = new StackTrace(true);
+            var frames = stackTrace.GetFrames();
 
-            var className = method.DeclaringType.Name;
-            if (!method.DeclaringType.IsGenericType) return className;
+            // Skip frames from NamedLoggingService itself
+            foreach (var frame in frames.Skip(1))
+            {
+                var method = frame.GetMethod();
+                if (method?.DeclaringType == null ||
+                    !method.DeclaringType.FullName?.Contains("LoggingService") != true) continue;
 
-            var genericTypeName = method.DeclaringType.GetGenericTypeDefinition().Name;
-            className = genericTypeName.Contains('`')
-                ? genericTypeName.Substring(0, genericTypeName.IndexOf('`'))
-                : genericTypeName;
-            return className;
+                var className = method.DeclaringType.FullName ?? method.DeclaringType.Name;
+                if (className.Contains('+')) // Nested class
+                {
+                    className = className.Substring(0, className.IndexOf('+'));
+                }
+                if (className.Contains('.')) // Namespace present
+                {
+                    className = className.Substring(className.LastIndexOf('.') + 1);
+                }
+
+                if (!method.DeclaringType.IsGenericType) return className;
+
+                var genericTypeName = method.DeclaringType.GetGenericTypeDefinition().Name;
+                className = genericTypeName.Contains('`')
+                    ? genericTypeName.Substring(0, genericTypeName.IndexOf('`'))
+                    : genericTypeName;
+                return className;
+            }
+
+            // Fallback to file name
+            if (!string.IsNullOrEmpty(filePath))
+            {
+                return Path.GetFileNameWithoutExtension(filePath);
+            }
         }
-
-        // Fallback to file name
-        if (!string.IsNullOrEmpty(filePath))
+        catch (Exception)
         {
-            return Path.GetFileNameWithoutExtension(filePath);
+            // Ignore any errors in source inference
         }
 
         return null;
@@ -61,7 +76,7 @@ public sealed partial class NamedLoggingService : LoggingService
     {
         try
         {
-            _delegate.Dispose();
+            Delegate.Dispose();
         }
         finally
         {

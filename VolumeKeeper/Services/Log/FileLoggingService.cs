@@ -1,8 +1,5 @@
 using System;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using Microsoft.UI.Dispatching;
 using NLog;
 using NLog.Config;
@@ -43,8 +40,6 @@ public sealed partial class FileLoggingService : LoggingService
         var details = exception != null
             ? $"{exception.GetType().Name}: {exception.Message}"
             : null;
-
-        source ??= GetCallerSource();
 
         // Create log entry for UI
         var entry = new LogEntry
@@ -100,41 +95,6 @@ public sealed partial class FileLoggingService : LoggingService
             default:
                 throw new ArgumentOutOfRangeException(nameof(level), level, null);
         }
-    }
-
-    private string GetCallerSource([CallerMemberName] string memberName = "", [CallerFilePath] string filePath = "")
-    {
-        // Try to get a more meaningful source from the stack trace
-        var stackTrace = new StackTrace(true);
-        var frames = stackTrace.GetFrames();
-
-        // Skip frames from LoggingService itself
-        foreach (var frame in frames.Skip(2))
-        {
-            var method = frame.GetMethod();
-            if (method?.DeclaringType != null &&
-                !method.DeclaringType.FullName?.Contains("LoggingService") == true)
-            {
-                var className = method.DeclaringType.Name;
-                if (method.DeclaringType.IsGenericType)
-                {
-                    var genericTypeName = method.DeclaringType.GetGenericTypeDefinition().Name;
-                    className = genericTypeName.Contains('`')
-                        ? genericTypeName.Substring(0, genericTypeName.IndexOf('`'))
-                        : genericTypeName;
-                }
-                return className;
-            }
-        }
-
-        // Fallback to file name without extension if available
-        if (!string.IsNullOrEmpty(filePath))
-        {
-            var fileName = Path.GetFileNameWithoutExtension(filePath);
-            return fileName;
-        }
-
-        return "Unknown";
     }
 
     public override void Dispose()

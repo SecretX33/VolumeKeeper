@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VolumeKeeper.Controls;
 using VolumeKeeper.Models.Log;
+using VolumeKeeper.Services.Log;
 using VolumeKeeper.Services.Managers;
 using VolumeKeeper.Util;
 
@@ -11,7 +12,7 @@ namespace VolumeKeeper;
 
 public sealed partial class LogsPage : Page
 {
-    public ObservableCollection<LogEntry> LogEntries => App.Logger.LogEntries;
+    public ObservableCollection<LogEntry> LogEntries => LoggingService.LogEntries;
     private static VolumeSettingsManager VolumeSettingsManager => App.VolumeSettingsManager;
 
     public LogsPage()
