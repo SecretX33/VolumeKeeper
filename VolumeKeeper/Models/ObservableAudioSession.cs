@@ -51,7 +51,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
                 changedProperties.Add(nameof(Volume));
                 changedProperties.Add(nameof(VolumeDisplayText));
                 changedProperties.Add(nameof(HasUnsavedChanges));
-                changedProperties.Add(nameof(VolumeIcon));
+                changedProperties.Add(nameof(VolumeIconGlyph));
                 changedProperties.Add(nameof(RevertButtonVisibility));
             }
             IsMuted = value.IsMuted;
@@ -136,7 +136,20 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
 
     public Visibility RevertButtonVisibility => HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
 
-    public Symbol VolumeIcon => Volume == 0 || IsMuted ? Symbol.Mute : Symbol.Volume;
+    public string VolumeIconGlyph
+    {
+        get
+        {
+            if (IsMuted) return "\uE74F"; // Mute (speaker with X)
+            return Volume switch
+            {
+                0 => "\uE992",
+                < 33 => "\uE993",
+                < 66 => "\uE994",
+                _ => "\uE995"
+            };
+        }
+    }
 
     public void NotifyVolumeOrMuteChanged()
     {
@@ -144,7 +157,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsMuted));
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(VolumeDisplayText));
-        OnPropertyChanged(nameof(VolumeIcon));
+        OnPropertyChanged(nameof(VolumeIconGlyph));
         OnPropertyChanged(nameof(RevertButtonVisibility));
     }
 
