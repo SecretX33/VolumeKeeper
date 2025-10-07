@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using NAudio.CoreAudioApi;
 using VolumeKeeper.Services.Managers;
@@ -143,10 +142,10 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
             if (IsMuted) return "\uE74F"; // Mute (speaker with X)
             return Volume switch
             {
-                0 => "\uE992",
-                < 33 => "\uE993",
-                < 66 => "\uE994",
-                _ => "\uE995"
+                0 => "\uE992",    // Volume 0 (zero)
+                < 33 => "\uE993", // Volume 1 (low)
+                < 66 => "\uE994", // Volume 2 (medium)
+                _ => "\uE995"     // Volume 3 (high)
             };
         }
     }
