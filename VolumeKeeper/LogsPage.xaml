@@ -92,7 +92,7 @@
                 Grid.Row="2"
                 VerticalAlignment="Center"
                 HorizontalAlignment="Center"
-                Spacing="16"
+                Spacing="42"
                 Visibility="Collapsed">
       <SymbolIcon Symbol="List"
                   RenderTransformOrigin="0.5,0.5">
@@ -100,14 +100,20 @@
           <CompositeTransform ScaleX="4" ScaleY="4" />
         </SymbolIcon.RenderTransform>
       </SymbolIcon>
-      <TextBlock Text="No activity yet"
-                 Style="{ThemeResource SubtitleTextBlockStyle}"
-                 Opacity="0.6"
-                 HorizontalAlignment="Center" />
-      <TextBlock Text="Volume changes and events will appear here"
-                 Style="{ThemeResource CaptionTextBlockStyle}"
-                 Opacity="0.4"
-                 HorizontalAlignment="Center" />
+
+      <StackPanel VerticalAlignment="Center"
+                  HorizontalAlignment="Center"
+                  Spacing="8"
+                  Visibility="Visible">
+        <TextBlock Text="No activity yet"
+                   Style="{ThemeResource SubtitleTextBlockStyle}"
+                   Opacity="0.6"
+                   HorizontalAlignment="Center" />
+        <TextBlock Text="Volume changes and events will appear here"
+                   Style="{ThemeResource CaptionTextBlockStyle}"
+                   Opacity="0.4"
+                   HorizontalAlignment="Center" />
+      </StackPanel>
     </StackPanel>
   </Grid>
 </Page>

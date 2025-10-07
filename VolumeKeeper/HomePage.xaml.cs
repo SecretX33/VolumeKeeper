@@ -64,20 +64,16 @@ public sealed partial class HomePage : Page, IDisposable
 
             var audioSessionService = App.AudioSessionService;
 
-            if (app is { IsMuted: false, Volume: > 0 })
+            if (!app.IsMuted)
             {
-                // Store current volume before muting
-                VolumeSettingsManager.SetLastVolumeBeforeMuteAndSave(app.AppId, app.Volume);
-
                 // Mute
-                audioSessionService.SetMuteSessionImmediate(app.AppId, true);
-                _logger.Info($"Muted {app.ExecutableName} (PID: {app.ProcessId}) (saved volume: {VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId)}");
+                audioSessionService.SetMuteSessionImmediate(app.AppId, mute: true);
+                _logger.Info($"Muted {app.ExecutableName} (PID: {app.ProcessId})");
             }
             else
             {
-                var lastVolume = VolumeSettingsManager.GetLastVolumeBeforeMute(app.AppId) ?? (app.Volume <= 0 ? 100 : app.Volume);
-                VolumeSettingsManager.DeleteLastVolumeBeforeMuteAndSave(app.AppId);
-                audioSessionService.SetSessionVolumeAndMuteImmediate(app.AppId, lastVolume, false);
+                // Unmute
+                audioSessionService.SetMuteSessionImmediate(app.AppId, mute: false);
             }
         }
         catch (Exception ex)
@@ -99,6 +95,7 @@ public sealed partial class HomePage : Page, IDisposable
             if (sender is not Slider { Tag: ObservableAudioSession app } || string.IsNullOrEmpty(app.ExecutableName)) return;
 
             var newVolume = (int)e.NewValue;
+            if (app.Volume == newVolume) return;
 
             // Update the audio session volume
             await App.AudioSessionService.SetSessionVolumeAsync(app.AppId, newVolume);

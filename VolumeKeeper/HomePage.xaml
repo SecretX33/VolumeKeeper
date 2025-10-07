@@ -1,7 +1,6 @@
 ﻿<Page x:Class="VolumeKeeper.HomePage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      xmlns:local="using:VolumeKeeper"
       xmlns:models="using:VolumeKeeper.Models"
       xmlns:controls="using:VolumeKeeper.Controls">
 
@@ -136,7 +135,8 @@
                         Background="Transparent"
                         BorderThickness="0"
                         Padding="4">
-                  <SymbolIcon Symbol="{x:Bind VolumeIcon, Mode=OneWay}" />
+                  <FontIcon Glyph="{x:Bind VolumeIconGlyph, Mode=OneWay}"
+                            FontFamily="{StaticResource SymbolThemeFontFamily}" />
                 </Button>
                 <Slider Value="{x:Bind Volume, Mode=TwoWay}"
                         Minimum="0"

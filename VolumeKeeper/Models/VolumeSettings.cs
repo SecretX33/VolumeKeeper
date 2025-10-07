@@ -16,8 +16,7 @@ public sealed record VolumeSettings {
 public sealed record ApplicationVolumeConfig(
     [property: JsonConverter(typeof(ApplicationIdJsonConverter))]
     VolumeApplicationId Id,
-    int? Volume,
-    int? LastVolumeBeforeMute = null
+    int? Volume
 );
 
 public sealed class VolumeApplicationId {

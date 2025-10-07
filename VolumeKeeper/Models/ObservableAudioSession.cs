@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using NAudio.CoreAudioApi;
+using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper.Models;
 
@@ -14,6 +14,18 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
     private AudioSession? _audioSession;
     private int? _pinnedVolume;
     public DateTimeOffset? LastTimeVolumeOrMuteWereManuallySet { get; private set; }
+    public ConfigurableAudioSessionEventsHandler? EventHandler { get; set; }
+    private static readonly TimeSpan VolumeChangedFromProgramThreshold = TimeSpan.FromMilliseconds(200);
+
+    public bool WasAudioChangedFromWithinThisProgram
+    {
+        get
+        {
+            var value = LastTimeVolumeOrMuteWereManuallySet;
+            if (value == null) return false;
+            return DateTimeOffset.Now - value < VolumeChangedFromProgramThreshold;
+        }
+    }
 
     public AudioSession AudioSession
     {
@@ -38,7 +50,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
                 changedProperties.Add(nameof(Volume));
                 changedProperties.Add(nameof(VolumeDisplayText));
                 changedProperties.Add(nameof(HasUnsavedChanges));
-                changedProperties.Add(nameof(VolumeIcon));
+                changedProperties.Add(nameof(VolumeIconGlyph));
                 changedProperties.Add(nameof(RevertButtonVisibility));
             }
             IsMuted = value.IsMuted;
@@ -123,7 +135,20 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
 
     public Visibility RevertButtonVisibility => HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
 
-    public Symbol VolumeIcon => Volume == 0 || IsMuted ? Symbol.Mute : Symbol.Volume;
+    public string VolumeIconGlyph
+    {
+        get
+        {
+            if (IsMuted) return "\uE74F"; // Mute (speaker with X)
+            return Volume switch
+            {
+                0 => "\uE992",    // Volume 0 (zero)
+                < 33 => "\uE993", // Volume 1 (low)
+                < 66 => "\uE994", // Volume 2 (medium)
+                _ => "\uE995"     // Volume 3 (high)
+            };
+        }
+    }
 
     public void NotifyVolumeOrMuteChanged()
     {
@@ -131,7 +156,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsMuted));
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(VolumeDisplayText));
-        OnPropertyChanged(nameof(VolumeIcon));
+        OnPropertyChanged(nameof(VolumeIconGlyph));
         OnPropertyChanged(nameof(RevertButtonVisibility));
     }
 
