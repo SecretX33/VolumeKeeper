@@ -16,6 +16,17 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
     private int? _pinnedVolume;
     public DateTimeOffset? LastTimeVolumeOrMuteWereManuallySet { get; private set; }
     public ConfigurableAudioSessionEventsHandler? EventHandler { get; set; }
+    private static readonly TimeSpan VolumeChangedFromProgramThreshold = TimeSpan.FromMilliseconds(200);
+
+    public bool WasAudioChangedFromWithinThisProgram
+    {
+        get
+        {
+            var value = LastTimeVolumeOrMuteWereManuallySet;
+            if (value == null) return false;
+            return DateTimeOffset.Now - value < VolumeChangedFromProgramThreshold;
+        }
+    }
 
     public AudioSession AudioSession
     {

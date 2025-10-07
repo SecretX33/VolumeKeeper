@@ -21,7 +21,6 @@ public sealed partial class AudioSessionManager(
 ) : IDisposable
 {
     private readonly Logger _logger = App.Logger.Named();
-    private readonly TimeSpan _volumeChangedFromProgramThreshold = TimeSpan.FromMilliseconds(200);
     private readonly MMDeviceEnumerator _deviceEnumerator = new();
     private readonly AtomicReference<MMDevice?> _defaultDevice = new(null);
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
@@ -175,11 +174,7 @@ public sealed partial class AudioSessionManager(
             };
             var eventHandler = new ConfigurableAudioSessionEventsHandler
             {
-                OnVolumeChangedHandler = (_, _) =>
-                {
-                    _logger.Debug($"App volume {newSession.ExecutableName} (PID: {newSession.ProcessId}) changed to {newSession.Volume}");
-                    RestoreSessionVolume(newSession);
-                },
+                OnVolumeChangedHandler = (_, _) => RestoreSessionVolumeAndNotifyChanges(newSession),
 
                 OnSessionDisconnectedHandler = _ =>
                 {
@@ -197,7 +192,7 @@ public sealed partial class AudioSessionManager(
             };
             session.SessionControl.RegisterEventClient(eventHandler);
             newSession.EventHandler = eventHandler;
-            RestoreSessionVolume(newSession);
+            RestoreSessionVolumeAndNotifyChanges(newSession);
             observableSession = newSession;
             AudioSessions.Add(observableSession);
         }
@@ -228,19 +223,17 @@ public sealed partial class AudioSessionManager(
         AudioSessions.Remove(session);
     }
 
-    private void RestoreSessionVolume(ObservableAudioSession newSession)
+    private void RestoreSessionVolumeAndNotifyChanges(ObservableAudioSession newSession)
     {
-        if (!volumeSettingsManager.AutoRestoreEnabled) return;
-
+        var autoRestoreEnabled = volumeSettingsManager.AutoRestoreEnabled;
+        var wasSetFromProgram = newSession.WasAudioChangedFromWithinThisProgram;
         var pinnedVolume = newSession.PinnedVolume;
-        var wasSetFromProgram = newSession.LastTimeVolumeOrMuteWereManuallySet.HasValue
-            && (DateTimeOffset.Now - newSession.LastTimeVolumeOrMuteWereManuallySet).Value < _volumeChangedFromProgramThreshold;
 
-        mainThreadQueue.TryEnqueue(() =>
+        mainThreadQueue.TryEnqueueImmediate(() =>
         {
-            if (!wasSetFromProgram && pinnedVolume != null && newSession.Volume != pinnedVolume)
+            if (autoRestoreEnabled && !wasSetFromProgram && pinnedVolume != null && newSession.Volume != pinnedVolume)
             {
-                _logger.Debug($"Reverting volume for {newSession.ExecutableName} (PID: {newSession.ProcessId}) to pinned volume {pinnedVolume}");
+                _logger.Debug($"App volume {newSession.ExecutableName} (PID: {newSession.ProcessId}) was changed to {newSession.Volume}, reverting it to pinned volume {pinnedVolume}");
                 newSession.SetVolume(pinnedVolume.Value, setLastSet: false);
             }
             else

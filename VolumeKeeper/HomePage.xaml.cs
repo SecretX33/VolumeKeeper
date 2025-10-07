@@ -99,6 +99,7 @@ public sealed partial class HomePage : Page, IDisposable
             if (sender is not Slider { Tag: ObservableAudioSession app } || string.IsNullOrEmpty(app.ExecutableName)) return;
 
             var newVolume = (int)e.NewValue;
+            if (app.Volume == newVolume) return;
 
             // Update the audio session volume
             await App.AudioSessionService.SetSessionVolumeAsync(app.AppId, newVolume);
