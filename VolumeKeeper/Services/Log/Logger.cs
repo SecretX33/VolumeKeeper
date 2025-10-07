@@ -28,7 +28,7 @@ public abstract class Logger : IDisposable
 
     /**
      * Creates a named logging service that prefixes all log entries with the specified source name,
-     * or infers it from the caller's data.
+     * or infers it from the caller's data if source is not provided.
      */
     public Logger Named(string? source = null, [CallerFilePath] string filePath = "")
     {

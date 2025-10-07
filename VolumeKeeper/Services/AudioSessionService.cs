@@ -26,16 +26,16 @@ public sealed partial class AudioSessionService(
 
     public Task<bool> SetSessionVolumeAsync(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
+        // Create new cancellation token for this debounce
+        var cancellationTokenSource = _volumeDebounceTokens.AddOrUpdate(volumeApplicationId, _ => new CancellationTokenSource(), (_, oldValue) =>
+        {
+            oldValue.Cancel();
+            return new CancellationTokenSource();
+        });
+        var cancellationToken = cancellationTokenSource.Token;
+
         return Task.Run(async () =>
         {
-            // Create new cancellation token for this debounce
-            using var cancellationTokenSource = _volumeDebounceTokens.AddOrUpdate(volumeApplicationId, _ => new CancellationTokenSource(), (_, oldValue) =>
-            {
-                oldValue.Cancel();
-                return new CancellationTokenSource();
-            });
-            var cancellationToken = cancellationTokenSource.Token;
-
             try
             {
                 // Wait for debounce period
@@ -81,7 +81,7 @@ public sealed partial class AudioSessionService(
         var session = sessionManager.GetSessionById(volumeApplicationId);
         if (session == null)
         {
-            _logger.Warn($"No audio session found for {volumeApplicationId}");
+            _logger.Warn($"No audio session found for {volumeApplicationId}, could not set volume to {volumePercentage}");
             return false;
         }
 
@@ -105,7 +105,7 @@ public sealed partial class AudioSessionService(
         var session = sessionManager.GetSessionById(volumeApplicationId);
         if (session == null)
         {
-            _logger.Warn($"No audio session found for {volumeApplicationId}");
+            _logger.Warn($"No audio session found for {volumeApplicationId}, could not set mute to {mute}");
             return false;
         }
 
@@ -129,7 +129,7 @@ public sealed partial class AudioSessionService(
         var session = sessionManager.GetSessionById(volumeApplicationId);
         if (session == null)
         {
-            _logger.Warn($"No audio session found for {volumeApplicationId}");
+            _logger.Warn($"No audio session found for {volumeApplicationId}, could not set volume to {volumePercentage} and mute to '{mute}'");
             return false;
         }
 

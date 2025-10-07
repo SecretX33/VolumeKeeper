@@ -42,21 +42,23 @@ internal sealed partial class NamedLogger : Logger
                     !method.DeclaringType.FullName?.Contains("Logger") != true) continue;
 
                 var className = method.DeclaringType.FullName ?? method.DeclaringType.Name;
-                if (className.Contains('+')) // Nested class
+                if (className.Contains('+')) // Nested class, e.g. 'VolumeKeeper.App+<OnLaunched>d__21' -> 'VolumeKeeper.App'
                 {
                     className = className.Substring(0, className.IndexOf('+'));
                 }
-                if (className.Contains('.')) // Namespace present
+                if (className.Contains('.')) // Namespace present, 'VolumeKeeper.App' -> 'App'
                 {
                     className = className.Substring(className.LastIndexOf('.') + 1);
                 }
 
                 if (!method.DeclaringType.IsGenericType) return className;
 
-                var genericTypeName = method.DeclaringType.GetGenericTypeDefinition().Name;
-                className = genericTypeName.Contains('`')
-                    ? genericTypeName.Substring(0, genericTypeName.IndexOf('`'))
-                    : genericTypeName;
+                className = method.DeclaringType.GetGenericTypeDefinition().Name;
+                if (className.Contains('`'))
+                {
+                    className = className.Substring(0, className.IndexOf('`'));
+                }
+
                 return className;
             }
 
