@@ -120,31 +120,6 @@ public sealed partial class AudioSessionService(
             _logger.Error($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex);
             return false;
         }
-}
-
-    public bool SetSessionVolumeAndMuteImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage, bool mute)
-    {
-        RequireMainThreadAccess();
-
-        var session = sessionManager.GetSessionById(volumeApplicationId);
-        if (session == null)
-        {
-            _logger.Warn($"No audio session found for {volumeApplicationId}, could not set volume to {volumePercentage} and mute to '{mute}'");
-            return false;
-        }
-
-        try
-        {
-            session.SetVolume(volumePercentage);
-            session.IsMuted = mute;
-            _logger.Info($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage} and {(mute ? "muted" : "unmuted")}");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Failed to set volume and mute for {session.ExecutableName} (PID: {session.ProcessId})", ex);
-            return false;
-        }
     }
 
     private void RequireMainThreadAccess([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
