@@ -110,7 +110,7 @@ public sealed partial class AudioSessionManager(
                 foreach (var session in sessionsToRemove)
                 {
                     _logger.Info($"Audio session ended for {session.ExecutableName} (PID: {session.ProcessId})");
-                    AudioSessions.Remove(session);
+                    RemoveSession(session);
                 }
             });
         }
@@ -173,7 +173,7 @@ public sealed partial class AudioSessionManager(
                 AudioSession = session,
                 PinnedVolume = savedVolume
             };
-            session.SessionControl.RegisterEventClient(new ConfigurableAudioSessionEventsHandler
+            var eventHandler = new ConfigurableAudioSessionEventsHandler
             {
                 OnVolumeChangedHandler = (_, _) =>
                 {
@@ -184,7 +184,7 @@ public sealed partial class AudioSessionManager(
                 OnSessionDisconnectedHandler = _ =>
                 {
                     _logger.Debug($"Audio session disconnected for {newSession.ExecutableName} (PID: {newSession.ProcessId})");
-                    mainThreadQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
+                    mainThreadQueue.TryEnqueueImmediate(() => RemoveSession(newSession));
                 },
 
                 OnStateChangedHandler = state =>
@@ -192,9 +192,11 @@ public sealed partial class AudioSessionManager(
                     if (state != AudioSessionState.AudioSessionStateExpired) return;
 
                     _logger.Debug($"Audio session expired for {newSession.ExecutableName} (PID: {newSession.ProcessId})");
-                    mainThreadQueue.TryEnqueueImmediate(() => AudioSessions.Remove(newSession));
+                    mainThreadQueue.TryEnqueueImmediate(() => RemoveSession(newSession));
                 }
-            });
+            };
+            session.SessionControl.RegisterEventClient(eventHandler);
+            newSession.EventHandler = eventHandler;
             RestoreSessionVolume(newSession);
             observableSession = newSession;
             AudioSessions.Add(observableSession);
@@ -203,6 +205,27 @@ public sealed partial class AudioSessionManager(
         observableSession.AudioSession = session;
         observableSession.PinnedVolume = savedVolume;
         LoadApplicationIconAsync(observableSession);
+    }
+
+    private void RemoveSession(ObservableAudioSession session)
+    {
+        if (!mainThreadQueue.HasThreadAccess)
+            throw new InvalidOperationException("RemoveSession must be called on the UI thread.");
+
+        try
+        {
+            if (session.EventHandler != null)
+            {
+                session.SessionControl.UnRegisterEventClient(session.EventHandler);
+                session.EventHandler = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Failed to unregister event client for {session.ExecutableName} (PID: {session.ProcessId})", ex);
+        }
+
+        AudioSessions.Remove(session);
     }
 
     private void RestoreSessionVolume(ObservableAudioSession newSession)

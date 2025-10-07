@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using NAudio.CoreAudioApi;
+using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper.Models;
 
@@ -14,6 +15,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
     private AudioSession? _audioSession;
     private int? _pinnedVolume;
     public DateTimeOffset? LastTimeVolumeOrMuteWereManuallySet { get; private set; }
+    public ConfigurableAudioSessionEventsHandler? EventHandler { get; set; }
 
     public AudioSession AudioSession
     {
