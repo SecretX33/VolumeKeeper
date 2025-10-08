@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using Windows.Graphics;
 using H.NotifyIcon;
 using Microsoft.UI.Windowing;
@@ -28,6 +31,11 @@ public sealed partial class MainWindow : Window
         Activated += MainWindow_Activated;
         NavigationViewControl.SelectedItem = NavigationViewControl.MenuItems[0];
         NavigateToPage("Home");
+    }
+
+    public void OnShow()
+    {
+        CentralizeWindowIfVisibleAndOutOfBounds();
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -126,28 +134,26 @@ public sealed partial class MainWindow : Window
 
     private bool IsWindowOutOfBounds(AppWindow appWindow)
     {
-        // Get the primary display work area
-        var displayArea = DisplayArea.Primary;
-        if (displayArea == null)
+        var screens = Screen.AllScreens;
+        var isWindowOutOfBoundsOnAllScreens = screens.Select(screen =>
         {
-            _logger.Warn("Failed to get primary display area, thus couldn't determine if window is out of bounds");
-            return false;
-        }
+            var workArea = screen.WorkingArea;
+            var windowPosition = appWindow.Position;
+            var windowSize = appWindow.Size;
 
-        var workArea = displayArea.WorkArea;
-        var windowPosition = appWindow.Position;
-        var windowSize = appWindow.Size;
+            var workAreaStartBounds = workArea;
+            var workAreaEndBounds = new PointInt32(workArea.X + workArea.Width, workArea.Y + workArea.Height);
 
-        var workAreaStartBounds = new PointInt32(workArea.X, workArea.X);
-        var workAreaEndBounds = new PointInt32(workArea.X + workArea.Width, workArea.Y + workArea.Height);
+            const double maximumAllowedOutOfBoundsAmount = 0.75;
+            var outOnTopLeftOfTheScreen = windowPosition.X + (windowSize.Width * maximumAllowedOutOfBoundsAmount) < workAreaStartBounds.X
+                || windowPosition.Y < workAreaStartBounds.Y;
+            var outOnBottomRightOfTheScreen = windowPosition.X + windowSize.Width * (1 - maximumAllowedOutOfBoundsAmount) >= workAreaEndBounds.X
+                || windowPosition.Y + windowSize.Height * (1 - maximumAllowedOutOfBoundsAmount) >= workAreaEndBounds.Y;
 
-        const double maximumAllowedOutOfBoundsAmount = 0.75;
-        var outOnTopLeftOfTheScreen = windowPosition.X < workAreaStartBounds.X
-            || windowPosition.Y < workAreaStartBounds.Y;
-        var outOnBottomRightOfTheScreen = windowPosition.X + windowSize.Width * maximumAllowedOutOfBoundsAmount >= workAreaEndBounds.X
-            || windowPosition.Y + windowSize.Height * maximumAllowedOutOfBoundsAmount >= workAreaEndBounds.Y;
+            return outOnTopLeftOfTheScreen || outOnBottomRightOfTheScreen;
+        }).Aggregate((a, b) => a && b);
 
-        return outOnTopLeftOfTheScreen || outOnBottomRightOfTheScreen;
+        return isWindowOutOfBoundsOnAllScreens;
     }
 
     private void SaveWindowSettings(bool saveImmediately = false)
@@ -182,7 +188,13 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
-        if (args.WindowActivationState == WindowActivationState.Deactivated || !IsWindowOutOfBounds(AppWindow)) return;
+        if (args.WindowActivationState == WindowActivationState.Deactivated) return;
+        _ = Task.Run(App.AudioSessionManager.UpdateAllSessions);
+    }
+
+    private void CentralizeWindowIfVisibleAndOutOfBounds()
+    {
+        if (!Visible || !IsWindowOutOfBounds(AppWindow)) return;
         CenterWindowOnScreen(AppWindow);
     }
 

@@ -166,6 +166,7 @@ public sealed partial class App : Application
                 _mainWindow = new MainWindow();
             }
             _mainWindow.ShowAndFocus();
+            _mainWindow.OnShow();
         }
         catch (Exception ex)
         {
