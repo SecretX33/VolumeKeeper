@@ -151,7 +151,6 @@ VolumeKeeper lives in your system tray for easy access:
 
 ## Tips & Tricks
 
-- **Quick pin**: Adjust volume with Windows Volume Mixer, then open VolumeKeeper and pin it
 - **Multiple instances**: If an app runs multiple windows, VolumeKeeper applies the pinned volume to all of them
 - **Check the logs**: The activity log helps you understand what's happening and troubleshoot issues
 - **Refresh when needed**: Click Refresh if an app doesn't appear right away
