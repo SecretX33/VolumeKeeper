@@ -2,14 +2,15 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using VolumeKeeper.Models;
 using VolumeKeeper.Services.Log;
-using VolumeKeeper.Services.Managers;
 using VolumeKeeper.Util;
 using static VolumeKeeper.Util.Util;
+using AudioSessionManager = VolumeKeeper.Services.Managers.AudioSessionManager;
 
 namespace VolumeKeeper.Services;
 
@@ -122,7 +123,7 @@ public sealed partial class AudioSessionService(
         }
     }
 
-    private void RequireMainThreadAccess([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
+    private void RequireMainThreadAccess([CallerMemberName] string caller = "")
     {
         if (!mainThreadQueue.HasThreadAccess)
             throw new InvalidOperationException($"{caller} must be called on the UI thread");
@@ -160,7 +161,5 @@ public sealed partial class AudioSessionService(
         {
             /* Ignore exceptions during dispose */
         }
-
-        GC.SuppressFinalize(this);
     }
 }

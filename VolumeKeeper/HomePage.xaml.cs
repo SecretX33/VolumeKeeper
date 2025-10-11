@@ -39,7 +39,7 @@ public sealed partial class HomePage : Page, IDisposable
 
     private void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        _ = Task.Run(AudioSessionManager.UpdateAllSessions);
+        _ = Task.Run(AudioSessionManager.RefreshDeviceAndAudioSessions);
     }
 
     private void AutoRestoreToggle_Toggled(object sender, RoutedEventArgs e)
@@ -68,7 +68,6 @@ public sealed partial class HomePage : Page, IDisposable
             {
                 // Mute
                 audioSessionService.SetMuteSessionImmediate(app.AppId, mute: true);
-                _logger.Info($"Muted {app.ExecutableName} (PID: {app.ProcessId})");
             }
             else
             {

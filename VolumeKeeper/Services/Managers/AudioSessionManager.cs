@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
@@ -22,16 +24,28 @@ public sealed partial class AudioSessionManager(
 {
     private readonly Logger _logger = App.Logger.Named();
     private readonly MMDeviceEnumerator _deviceEnumerator = new();
-    private readonly AtomicReference<MMDevice?> _defaultDevice = new(null);
+    private readonly AtomicReference<IReadOnlyList<MMDevice>> _allAudioDevices = new(ImmutableList<MMDevice>.Empty);
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
-    private volatile SessionCollection? _sessions;
+    private IMMNotificationClient? _audioDeviceChangeCallback;
     public ObservableCollection<ObservableAudioSession> AudioSessions { get; } = [];
 
     public void Initialize()
     {
-        UpdateAllSessions();
+        _audioDeviceChangeCallback = new ConfigurableIMMNotificationClient
+        {
+            OnDeviceStateChangedHandler = (_, _) => Task.Run(RefreshDeviceAndAudioSessions),
+            OnDeviceAddedHandler = _ => Task.Run(RefreshDeviceAndAudioSessions),
+            OnDeviceRemovedHandler = _ => Task.Run(RefreshDeviceAndAudioSessions),
+            OnDefaultDeviceChangedHandler = (dataFlow, role, _) =>
+            {
+                if (dataFlow != DataFlow.Render || role != Role.Multimedia) return;
+                Task.Run(RefreshDeviceAndAudioSessions);
+            }
+        };
+        _deviceEnumerator.RegisterEndpointNotificationCallback(_audioDeviceChangeCallback);
+        RefreshDeviceAndAudioSessions();
     }
 
     public ObservableAudioSession? GetSessionById(VolumeApplicationId volumeApplicationId) =>
@@ -39,57 +53,6 @@ public sealed partial class AudioSessionManager(
 
     public ObservableAudioSession? GetSessionByProcessId(int processId) =>
         AudioSessions.FirstOrDefault(session => session.ProcessId == processId);
-
-    private void RefreshDevice()
-    {
-        try
-        {
-            var newDefaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-            _sessions = newDefaultDevice.AudioSessionManager.Sessions;
-            newDefaultDevice.AudioSessionManager.OnSessionCreated += (sender, session) =>
-            {
-                // The session object doesn't contain any useful info, so we need to fallback to UpdateAllSessions
-                _logger.Debug("New audio session created, refreshing audio sessions");
-                _ = Task.Run(UpdateAllSessions);
-            };
-            _defaultDevice.GetAndSet(newDefaultDevice)?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            _logger.Error("Failed to get default audio device", ex);
-        }
-    }
-
-    private List<AudioSession> GetAllAudioSessions()
-    {
-        var sessions = new List<AudioSession>();
-        RefreshDevice();
-
-        if (_sessions == null)
-            return sessions;
-
-        try
-        {
-            for (int i = 0; i < _sessions.Count; i++)
-            {
-                var sessionControl = _sessions[i];
-                if (sessionControl == null)
-                    continue;
-
-                var session = CreateAudioSession(sessionControl);
-                if (session != null && !string.IsNullOrWhiteSpace(session.ExecutableName))
-                {
-                    sessions.Add(session);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.Error("Failed to enumerate audio sessions", ex);
-        }
-
-        return sessions;
-    }
 
     public void UpdateAllSessions()
     {
@@ -119,15 +82,115 @@ public sealed partial class AudioSessionManager(
         }
     }
 
-    private AudioSession? CreateAudioSession(
-        AudioSessionControl sessionControl,
-        ProcessInfo? fetchedProcessInfo = null
-    ) {
+    private IReadOnlyList<AudioSession> GetAllAudioSessions()
+    {
+        var audioDevices = _allAudioDevices.Get();
+        if (audioDevices.Count == 0) return ImmutableList<AudioSession>.Empty;
+
+        var audioSessions = new List<AudioSession>();
+        var sessionControls = audioDevices.SelectMany(audioDevice => audioDevice.AudioSessionManager.FreshSessions())
+            .GroupBy(session => session.GetProcessID)
+            .ToList();
+
         try
         {
+            audioSessions.AddRange(
+                sessionControls.Select(sessionControl => CreateAudioSession(sessionControl.ToList()))
+                    .OfType<AudioSession>()
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Failed to enumerate audio sessions", ex);
+        }
+
+        return audioSessions;
+    }
+
+    private void RefreshDevices()
+    {
+        try
+        {
+            var allDevices = _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active).ToList();
+            if (allDevices.Count == 0)
+            {
+                _logger.Warn("No active audio output devices found");
+                DisposeAllDevices(_allAudioDevices.GetAndSet(ImmutableList<MMDevice>.Empty));
+                return;
+            }
+
+            var defaultDevice = _deviceEnumerator.HasDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia)
+                ? _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia)
+                : null;
+
+            // Ensure the default device is always first in the list
+            if (defaultDevice != null)
+            {
+                allDevices.RemoveAt(allDevices.FindIndex(item => item.ID == defaultDevice.ID));
+                allDevices.Insert(0, defaultDevice);
+            }
+
+            // If the audio devices have not changed, skip the refresh
+            var currentAudioDevices = _allAudioDevices.Get();
+            if (currentAudioDevices.Select(d => d.ID).SequenceEqual(allDevices.Select(d => d.ID)))
+            {
+                _logger.Debug("Default audio devices have not changed, skipping device refresh");
+                return;
+            }
+
+            foreach (var device in allDevices)
+            {
+                device.AudioSessionManager.OnSessionCreated += (sender, session) =>
+                {
+                    // The session object doesn't contain any useful info, so we need to fallback to UpdateAllSessions
+                    _logger.Debug("New audio session created, refreshing audio sessions");
+                    _ = Task.Run(UpdateAllSessions);
+                };
+            }
+
+            var previousDefaultDevice = currentAudioDevices.FirstOrDefault();
+            var isChangingDefaultDevice = previousDefaultDevice?.FriendlyName != defaultDevice?.FriendlyName;
+
+            switch (isChangingDefaultDevice)
+            {
+                case true when previousDefaultDevice != null && defaultDevice != null:
+                    _logger.Debug($"Default audio device changed: '{previousDefaultDevice.FriendlyName}' -> '{defaultDevice.FriendlyName}'");
+                    break;
+
+                case true when defaultDevice != null:
+                    _logger.Debug($"Default audio device: '{defaultDevice.FriendlyName}'");
+                    break;
+            }
+
+            _logger.Debug($"Active audio devices ({allDevices.Count}): {string.Join(", ", allDevices.Select(d => d.FriendlyName))}");
+
+            DisposeAllDevices(_allAudioDevices.GetAndSet(allDevices));
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Failed to get default audio device", ex);
+        }
+    }
+
+    public void RefreshDeviceAndAudioSessions()
+    {
+        RefreshDevices();
+        UpdateAllSessions();
+    }
+
+    private AudioSession? CreateAudioSession(
+        IReadOnlyList<AudioSessionControl> sessionControls,
+        ProcessInfo? fetchedProcessInfo = null
+    ) {
+        if (sessionControls.Count == 0) return null;
+
+        try
+        {
+            var sessionControl = sessionControls[0];
             var processId = (int)sessionControl.GetProcessID;
             var processInfo = fetchedProcessInfo ?? GetProcessInfoOrNull(processId);
             if (processInfo == null) return null;
+
             var processDisplayName = new[]
             {
                 sessionControl.DisplayName,
@@ -142,13 +205,8 @@ public sealed partial class AudioSessionManager(
                 ExecutableName = processInfo.ExecutableName,
                 ExecutablePath = processInfo.ExecutablePath,
                 IconPath = sessionControl.IconPath ?? string.Empty,
-                SessionControl = sessionControl
+                SessionControls = sessionControls
             };
-
-#if DEBUG
-            App.Logger.Debug($"Creating audio session. PID={audioSession.ProcessId}, ExecutableName={audioSession.ExecutableName}, ProcessDisplayName='{audioSession.ProcessDisplayName}', ExecutablePath='{audioSession.ExecutablePath}'");
-#endif
-
             return audioSession;
         }
         catch (Exception ex)
@@ -164,41 +222,57 @@ public sealed partial class AudioSessionManager(
             throw new InvalidOperationException("AddOrUpdateSession must be called on the UI thread.");
 
         var savedVolume = volumeSettingsManager.GetVolume(session.AppId);
-        var observableSession = GetSessionById(session.AppId);
-        if (observableSession == null)
+        var existingSession = GetSessionByProcessId(session.ProcessId);
+        var sessionAlreadyExisted = existingSession != null;
+
+#if DEBUG
+        App.Logger.Debug($"{(!sessionAlreadyExisted ? "Adding" : "Updating")} audio session. PID={session.ProcessId}, ExecutableName={session.ExecutableName}, SavedVolume={(savedVolume.HasValue ? savedVolume.Value.ToString() : "null")}");
+#endif
+
+        var observableSession = existingSession ?? new ObservableAudioSession
         {
-            var newSession = new ObservableAudioSession
+            AudioSession = session,
+        };
+        observableSession.PinnedVolume = savedVolume;
+        observableSession.EventHandler ??= new ConfigurableAudioSessionEventsHandler
+        {
+            OnVolumeChangedHandler = (_, _) => RestoreSessionVolumeAndNotifyChanges(observableSession),
+
+            OnSessionDisconnectedHandler = _ =>
             {
-                AudioSession = session,
-                PinnedVolume = savedVolume
-            };
-            var eventHandler = new ConfigurableAudioSessionEventsHandler
+                _logger.Debug($"Audio session disconnected for {observableSession.ExecutableName} (PID: {observableSession.ProcessId})");
+                mainThreadQueue.TryEnqueueImmediate(() => RemoveSession(observableSession));
+            },
+
+            OnStateChangedHandler = state =>
             {
-                OnVolumeChangedHandler = (_, _) => RestoreSessionVolumeAndNotifyChanges(newSession),
+                if (state != AudioSessionState.AudioSessionStateExpired) return;
 
-                OnSessionDisconnectedHandler = _ =>
-                {
-                    _logger.Debug($"Audio session disconnected for {newSession.ExecutableName} (PID: {newSession.ProcessId})");
-                    mainThreadQueue.TryEnqueueImmediate(() => RemoveSession(newSession));
-                },
+                _logger.Debug($"Audio session expired for {observableSession.ExecutableName} (PID: {observableSession.ProcessId})");
+                mainThreadQueue.TryEnqueueImmediate(() => RemoveSession(observableSession));
+            }
+        };
 
-                OnStateChangedHandler = state =>
-                {
-                    if (state != AudioSessionState.AudioSessionStateExpired) return;
+        if (!sessionAlreadyExisted || session != observableSession.AudioSession)
+        {
+            if (sessionAlreadyExisted)
+            {
+                observableSession.AudioSession.Dispose();
+                observableSession.AudioSession = session;
+            }
 
-                    _logger.Debug($"Audio session expired for {newSession.ExecutableName} (PID: {newSession.ProcessId})");
-                    mainThreadQueue.TryEnqueueImmediate(() => RemoveSession(newSession));
-                }
-            };
-            session.SessionControl.RegisterEventClient(eventHandler);
-            newSession.EventHandler = eventHandler;
-            RestoreSessionVolumeAndNotifyChanges(newSession);
-            observableSession = newSession;
+            foreach (var sessionControl in session.SessionControls)
+            {
+                sessionControl.RegisterEventClient(observableSession.EventHandler);
+            }
+        }
+
+        if (!sessionAlreadyExisted)
+        {
             AudioSessions.Add(observableSession);
         }
 
-        observableSession.AudioSession = session;
-        observableSession.PinnedVolume = savedVolume;
+        RestoreSessionVolumeAndNotifyChanges(observableSession);
         LoadApplicationIconAsync(observableSession);
     }
 
@@ -207,20 +281,8 @@ public sealed partial class AudioSessionManager(
         if (!mainThreadQueue.HasThreadAccess)
             throw new InvalidOperationException("RemoveSession must be called on the UI thread.");
 
-        try
-        {
-            if (session.EventHandler != null)
-            {
-                session.SessionControl.UnRegisterEventClient(session.EventHandler);
-                session.EventHandler = null;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Failed to unregister event client for {session.ExecutableName} (PID: {session.ProcessId})", ex);
-        }
-
         AudioSessions.Remove(session);
+        session.Dispose();
     }
 
     private void RestoreSessionVolumeAndNotifyChanges(ObservableAudioSession newSession)
@@ -264,6 +326,22 @@ public sealed partial class AudioSessionManager(
         }
     }
 
+    private void DisposeAllDevices(IEnumerable<MMDevice>? devices)
+    {
+        if (devices == null) return;
+        foreach (var mmDevice in devices)
+        {
+            try
+            {
+                mmDevice.Dispose();
+            }
+            catch
+            {
+                /* Ignore exceptions during dispose */
+            }
+        }
+    }
+
     public void Dispose()
     {
         if (!_isDisposed.CompareAndSet(false, true))
@@ -271,12 +349,19 @@ public sealed partial class AudioSessionManager(
 
         try
         {
-            DisposeAll(_deviceEnumerator, _defaultDevice.Get(), _cacheLock);
+            if (_audioDeviceChangeCallback != null)
+            {
+                _deviceEnumerator.UnregisterEndpointNotificationCallback(_audioDeviceChangeCallback);
+                _audioDeviceChangeCallback = null;
+            }
+
+            DisposeAllDevices(_allAudioDevices.Get());
+            _allAudioDevices.Set(ImmutableList<MMDevice>.Empty);
+            DisposeAll(_deviceEnumerator, _cacheLock);
         }
         catch
         {
             /* Ignore exceptions during dispose */
         }
-        GC.SuppressFinalize(this);
     }
 }

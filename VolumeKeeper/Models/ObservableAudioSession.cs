@@ -9,7 +9,7 @@ using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper.Models;
 
-public sealed partial class ObservableAudioSession : INotifyPropertyChanged
+public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDisposable
 {
     private AudioSession? _audioSession;
     private int? _pinnedVolume;
@@ -43,7 +43,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
             if (!Equals(oldValue?.ExecutablePath, value.ExecutablePath)) changedProperties.Add(nameof(ExecutablePath));
             if (!Equals(oldValue?.IconPath, value.IconPath)) changedProperties.Add(nameof(IconPath));
             if (!Equals(oldValue?.Icon, value.Icon)) changedProperties.Add(nameof(Icon));
-            if (!Equals(oldValue?.SessionControl, value.SessionControl)) changedProperties.Add(nameof(SessionControl));
+            if (!Equals(oldValue?.MainSessionControl, value.MainSessionControl)) changedProperties.Add(nameof(MainSessionControl));
             if (!Equals(oldValue?.AppId, value.AppId)) changedProperties.Add(nameof(AppId));
             if (oldValue?.Volume != value.Volume)
             {
@@ -109,7 +109,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
 
     public BitmapImage? Icon => _audioSession?.Icon;
 
-    public AudioSessionControl SessionControl => _audioSession?.SessionControl ?? throw new InvalidOperationException("AudioSession is not set.");
+    public AudioSessionControl MainSessionControl => _audioSession?.MainSessionControl ?? throw new InvalidOperationException("AudioSession is not set.");
 
     public int? PinnedVolume
     {
@@ -189,4 +189,21 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
 
     public override string ToString() =>
         $"ExecutableName={ExecutableName}, ProcessId={ProcessId}, Volume={Volume}, IsMuted={IsMuted}, PinnedVolume={PinnedVolume?.ToString()}, IconPath={IconPath}, HasIcon={Icon != null}";
+
+    public void Dispose()
+    {
+        try
+        {
+            if (EventHandler != null)
+            {
+                MainSessionControl.UnRegisterEventClient(EventHandler);
+                EventHandler = null;
+            }
+            _audioSession?.Dispose();
+        }
+        catch
+        {
+            // Ignore exceptions on dispose
+        }
+    }
 }
