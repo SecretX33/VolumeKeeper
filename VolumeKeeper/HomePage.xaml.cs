@@ -68,7 +68,6 @@ public sealed partial class HomePage : Page, IDisposable
             {
                 // Mute
                 audioSessionService.SetMuteSessionImmediate(app.AppId, mute: true);
-                _logger.Info($"Muted {app.ExecutableName} (PID: {app.ProcessId})");
             }
             else
             {
