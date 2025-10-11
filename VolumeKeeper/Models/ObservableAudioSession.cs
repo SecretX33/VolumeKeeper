@@ -9,7 +9,7 @@ using VolumeKeeper.Services.Managers;
 
 namespace VolumeKeeper.Models;
 
-public sealed partial class ObservableAudioSession : INotifyPropertyChanged
+public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDisposable
 {
     private AudioSession? _audioSession;
     private int? _pinnedVolume;
@@ -189,4 +189,21 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged
 
     public override string ToString() =>
         $"ExecutableName={ExecutableName}, ProcessId={ProcessId}, Volume={Volume}, IsMuted={IsMuted}, PinnedVolume={PinnedVolume?.ToString()}, IconPath={IconPath}, HasIcon={Icon != null}";
+
+    public void Dispose()
+    {
+        try
+        {
+            if (EventHandler != null)
+            {
+                SessionControl.UnRegisterEventClient(EventHandler);
+                EventHandler = null;
+            }
+            _audioSession?.Dispose();
+        }
+        catch
+        {
+            // Ignore exceptions on dispose
+        }
+    }
 }

@@ -239,20 +239,8 @@ public sealed partial class AudioSessionManager(
         if (!mainThreadQueue.HasThreadAccess)
             throw new InvalidOperationException("RemoveSession must be called on the UI thread.");
 
-        try
-        {
-            if (session.EventHandler != null)
-            {
-                session.SessionControl.UnRegisterEventClient(session.EventHandler);
-                session.EventHandler = null;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Failed to unregister event client for {session.ExecutableName} (PID: {session.ProcessId})", ex);
-        }
-
         AudioSessions.Remove(session);
+        session.Dispose();
     }
 
     private void RestoreSessionVolumeAndNotifyChanges(ObservableAudioSession newSession)

@@ -4,7 +4,7 @@ using NAudio.CoreAudioApi;
 
 namespace VolumeKeeper.Models;
 
-public sealed class AudioSession
+public sealed class AudioSession : IDisposable
 {
     public required int ProcessId { get; init; }
     public required string ProcessDisplayName { get; init; }
@@ -48,4 +48,16 @@ public sealed class AudioSession
         };
 
     public override string ToString() => $"{ExecutableName} [PID: {ProcessId}]";
+
+    public void Dispose()
+    {
+        try
+        {
+            SessionControl.Dispose();
+        }
+        catch
+        {
+            // Ignore exceptions on dispose
+        }
+    }
 }

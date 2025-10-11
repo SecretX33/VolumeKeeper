@@ -99,15 +99,15 @@ public static class Extensions
         }
     }
 
-    public static IReadOnlyList<NAudio.CoreAudioApi.AudioSessionControl> ToList(
-        this NAudio.CoreAudioApi.SessionCollection sessions
-    ) => Enumerable.Range(0, sessions.Count)
-        .Select(i => sessions[i])
-        .ToList();
-
     public static IReadOnlyList<NAudio.CoreAudioApi.AudioSessionControl> Sessions(
         this NAudio.CoreAudioApi.AudioSessionManager manager
-    ) => manager.Sessions.ToList();
+    )
+    {
+        var sessionCollection = manager.Sessions;
+        return Enumerable.Range(0, sessionCollection.Count)
+            .Select(i => sessionCollection[i])
+            .ToList();
+    }
 
     public static IReadOnlyList<NAudio.CoreAudioApi.AudioSessionControl> FreshSessions(
         this NAudio.CoreAudioApi.AudioSessionManager manager
