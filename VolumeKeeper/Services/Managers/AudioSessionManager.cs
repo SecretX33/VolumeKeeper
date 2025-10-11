@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
@@ -126,7 +125,12 @@ public sealed partial class AudioSessionManager(
             // Ensure the default device is always first in the list
             if (defaultDevice != null)
             {
-                allDevices.RemoveAt(allDevices.FindIndex(item => item.ID == defaultDevice.ID));
+                var index = allDevices.FindIndex(item => item.ID == defaultDevice.ID);
+                if (index >= 0)
+                {
+                    allDevices[index].Dispose();
+                    allDevices.RemoveAt(index);
+                }
                 allDevices.Insert(0, defaultDevice);
             }
 
@@ -135,6 +139,7 @@ public sealed partial class AudioSessionManager(
             if (currentAudioDevices.Select(d => d.ID).SequenceEqual(allDevices.Select(d => d.ID)))
             {
                 _logger.Debug("Default audio devices have not changed, skipping device refresh");
+                DisposeAllDevices(allDevices);
                 return;
             }
 

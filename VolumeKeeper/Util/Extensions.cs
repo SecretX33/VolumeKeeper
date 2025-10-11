@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
@@ -104,6 +105,10 @@ public static class Extensions
     )
     {
         var sessionCollection = manager.Sessions;
+        if (sessionCollection == null || sessionCollection.Count == 0)
+        {
+            return ImmutableList<NAudio.CoreAudioApi.AudioSessionControl>.Empty;
+        }
         return Enumerable.Range(0, sessionCollection.Count)
             .Select(i => sessionCollection[i])
             .ToList();
