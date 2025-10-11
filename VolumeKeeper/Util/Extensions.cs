@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using Windows.Graphics;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
@@ -97,5 +97,22 @@ public static class Extensions
         {
             throw new InvalidOperationException("Failed to enqueue operation to DispatcherQueue.");
         }
+    }
+
+    public static IReadOnlyList<NAudio.CoreAudioApi.AudioSessionControl> ToList(
+        this NAudio.CoreAudioApi.SessionCollection sessions
+    ) => Enumerable.Range(0, sessions.Count)
+        .Select(i => sessions[i])
+        .ToList();
+
+    public static IReadOnlyList<NAudio.CoreAudioApi.AudioSessionControl> Sessions(
+        this NAudio.CoreAudioApi.AudioSessionManager manager
+    ) => manager.Sessions.ToList();
+
+    public static IReadOnlyList<NAudio.CoreAudioApi.AudioSessionControl> FreshSessions(
+        this NAudio.CoreAudioApi.AudioSessionManager manager
+    ) {
+        manager.RefreshSessions();
+        return manager.Sessions();
     }
 }

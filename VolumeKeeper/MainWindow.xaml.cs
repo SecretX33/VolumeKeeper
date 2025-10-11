@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using Windows.Graphics;
 using H.NotifyIcon;
@@ -28,7 +27,6 @@ public sealed partial class MainWindow : Window
         LoadWindowSettings();
         Closed += MainWindow_Closed;
         SizeChanged += MainWindow_SizeChanged;
-        Activated += MainWindow_Activated;
         NavigationViewControl.SelectedItem = NavigationViewControl.MenuItems[0];
         NavigateToPage("Home");
     }
@@ -184,12 +182,6 @@ public sealed partial class MainWindow : Window
     private void MainWindow_SizeChanged(object sender, WindowSizeChangedEventArgs args)
     {
         SaveWindowSettings();
-    }
-
-    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
-    {
-        if (args.WindowActivationState == WindowActivationState.Deactivated) return;
-        _ = Task.Run(App.AudioSessionManager.UpdateAllSessions);
     }
 
     private void CentralizeWindowIfVisibleAndOutOfBounds()

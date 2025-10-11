@@ -160,7 +160,5 @@ public sealed partial class AudioSessionService(
         {
             /* Ignore exceptions during dispose */
         }
-
-        GC.SuppressFinalize(this);
     }
 }
