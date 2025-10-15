@@ -35,7 +35,7 @@ for /d %%i in (VolumeKeeper\bin\%MODE%\net9.0-*) do (
 echo Building in '%MODE%' mode...
 
 if "%MODE%"=="Debug" (
-    dotnet publish --configuration Debug --runtime win-x64 -p:DebugType=false -p:DebugSymbols=false VolumeKeeper\VolumeKeeper.csproj
+    dotnet publish --configuration Debug --runtime win-x64 -p:DebugType=none -p:DebugSymbols=false VolumeKeeper\VolumeKeeper.csproj
 ) else (
     dotnet publish --configuration Release --runtime win-x64 --self-contained true -p:PublishReadyToRun=true VolumeKeeper\VolumeKeeper.csproj
 )
