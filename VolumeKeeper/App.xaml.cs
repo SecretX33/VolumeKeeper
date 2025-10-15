@@ -1,14 +1,12 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.Windows.AppLifecycle;
 using VolumeKeeper.Services;
 using VolumeKeeper.Services.Log;
 using VolumeKeeper.Services.Managers;
@@ -20,8 +18,7 @@ namespace VolumeKeeper;
 
 public sealed partial class App : Application
 {
-    private const string MutexName = "Global\\VolumeKeeper_SingleInstance_Mutex";
-    private static Mutex? _singleInstanceMutex;
+    private readonly DispatcherQueue _mainThreadQueue = DispatcherQueue.GetForCurrentThread() ?? throw new InvalidOperationException("Failed to get main thread dispatcher queue");
     private MainWindow? _mainWindow;
     private bool _startMinimized;
     private TaskbarIcon? _trayIcon;
@@ -46,67 +43,78 @@ public sealed partial class App : Application
         try
         {
             // Check for single instance
-            if (!EnsureSingleInstance())
+            if (!await EnsureSingleInstance())
             {
-                Logger.Debug("Multiple instances detected. Bringing existing instance to front and exiting.");
-                BringExistingInstanceToFront();
                 ExitApplication();
                 return;
             }
-            var mainThreadQueue = DispatcherQueue.GetForCurrentThread();
 
             // Initialize logging service first
             _logger.Dispose();
-            _logger = new FileLogger(mainThreadQueue).Named();
+            _logger = new FileLogger(_mainThreadQueue).Named();
             Logger.Debug("VolumeKeeper initialization started");
 
             ParseCommandLineArgs();
-            await InitializeServicesAsync(mainThreadQueue);
+            await InitializeServicesAsync(_mainThreadQueue);
 
             InitializeTrayIcon();
             if (!_startMinimized) ShowMainWindow();
         } catch (Exception ex)
         {
-            Logger.Error("Unhandled exception during application launch", ex, "App");
+            Logger.Error("Unhandled exception during application launch", ex);
             ExitApplication();
         }
     }
 
-    private static bool EnsureSingleInstance()
+    private static async Task<bool> EnsureSingleInstance()
     {
         try
         {
-            // Try to create a new mutex
-            _singleInstanceMutex = new Mutex(true, MutexName, out bool createdNew);
-
-            if (createdNew) return true;
-
-            // Another instance already owns the mutex
-            _singleInstanceMutex.Dispose();
-            _singleInstanceMutex = null;
+            var mainInstance = AppInstance.FindOrRegisterForKey("VolumeKeeperInstance");
+            if (mainInstance.IsCurrent)
+            {
+                // Subscribe to activation events to handle when other instances redirect to us
+                mainInstance.Activated += OnActivated;
+                return true;
+            }
+            Logger.Debug("Multiple instances detected. Bringing existing instance to front and exiting.");
+            await BringExistingInstanceToFront(mainInstance);
             return false;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // If we can't create/check the mutex, allow the instance to run
+            // If we can't create/check the app instance lock, allow this instance to run
             // Better to have multiple instances than to fail completely
+            _logger.Debug("Failed to enforce single instance using AppInstance, allowing the app to run unconditionally", ex);
             return true;
         }
     }
 
-    private static void BringExistingInstanceToFront()
+    private static void OnActivated(object? sender, AppActivationArguments args)
     {
         try
         {
-            // Find the existing VolumeKeeper process
-            var currentProcess = Process.GetCurrentProcess();
-            var anotherInstance = Process.GetProcessesByName(currentProcess.ProcessName)
-                .FirstOrDefault(it => it.Id != currentProcess.Id);
-            var handle = anotherInstance?.MainWindowHandle;
+            Logger.Debug("Bringing window back to foreground due to activation request from another instance");
 
-            if (handle == null || handle == IntPtr.Zero) return;
+            var app = (App)Current;
+            var mainThreadQueue = app._mainThreadQueue;
 
-            NativeMethods.ShowAndFocus((IntPtr)handle);
+            mainThreadQueue.TryEnqueueImmediate(() =>
+            {
+                app.ShowMainWindow();
+            });
+        } catch (Exception ex)
+        {
+            Logger.Error("Unhandled exception during window activation from another instance", ex);
+        }
+    }
+
+    private static async Task BringExistingInstanceToFront(AppInstance appInstance)
+    {
+        try
+        {
+            var args = AppInstance.GetCurrent().GetActivatedEventArgs();
+            await appInstance.RedirectActivationToAsync(args);
         }
         catch (Exception ex)
         {
@@ -170,7 +178,7 @@ public sealed partial class App : Application
         }
         catch (Exception ex)
         {
-            Logger.Error("Failed to show main window", ex, "App");
+            Logger.Error("Failed to show main window", ex);
         }
     }
 
@@ -201,7 +209,7 @@ public sealed partial class App : Application
         }
         catch (Exception ex)
         {
-            Logger.Error("Failed to initialize services", ex, "App");
+            Logger.Error("Failed to initialize services", ex);
         }
     }
 
@@ -212,8 +220,14 @@ public sealed partial class App : Application
         // Ensure the application closes even if some services hang during disposal
         Task.Run(async () =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
-            Environment.Exit(0);
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(1500)).ConfigureAwait(false);
+            }
+            finally
+            {
+                Environment.Exit(0);
+            }
         });
 
         try
@@ -228,14 +242,7 @@ public sealed partial class App : Application
         }
         finally
         {
-            // Release the mutex before exiting
-            _singleInstanceMutex?.ReleaseMutex();
-            _singleInstanceMutex?.Dispose();
-            _singleInstanceMutex = null;
-
             Current.Exit();
         }
     }
-
 }
-

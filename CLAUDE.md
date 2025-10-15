@@ -196,11 +196,30 @@ The project follows a WinUI 3 application structure with MVVM implementation:
 ### Exception Handling and Logging
 
 **CRITICAL**: Always log exceptions instead of swallowing them silently. Every catch block must:
-1. Log the exception using `App.Logger.LogError()` with a descriptive message
+1. Log the exception using the appropriate Logger method (`Error`, `Warn`, `Info`, `Debug`)
 2. Include context about what operation failed
-3. Specify the source/component name
+3. Use a named logger for automatic source inference
 
-Example:
+#### Logger Usage
+
+The Logger class supports named loggers that automatically infer the source from the calling location:
+
+**Recommended approach** (automatic source inference):
+```csharp
+private readonly Logger _logger = new ConsoleLogger().Named();
+
+try
+{
+    // Some operation
+}
+catch (Exception ex)
+{
+    _logger.Error("Failed to perform operation X", ex);
+    // Source is automatically inferred from the calling class
+}
+```
+
+**Alternative approach** (explicit source):
 ```csharp
 try
 {
@@ -208,10 +227,15 @@ try
 }
 catch (Exception ex)
 {
-    App.Logger.LogError("Failed to perform operation X", ex, "ComponentName");
-    // Handle gracefully if needed
+    App.Logger.Error("Failed to perform operation X", ex, "ComponentName");
 }
 ```
+
+#### Available Log Levels
+- `Debug(message, exception?, source?)` - Detailed diagnostic information
+- `Info(message, exception?, source?)` - General informational messages
+- `Warn(message, exception?, source?)` - Warning messages for potential issues
+- `Error(message, exception?, source?)` - Error messages for failures
 
 Never use empty catch blocks or silent exception handling. The logging service provides visibility to users about what's happening in the application.
 
