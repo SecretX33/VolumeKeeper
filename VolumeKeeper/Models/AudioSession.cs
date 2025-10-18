@@ -8,7 +8,7 @@ namespace VolumeKeeper.Models;
 
 public sealed partial class AudioSession : IDisposable
 {
-    public required int ProcessId { get; init; }
+    public required uint ProcessId { get; init; }
     public required string ProcessDisplayName { get; init; }
     public required string ExecutableName { get; init; }
     public required string ExecutablePath { get; init; }
@@ -44,7 +44,7 @@ public sealed partial class AudioSession : IDisposable
     public VolumeApplicationId AppId => new(ExecutablePath);
 
     public AudioSession With(
-        int? processId = null,
+        uint? processId = null,
         string? processDisplayName = null,
         string? executableName = null,
         string? executablePath = null,

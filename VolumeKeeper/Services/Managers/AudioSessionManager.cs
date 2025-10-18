@@ -50,7 +50,7 @@ public sealed partial class AudioSessionManager(
     public ObservableAudioSession? GetSessionById(VolumeApplicationId volumeApplicationId) =>
         AudioSessions.FirstOrDefault(session => Equals(session.AppId, volumeApplicationId));
 
-    public ObservableAudioSession? GetSessionByProcessId(int processId) =>
+    public ObservableAudioSession? GetSessionByProcessId(uint processId) =>
         AudioSessions.FirstOrDefault(session => session.ProcessId == processId);
 
     public void UpdateAllSessions()
@@ -87,14 +87,20 @@ public sealed partial class AudioSessionManager(
         if (audioDevices.Count == 0) return ImmutableList<AudioSession>.Empty;
 
         var audioSessions = new List<AudioSession>();
-        var sessionControls = audioDevices.SelectMany(audioDevice => audioDevice.AudioSessionManager.FreshSessions())
-            .GroupBy(session => session.GetProcessID)
-            .ToList();
 
         try
         {
+            var validSessions = audioDevices
+                .SelectMany(audioDevice => audioDevice.AudioSessionManager.FreshSessions())
+                .Select(session => new { Session = session, ProcessId = session.GetProcessIdOrNull() })
+                .Where(item => item.ProcessId.HasValue)
+                .ToList();
+            var sessionControls = validSessions
+                .GroupBy(item => item.ProcessId!.Value)
+                .ToList();
+
             audioSessions.AddRange(
-                sessionControls.Select(sessionControl => CreateAudioSession(sessionControl.ToList()))
+                sessionControls.Select(group => CreateAudioSession(group.Select(item => item.Session).ToList()))
                     .OfType<AudioSession>()
             );
         }
@@ -192,8 +198,10 @@ public sealed partial class AudioSessionManager(
         try
         {
             var sessionControl = sessionControls[0];
-            var processId = (int)sessionControl.GetProcessID;
-            var processInfo = fetchedProcessInfo ?? GetProcessInfoOrNull(processId);
+            var processId = sessionControl.GetProcessIdOrNull();
+            if (!processId.HasValue) return null;
+
+            var processInfo = fetchedProcessInfo ?? GetProcessInfoOrNull(processId.Value);
             if (processInfo == null) return null;
 
             var processDisplayName = new[]
@@ -205,7 +213,7 @@ public sealed partial class AudioSessionManager(
 
             var audioSession = new AudioSession
             {
-                ProcessId = processId,
+                ProcessId = processId.Value,
                 ProcessDisplayName = processDisplayName,
                 ExecutableName = processInfo.ExecutableName,
                 ExecutablePath = processInfo.ExecutablePath,

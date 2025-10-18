@@ -1,7 +1,7 @@
 namespace VolumeKeeper.Models;
 
 public sealed record ProcessInfo(
-    int Id,
+    uint Id,
     string DisplayName,
     string ExecutableName,
     string ExecutablePath

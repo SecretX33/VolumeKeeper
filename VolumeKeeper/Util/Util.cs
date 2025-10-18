@@ -88,12 +88,12 @@ public static class Util
         }
     }
 
-    public static ProcessInfo? GetProcessInfoOrNull(int processId)
+    public static ProcessInfo? GetProcessInfoOrNull(uint processId)
     {
         if (processId <= 0) return null;
         try
         {
-            using var process = Process.GetProcessById(processId);
+            using var process = Process.GetProcessById((int)processId);
             var fullPath = process.MainModule?.FileName;
             if (string.IsNullOrWhiteSpace(fullPath)) return null;
 
@@ -122,7 +122,7 @@ public static class Util
     }
 
     private static FileVersionInfo? GetFileVersionInfoOrNull(
-        int processId,
+        uint processId,
         string executablePath
     ) {
         try

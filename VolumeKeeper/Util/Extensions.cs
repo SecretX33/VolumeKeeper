@@ -2,14 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using NAudio.CoreAudioApi;
+using VolumeKeeper.Services.Log;
 
 namespace VolumeKeeper.Util;
 
 public static class Extensions
 {
+    private static Logger Logger => App.Logger.Named();
+
     public static void ShowAndFocus(this Window window)
     {
         window = window ?? throw new ArgumentNullException(nameof(window));
@@ -100,24 +105,37 @@ public static class Extensions
         }
     }
 
-    public static IReadOnlyList<NAudio.CoreAudioApi.AudioSessionControl> Sessions(
-        this NAudio.CoreAudioApi.AudioSessionManager manager
+    public static IReadOnlyList<AudioSessionControl> Sessions(
+        this AudioSessionManager manager
     )
     {
         var sessionCollection = manager.Sessions;
         if (sessionCollection == null || sessionCollection.Count == 0)
         {
-            return ImmutableList<NAudio.CoreAudioApi.AudioSessionControl>.Empty;
+            return ImmutableList<AudioSessionControl>.Empty;
         }
         return Enumerable.Range(0, sessionCollection.Count)
             .Select(i => sessionCollection[i])
             .ToList();
     }
 
-    public static IReadOnlyList<NAudio.CoreAudioApi.AudioSessionControl> FreshSessions(
-        this NAudio.CoreAudioApi.AudioSessionManager manager
+    public static IReadOnlyList<AudioSessionControl> FreshSessions(
+        this AudioSessionManager manager
     ) {
         manager.RefreshSessions();
         return manager.Sessions();
+    }
+
+    public static uint? GetProcessIdOrNull(
+        this AudioSessionControl session
+    ) {
+        try
+        {
+            return session.GetProcessID;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 }
