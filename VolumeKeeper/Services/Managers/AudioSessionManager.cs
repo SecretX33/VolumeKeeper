@@ -87,20 +87,14 @@ public sealed partial class AudioSessionManager(
         if (audioDevices.Count == 0) return ImmutableList<AudioSession>.Empty;
 
         var audioSessions = new List<AudioSession>();
+        var sessionControls = audioDevices.SelectMany(audioDevice => audioDevice.AudioSessionManager.FreshSessions())
+            .GroupBy(session => session.GetProcessID)
+            .ToList();
 
         try
         {
-            var validSessions = audioDevices
-                .SelectMany(audioDevice => audioDevice.AudioSessionManager.FreshSessions())
-                .Select(session => new { Session = session, ProcessId = session.GetProcessIdOrNull() })
-                .Where(item => item.ProcessId.HasValue)
-                .ToList();
-            var sessionControls = validSessions
-                .GroupBy(item => item.ProcessId!.Value)
-                .ToList();
-
             audioSessions.AddRange(
-                sessionControls.Select(group => CreateAudioSession(group.Select(item => item.Session).ToList()))
+                sessionControls.Select(sessionControl => CreateAudioSession(sessionControl.ToList()))
                     .OfType<AudioSession>()
             );
         }
@@ -198,10 +192,8 @@ public sealed partial class AudioSessionManager(
         try
         {
             var sessionControl = sessionControls[0];
-            var processId = sessionControl.GetProcessIdOrNull();
-            if (!processId.HasValue) return null;
-
-            var processInfo = fetchedProcessInfo ?? GetProcessInfoOrNull(processId.Value);
+            var processId = sessionControl.GetProcessID;
+            var processInfo = fetchedProcessInfo ?? GetProcessInfoOrNull(processId);
             if (processInfo == null) return null;
 
             var processDisplayName = new[]
@@ -213,7 +205,7 @@ public sealed partial class AudioSessionManager(
 
             var audioSession = new AudioSession
             {
-                ProcessId = processId.Value,
+                ProcessId = processId,
                 ProcessDisplayName = processDisplayName,
                 ExecutableName = processInfo.ExecutableName,
                 ExecutablePath = processInfo.ExecutablePath,

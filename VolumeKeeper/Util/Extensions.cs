@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -124,18 +123,5 @@ public static class Extensions
     ) {
         manager.RefreshSessions();
         return manager.Sessions();
-    }
-
-    public static uint? GetProcessIdOrNull(
-        this AudioSessionControl session
-    ) {
-        try
-        {
-            return session.GetProcessID;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
     }
 }
