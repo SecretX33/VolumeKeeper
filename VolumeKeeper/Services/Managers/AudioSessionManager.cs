@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using NAudio.CoreAudioApi;
@@ -22,29 +23,34 @@ public sealed partial class AudioSessionManager(
 ) : IDisposable
 {
     private readonly Logger _logger = App.Logger.Named();
+    private static readonly TimeSpan RefreshAudioSessionDelay = TimeSpan.FromMilliseconds(200);
     private readonly MMDeviceEnumerator _deviceEnumerator = new();
     private readonly AtomicReference<IReadOnlyList<MMDevice>> _allAudioDevices = new(ImmutableList<MMDevice>.Empty);
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private readonly AtomicReference<bool> _isDisposed = new(false);
+    private readonly AtomicReference<CancellationTokenSource?> _refreshAudioDevicesAndSessionDebounceTokenSource = new(null);
+    private readonly AtomicReference<CancellationTokenSource?> _updateAllAudioSessionsDebounceTokenSource = new(null);
+    private readonly SemaphoreSlim _refreshAudioDevicesLock = new(1, 1);
+    private readonly SemaphoreSlim _updateAllSessionsLock = new(1, 1);
 
     private IMMNotificationClient? _audioDeviceChangeCallback;
     public ObservableCollection<ObservableAudioSession> AudioSessions { get; } = [];
 
-    public void Initialize()
+    public async Task Initialize()
     {
         _audioDeviceChangeCallback = new ConfigurableIMMNotificationClient
         {
-            OnDeviceStateChangedHandler = (_, _) => Task.Run(RefreshDeviceAndAudioSessions),
-            OnDeviceAddedHandler = _ => Task.Run(RefreshDeviceAndAudioSessions),
-            OnDeviceRemovedHandler = _ => Task.Run(RefreshDeviceAndAudioSessions),
+            OnDeviceStateChangedHandler = (_, _) => ScheduleRefreshDeviceAndAudioSessions(),
+            OnDeviceAddedHandler = _ => ScheduleRefreshDeviceAndAudioSessions(),
+            OnDeviceRemovedHandler = _ => ScheduleRefreshDeviceAndAudioSessions(),
             OnDefaultDeviceChangedHandler = (dataFlow, role, _) =>
             {
                 if (dataFlow != DataFlow.Render || role != Role.Multimedia) return;
-                Task.Run(RefreshDeviceAndAudioSessions);
+                ScheduleRefreshDeviceAndAudioSessions();
             }
         };
         _deviceEnumerator.RegisterEndpointNotificationCallback(_audioDeviceChangeCallback);
-        RefreshDeviceAndAudioSessions();
+        await RefreshDeviceAndAudioSessions(CancellationToken.None).ConfigureAwait(false);
     }
 
     public ObservableAudioSession? GetSessionById(VolumeApplicationId volumeApplicationId) =>
@@ -53,14 +59,54 @@ public sealed partial class AudioSessionManager(
     public ObservableAudioSession? GetSessionByProcessId(uint processId) =>
         AudioSessions.FirstOrDefault(session => session.ProcessId == processId);
 
-    public void UpdateAllSessions()
+    public Task ScheduleUpdateAllAudioSessions(bool immediately = false)
     {
+        _logger.Debug("Scheduling update all audio sessions with debounce");
+
+        var cancellationTokenSource = new CancellationTokenSource();
+        var oldCancellationTokenSource = _updateAllAudioSessionsDebounceTokenSource.GetAndSet(cancellationTokenSource);
+        var cancellationToken = cancellationTokenSource.Token;
+
+        return Task.Run(async () =>
+        {
+            try
+            {
+                if (oldCancellationTokenSource != null)
+                {
+                    _logger.Debug("Cancelling previously scheduled audio session refresh");
+                    await oldCancellationTokenSource.CancelAsync().ConfigureAwait(false);
+                }
+
+                if (!immediately)
+                {
+                    await Task.Delay(RefreshAudioSessionDelay, cancellationToken).ConfigureAwait(false);
+                }
+                if (cancellationToken.IsCancellationRequested) return;
+
+                await UpdateAllSessions(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when debounce is cancelled
+            }
+            finally
+            {
+                _updateAllAudioSessionsDebounceTokenSource.CompareAndSet(cancellationTokenSource, null);
+                cancellationTokenSource.Dispose();
+            }
+        }, cancellationToken);
+    }
+
+    public async Task UpdateAllSessions(CancellationToken cancellationToken)
+    {
+        await _updateAllSessionsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        // Lock has been acquired, do NOT cancel from this point on
         try
         {
             var currentSessions = GetAllAudioSessions();
             var currentSessionIds = currentSessions.Select(s => s.AppId).ToHashSet();
 
-            mainThreadQueue.TryEnqueueImmediate(() =>
+            await mainThreadQueue.TryFetchImmediate(() =>
             {
                 foreach (var session in currentSessions)
                 {
@@ -73,11 +119,17 @@ public sealed partial class AudioSessionManager(
                     _logger.Info($"Audio session ended for {session.ExecutableName} (PID: {session.ProcessId})");
                     RemoveSession(session);
                 }
-            });
+
+                return true;
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger.Error("Failed to update audio sessions", ex);
+        }
+        finally
+        {
+            _updateAllSessionsLock.Release();
         }
     }
 
@@ -106,8 +158,10 @@ public sealed partial class AudioSessionManager(
         return audioSessions;
     }
 
-    private void RefreshDevices()
+    private async Task RefreshDevices(CancellationToken cancellationToken)
     {
+        await _refreshAudioDevicesLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        // Lock has been acquired, do NOT cancel from this point on
         try
         {
             var allDevices = _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active).ToList();
@@ -149,7 +203,7 @@ public sealed partial class AudioSessionManager(
                 {
                     // The session object doesn't contain any useful info, so we need to fallback to UpdateAllSessions
                     _logger.Debug("New audio session created, refreshing audio sessions");
-                    _ = Task.Run(UpdateAllSessions);
+                    _ = ScheduleUpdateAllAudioSessions();
                 };
             }
 
@@ -174,13 +228,54 @@ public sealed partial class AudioSessionManager(
         catch (Exception ex)
         {
             _logger.Error("Failed to get default audio device", ex);
+        } finally
+        {
+            _refreshAudioDevicesLock.Release();
         }
     }
 
-    public void RefreshDeviceAndAudioSessions()
+    public Task ScheduleRefreshDeviceAndAudioSessions(bool immediately = false)
     {
-        RefreshDevices();
-        UpdateAllSessions();
+        _logger.Debug("Scheduling refresh of audio devices and sessions with debounce");
+
+        var cancellationTokenSource = new CancellationTokenSource();
+        var oldCancellationTokenSource = _refreshAudioDevicesAndSessionDebounceTokenSource.GetAndSet(cancellationTokenSource);
+        var cancellationToken = cancellationTokenSource.Token;
+
+        return Task.Run(async () =>
+        {
+            try
+            {
+                if (oldCancellationTokenSource != null)
+                {
+                    _logger.Debug("Cancelling previously scheduled audio devices and session refresh");
+                    await oldCancellationTokenSource.CancelAsync().ConfigureAwait(false);
+                }
+
+                if (!immediately)
+                {
+                    await Task.Delay(RefreshAudioSessionDelay, cancellationToken).ConfigureAwait(false);
+                }
+                if (cancellationToken.IsCancellationRequested) return;
+
+                await RefreshDeviceAndAudioSessions(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when debounce is cancelled
+            }
+            finally
+            {
+                _refreshAudioDevicesAndSessionDebounceTokenSource.CompareAndSet(cancellationTokenSource, null);
+                cancellationTokenSource.Dispose();
+            }
+        }, cancellationToken);
+    }
+
+    private async Task RefreshDeviceAndAudioSessions(CancellationToken cancellationToken)
+    {
+        await RefreshDevices(cancellationToken).ConfigureAwait(false);
+        await UpdateAllSessions(cancellationToken).ConfigureAwait(false);
     }
 
     private AudioSession? CreateAudioSession(
