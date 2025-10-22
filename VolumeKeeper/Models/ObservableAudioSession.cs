@@ -62,7 +62,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDi
         }
     }
 
-    public int ProcessId => _audioSession?.ProcessId ?? 0;
+    public uint ProcessId => _audioSession?.ProcessId ?? 0;
 
     public string ProcessDisplayName => _audioSession?.ProcessDisplayName ?? throw new InvalidOperationException("AudioSession is not set.");
 
@@ -185,7 +185,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDi
     }
 
     // ReSharper disable once NonReadonlyMemberInGetHashCode
-    public override int GetHashCode() => _audioSession?.ProcessId ?? 0;
+    public override int GetHashCode() => (int)(_audioSession?.ProcessId ?? 0);
 
     public override string ToString() =>
         $"ExecutableName={ExecutableName}, ProcessId={ProcessId}, Volume={Volume}, IsMuted={IsMuted}, PinnedVolume={PinnedVolume?.ToString()}, IconPath={IconPath}, HasIcon={Icon != null}";
