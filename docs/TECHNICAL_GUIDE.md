@@ -2,7 +2,7 @@
 
 This guide contains technical details and troubleshooting information for VolumeKeeper.
 
-## Data Storage
+# Data Storage
 
 VolumeKeeper stores its settings in your Windows user profile:
 
@@ -10,35 +10,53 @@ VolumeKeeper stores its settings in your Windows user profile:
 
 This directory contains:
 
-### volume_settings.json
-Stores your pinned volume levels and application settings. The file structure includes:
-- **ApplicationVolumes**: Your pinned volume levels for each application (identified by executable name)
-- **AutoRestoreEnabled**: Whether automatic volume restoration is enabled
-- **AutoScrollLogsEnabled**: Whether the activity log auto-scrolls to show latest entries
+## Volume Settings
+Stores your pinned volume levels and application settings.
 
-Example structure:
+`volume_settings.json`
 ```json
 {
   "ApplicationVolumes": [
     {
-      "Id": {
-        "Path": "firefox.exe"
-      },
-      "Volume": 75,
-      "LastVolumeBeforeMute": null
+      "Id": "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
+      "Volume": 10
+    },
+    {
+      "Id": "C:\\Program Files\\Slack\\app-4.46.101\\slack.exe",
+      "Volume": 20
     }
   ],
   "AutoRestoreEnabled": true,
-  "AutoScrollLogsEnabled": true
+  "AutoScrollLogsEnabled": false,
+  "LastUpdated": "2025-10-19T23:05:33.703829-03:00"
 }
 ```
 
-### window_settings.json
+The file structure includes:
+- **ApplicationVolumes**: Your pinned volume levels for each application (identified by full executable path, case-insensitive)
+- **AutoRestoreEnabled**: Whether automatic volume restoration is enabled
+- **AutoScrollLogsEnabled**: Whether the activity log auto-scrolls to show latest entries
+- **LastUpdated**: Timestamp of the last settings update
+
+## Window Settings
 Stores window position and size preferences so VolumeKeeper opens where you left it.
 
-## Troubleshooting
+`window_settings.json`
+```json
+{
+  "Main": {
+    "Width": 619,
+    "Height": 595,
+    "X": 1013,
+    "Y": 394,
+    "IsMaximized": false
+  }
+}
+```
 
-### VolumeKeeper doesn't detect my application
+# Troubleshooting
+
+## VolumeKeeper doesn't detect my application
 
 **Possible causes:**
 - The application isn't producing any audio
@@ -50,7 +68,7 @@ Stores window position and size preferences so VolumeKeeper opens where you left
 - Click the **Refresh** button in the Home tab to update the application list
 - Wait a few seconds after launching the application - some apps take time to initialize audio
 
-### Volumes aren't being restored automatically
+## Volumes aren't being restored automatically
 
 **Possible causes:**
 - Auto-restore is disabled
@@ -63,7 +81,7 @@ Stores window position and size preferences so VolumeKeeper opens where you left
 - Look in the activity log (Logs tab) for any error messages
 - Check the pinned volume display under the application name - it should show "Pinned: XX%"
 
-### System tray icon is missing
+## System tray icon is missing
 
 **Possible causes:**
 - Windows may hide the tray icon based on system settings
@@ -84,7 +102,7 @@ The pin button works as follows:
 - **When volume differs from pinned**: Clicking re-pins at the new volume level
 - **Revert button**: Only appears when current volume differs from pinned volume
 
-### Application appears multiple times
+## Application appears multiple times
 
 **Why this happens:**
 - Multiple windows or instances of the same application
@@ -92,18 +110,16 @@ The pin button works as follows:
 
 **This is normal behavior** - Windows treats each audio session independently. VolumeKeeper will restore the pinned volume to all instances when they launch.
 
-### Volumes keep reverting unexpectedly
+## Volumes keep reverting unexpectedly
 
 **Possible causes:**
-- Auto-restore is applying pinned volumes when applications start
-- Another application or Windows itself is changing volumes
-- Application is restarting its audio session
+- Another application or Windows itself is changing volumes (only occurs when auto-restore is disabled)
 
 **Check the activity log** (Logs tab) to see exactly what's happening and when volumes are being changed.
 
-## Advanced Information
+# Advanced Information
 
-### How Application Matching Works
+## How Application Matching Works
 
 VolumeKeeper identifies applications by their **full executable path** with case-insensitive matching (e.g., `C:\Program Files\Mozilla Firefox\firefox.exe`).
 
@@ -115,7 +131,7 @@ This means:
 - ❌ Window title is **not** considered
 - ❌ Command line arguments are **not** considered
 
-### Volume Restoration Behavior
+## Volume Restoration Behavior
 
 When an application launches:
 1. VolumeKeeper detects the new audio session
