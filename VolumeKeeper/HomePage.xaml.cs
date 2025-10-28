@@ -49,6 +49,12 @@ public sealed partial class HomePage : Page, IDisposable
             if (sender is not CompactToggleSwitch toggle) return;
             VolumeSettingsManager.SetAutoRestoreEnabledAndSave(toggle.IsOn);
             _logger.Debug($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}");
+
+            // When auto-restore is enabled, restore all pinned volumes for currently open apps
+            if (toggle.IsOn)
+            {
+                AudioSessionService.RestorePinnedVolumeOfAllOpenedApps();
+            }
         }
         catch (Exception ex)
         {
