@@ -73,7 +73,6 @@ public sealed partial class AudioSessionManager(
             {
                 if (oldCancellationTokenSource != null)
                 {
-                    _logger.Debug("Cancelling previously scheduled audio session refresh");
                     await oldCancellationTokenSource.CancelAsync().ConfigureAwait(false);
                 }
 
@@ -248,7 +247,6 @@ public sealed partial class AudioSessionManager(
             {
                 if (oldCancellationTokenSource != null)
                 {
-                    _logger.Debug("Cancelling previously scheduled audio devices and session refresh");
                     await oldCancellationTokenSource.CancelAsync().ConfigureAwait(false);
                 }
 

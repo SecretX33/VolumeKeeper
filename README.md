@@ -62,6 +62,8 @@ Get the newest version of VolumeKeeper with all the latest features and improvem
 
 The app will show "Pinned: XX%" below its name so you know it's saved.
 
+**Once pinned**, the slider automatically updates the saved volume whenever you move it. You don't need to click the pin button again - just move the slider and VolumeKeeper will remember the new level.
+
 ### How Auto-Restore Works
 
 When auto-restore is enabled (it is by default):
@@ -114,17 +116,19 @@ Use the **Clear Logs** button to start fresh, and enable **Auto-scroll** to alwa
 
 The pin button has smart behavior:
 
-- **Not pinned yet?** Click to pin the current volume
+- **Not pinned yet?** Click to pin the current volume - from then on, moving the slider will automatically update the saved volume
 - **Already pinned at this volume?** Click to unpin (remove the saved setting)
-- **Pinned at a different volume?** Click to update to the new volume
+- **Pinned at a different volume?** Click to update to the new volume (though you can also just move the slider, which updates it automatically)
 
 ### Reverting Changes
 
-If you change a pinned volume but want to go back:
+If you change a pinned volume using the **Windows Volume Mixer** (not VolumeKeeper's slider) and want to go back:
 
 1. The **Revert** button (undo icon) will appear
 2. Click it to instantly restore the pinned volume
 3. The revert button disappears once volumes match again
+
+**Note**: When you move VolumeKeeper's slider for a pinned app, the saved volume automatically updates - no revert needed. The revert button is mainly useful for external changes made through Windows.
 
 ### Muting Applications
 

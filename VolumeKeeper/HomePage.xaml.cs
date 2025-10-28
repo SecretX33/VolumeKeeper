@@ -98,6 +98,13 @@ public sealed partial class HomePage : Page, IDisposable
 
             // Update the audio session volume
             await App.AudioSessionService.SetSessionVolumeAsync(app.AppId, newVolume);
+
+            // If the app has a pinned volume, automatically update it to follow the slider
+            if (app.PinnedVolume.HasValue)
+            {
+                VolumeSettingsManager.SetVolumeAndSave(app.AppId, newVolume);
+                app.PinnedVolume = newVolume;
+            }
         } catch (Exception ex)
         {
             _logger.Error("Failed to change volume", ex);
