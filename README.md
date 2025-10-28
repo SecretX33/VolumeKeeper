@@ -91,7 +91,6 @@ The Home tab shows all your applications with audio:
 - **Volume slider** - Adjust volume (0-100%)
 - **Mute button** - Speaker icon to mute/unmute
 - **Pin button** - Pin icon to save the current volume
-- **Revert button** - Undo icon (appears when you change a pinned volume)
 - **Refresh button** - Updates the list of applications
 - **Auto-restore toggle** - Enable/disable automatic volume restoration
 
@@ -119,16 +118,6 @@ The pin button has smart behavior:
 - **Not pinned yet?** Click to pin the current volume - from then on, moving the slider will automatically update the saved volume
 - **Already pinned at this volume?** Click to unpin (remove the saved setting)
 - **Pinned at a different volume?** Click to update to the new volume (though you can also just move the slider, which updates it automatically)
-
-### Reverting Changes
-
-If you change a pinned volume using the **Windows Volume Mixer** (not VolumeKeeper's slider) and want to go back:
-
-1. The **Revert** button (undo icon) will appear
-2. Click it to instantly restore the pinned volume
-3. The revert button disappears once volumes match again
-
-**Note**: When you move VolumeKeeper's slider for a pinned app, the saved volume automatically updates - no revert needed. The revert button is mainly useful for external changes made through Windows.
 
 ### Muting Applications
 

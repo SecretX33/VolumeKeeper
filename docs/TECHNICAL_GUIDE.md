@@ -101,7 +101,6 @@ The pin button and slider work together:
 - **Once pinned**: Moving the VolumeKeeper slider automatically updates the saved volume (no need to click pin again)
 - **When volume matches pinned**: Clicking the pin button unpins the volume (removes the saved setting)
 - **When volume differs from pinned**: Clicking the pin button re-pins at the new volume (though moving the slider also updates it automatically)
-- **Revert button**: Only appears when current volume differs from pinned volume (typically from external Windows Volume Mixer changes)
 
 **Important distinction**: Only slider changes in VolumeKeeper automatically update pinned volumes. External changes made through Windows Volume Mixer will trigger auto-restore (reverting to the pinned volume) when auto-restore is enabled.
 

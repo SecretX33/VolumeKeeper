@@ -142,25 +142,6 @@ public sealed partial class HomePage : Page, IDisposable
         }
     }
 
-    private void RevertVolume_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            if (sender is not Button { CommandParameter: ObservableAudioSession app }) return;
-            if (!app.PinnedVolume.HasValue) return;
-
-            var savedVolume = app.PinnedVolume.Value;
-
-            AudioSessionService.SetSessionVolumeImmediate(app.AppId, savedVolume);
-
-            _logger.Info($"Reverted volume for {app.ExecutableName} (PID: {app.ProcessId}) to {savedVolume}");
-        }
-        catch (Exception ex)
-        {
-            _logger.Error("Failed to revert volume", ex);
-        }
-    }
-
     public void Dispose()
     {
         try
