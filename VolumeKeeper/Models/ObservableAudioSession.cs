@@ -49,9 +49,7 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDi
             {
                 changedProperties.Add(nameof(Volume));
                 changedProperties.Add(nameof(VolumeDisplayText));
-                changedProperties.Add(nameof(HasUnsavedChanges));
                 changedProperties.Add(nameof(VolumeIconGlyph));
-                changedProperties.Add(nameof(RevertButtonVisibility));
             }
             IsMuted = value.IsMuted;
 
@@ -118,22 +116,16 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDi
         {
             if (SetField(ref _pinnedVolume, value))
             {
-                OnPropertyChanged(nameof(HasUnsavedChanges));
                 OnPropertyChanged(nameof(PinnedVolumeDisplay));
-                OnPropertyChanged(nameof(RevertButtonVisibility));
             }
         }
     }
 
     public VolumeApplicationId AppId => _audioSession?.AppId ?? throw new InvalidOperationException("AudioSession is not set.");
 
-    public bool HasUnsavedChanges => PinnedVolume.HasValue && PinnedVolume.Value != Volume;
-
     public string PinnedVolumeDisplay => !PinnedVolume.HasValue ? "No pinned volume" : $"Pinned: {PinnedVolume}%";
 
     public string VolumeDisplayText => $"{Volume}%";
-
-    public Visibility RevertButtonVisibility => HasUnsavedChanges ? Visibility.Visible : Visibility.Collapsed;
 
     public string VolumeIconGlyph
     {
@@ -154,10 +146,8 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDi
     {
         OnPropertyChanged(nameof(Volume));
         OnPropertyChanged(nameof(IsMuted));
-        OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(VolumeDisplayText));
         OnPropertyChanged(nameof(VolumeIconGlyph));
-        OnPropertyChanged(nameof(RevertButtonVisibility));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -162,4 +162,24 @@ public sealed partial class AudioSessionService(
             /* Ignore exceptions during dispose */
         }
     }
+
+    public void RestorePinnedVolumeOfAllOpenedApps()
+    {
+        var restoredCount = 0;
+        foreach (var app in sessionManager.AudioSessions)
+        {
+            if (app.PinnedVolume.HasValue && app.Volume != app.PinnedVolume.Value)
+            {
+                var pinnedVolume = app.PinnedVolume.Value;
+                SetSessionVolumeImmediate(app.AppId, pinnedVolume);
+                _logger.Info($"Restored volume for {app.ExecutableName} (PID: {app.ProcessId}) to pinned volume {pinnedVolume}");
+                restoredCount++;
+            }
+        }
+
+        if (restoredCount > 0)
+        {
+            _logger.Info($"Auto-restore enabled: Restored {restoredCount} application(s) to their pinned volumes");
+        }
+    }
 }

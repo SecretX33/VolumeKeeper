@@ -77,7 +77,7 @@ Stores window position and size preferences so VolumeKeeper opens where you left
 
 **Solutions:**
 - Check that "Auto-restore volumes" toggle is enabled in the Home tab
-- Verify you've clicked the Pin button (pin icon) to save the volume for that application
+- Verify you've clicked the Pin button (pin icon) to save the volume for that application (once pinned, the slider will automatically update the saved volume)
 - Look in the activity log (Logs tab) for any error messages
 - Check the pinned volume display under the application name - it should show "Pinned: XX%"
 
@@ -96,11 +96,13 @@ Stores window position and size preferences so VolumeKeeper opens where you left
 
 ### Pin/Unpin button behavior
 
-The pin button works as follows:
+The pin button and slider work together:
 - **First click**: Pins the current volume level
-- **When volume matches pinned**: Clicking unpins the volume (removes the saved setting)
-- **When volume differs from pinned**: Clicking re-pins at the new volume level
-- **Revert button**: Only appears when current volume differs from pinned volume
+- **Once pinned**: Moving the VolumeKeeper slider automatically updates the saved volume (no need to click pin again)
+- **When volume matches pinned**: Clicking the pin button unpins the volume (removes the saved setting)
+- **When volume differs from pinned**: Clicking the pin button re-pins at the new volume (though moving the slider also updates it automatically)
+
+**Important distinction**: Only slider changes in VolumeKeeper automatically update pinned volumes. External changes made through Windows Volume Mixer will trigger auto-restore (reverting to the pinned volume) when auto-restore is enabled.
 
 ## Application appears multiple times
 

@@ -116,13 +116,6 @@
                         ToolTipService.ToolTip="Pin volume">
                   <SymbolIcon Symbol="Pin" />
                 </Button>
-                <Button Click="RevertVolume_Click"
-                        CommandParameter="{x:Bind}"
-                        VerticalAlignment="Center"
-                        Visibility="{x:Bind RevertButtonVisibility, Mode=OneWay}"
-                        ToolTipService.ToolTip="Revert to saved volume">
-                  <SymbolIcon Symbol="Undo" />
-                </Button>
               </StackPanel>
 
               <!-- Volume Slider -->
