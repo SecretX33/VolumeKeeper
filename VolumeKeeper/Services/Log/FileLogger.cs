@@ -101,6 +101,8 @@ public sealed partial class FileLogger : Logger
         // Update UI collection
         _mainThreadQueue.TryEnqueueImmediate(() =>
         {
+            if (ShouldSkipToAvoidDuplication(entry)) return;
+
             LogEntries.Insert(0, entry); // Insert at beginning for newest-first order
 
             while (LogEntries.Count > MaxInMemoryEntries)
@@ -108,6 +110,18 @@ public sealed partial class FileLogger : Logger
                 LogEntries.RemoveAt(LogEntries.Count - 1); // Remove oldest (last) entry
             }
         });
+    }
+
+    private bool ShouldSkipToAvoidDuplication(LogEntry entry)
+    {
+        var lastEntry = LogEntries.Count > 0 ? LogEntries[0] : null;
+
+        // Skip adding duplicate log entry within 1 second
+        return lastEntry != null &&
+               lastEntry.Level == entry.Level &&
+               lastEntry.Message == entry.Message &&
+               lastEntry.Details == entry.Details &&
+               (entry.Timestamp - lastEntry.Timestamp).TotalSeconds < 1;
     }
 
     public override void Dispose()
