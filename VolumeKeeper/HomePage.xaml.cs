@@ -50,7 +50,7 @@ public sealed partial class HomePage : Page, IDisposable
             VolumeSettingsManager.SetAutoRestoreEnabledAndSave(toggle.IsOn);
             _logger.Debug($"Auto-restore toggled to {(toggle.IsOn ? "enabled" : "disabled")}");
 
-            // When auto-restore is enabled, restore all pinned volumes for currently open apps
+            // When auto-restore is re-enabled, restore all pinned volumes for currently open apps
             if (toggle.IsOn)
             {
                 AudioSessionService.RestorePinnedVolumeOfAllOpenedApps();
@@ -102,15 +102,15 @@ public sealed partial class HomePage : Page, IDisposable
             var newVolume = (int)e.NewValue;
             if (app.Volume == newVolume) return;
 
-            // Update the audio session volume
-            await App.AudioSessionService.SetSessionVolumeAsync(app.AppId, newVolume);
-
-            // If the app has a pinned volume, automatically update it to follow the slider
+            // If the app has a pinned volume, instantly set the new volume as the new pinned volume to update its value on the UI immediately
             if (app.PinnedVolume.HasValue)
             {
                 VolumeSettingsManager.SetVolumeAndSave(app.AppId, newVolume);
                 app.PinnedVolume = newVolume;
             }
+
+            // Finally, update the audio session volume
+            await App.AudioSessionService.SetSessionVolumeAsync(app.AppId, newVolume);
         } catch (Exception ex)
         {
             _logger.Error("Failed to change volume", ex);

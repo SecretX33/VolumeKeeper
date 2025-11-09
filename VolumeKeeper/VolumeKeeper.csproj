@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <OutputType>WinExe</OutputType>
+        <OutputType Condition="'$(Configuration)' == 'Debug'">Exe</OutputType>
+        <OutputType Condition="'$(Configuration)' == 'Release'">WinExe</OutputType>
         <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
         <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
         <RootNamespace>VolumeKeeper</RootNamespace>
@@ -18,9 +19,9 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <WindowsAppSDKSelfContained Condition="'$(Configuration)' == 'Debug'">false</WindowsAppSDKSelfContained>
         <WindowsAppSDKSelfContained Condition="'$(Configuration)' == 'Release'">true</WindowsAppSDKSelfContained>
-        <Version>0.1.9</Version>
-        <AssemblyVersion>0.1.9</AssemblyVersion>
-        <FileVersion>0.1.9.0</FileVersion>
+        <Version>0.1.10</Version>
+        <AssemblyVersion>0.1.10</AssemblyVersion>
+        <FileVersion>0.1.10.0</FileVersion>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -37,13 +38,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="H.NotifyIcon.WinUI" Version="2.2.0" />
-        <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.18" />
-        <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
-        <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250606001" />
+        <PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.2" />
+        <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.28" />
+        <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.6901" />
+        <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251003001" />
         <PackageReference Include="NAudio" Version="2.2.1" />
-        <PackageReference Include="NLog" Version="5.3.4" />
-        <PackageReference Include="System.Management" Version="9.0.0" />
+        <PackageReference Include="NLog" Version="6.0.5" />
+        <PackageReference Include="System.Management" Version="9.0.10" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddition)' != 'true' And '$(EnableMsixTooling)' == 'true'">
