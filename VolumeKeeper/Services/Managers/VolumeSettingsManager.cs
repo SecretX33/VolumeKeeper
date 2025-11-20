@@ -10,15 +10,17 @@ using VolumeKeeper.Models;
 using VolumeKeeper.Services.Log;
 using VolumeKeeper.Util;
 using VolumeKeeper.Util.Converter;
+using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services.Managers;
 
-public sealed class VolumeSettingsManager
+public sealed class VolumeSettingsManager : IDisposable
 {
     private readonly Logger _logger = App.Logger.Named();
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly AtomicReference<CancellationTokenSource?> _saveDebounceTokenSource = new(null);
+    private readonly AtomicReference<bool> _isDisposed = new(false);
     private readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
         WriteIndented = true
@@ -71,7 +73,7 @@ public sealed class VolumeSettingsManager
 
         DeleteVolume(id);
         _applicationVolumes[id] = value;
-        ScheduleSave();
+        Save();
     }
 
     private bool DeleteVolume(VolumeApplicationId id) => _applicationVolumes.TryRemove(id, out _);
@@ -79,25 +81,35 @@ public sealed class VolumeSettingsManager
     public bool DeleteVolumeAndSave(VolumeApplicationId id)
     {
         var removed = DeleteVolume(id);
-        ScheduleSave();
+        Save();
         return removed;
     }
 
     public void SetAutoRestoreEnabledAndSave(bool enabled)
     {
         _autoRestoreEnabled = enabled;
-        ScheduleSave();
+        Save();
     }
 
     public void SetAutoScrollLogsEnabledAndSave(bool enabled)
     {
         _autoScrollLogsEnabled = enabled;
-        ScheduleSave();
+        Save();
+    }
+
+    public void Save(bool saveImmediately = false)
+    {
+        var task = ScheduleSave(saveImmediately ? TimeSpan.Zero : SaveDelay);
+        if (saveImmediately)
+        {
+            // Await immediately to ensure save is done before proceeding
+            task.GetAwaiter().GetResult();
+        }
     }
 
     // Debounce save operations to avoid excessive disk writes
     // If multiple calls happen within 2 seconds, only the last one will trigger a save
-    private Task ScheduleSave()
+    private Task ScheduleSave(TimeSpan saveDelay)
     {
         var cancellationTokenSource = new CancellationTokenSource();
         var oldCancellationTokenSource = _saveDebounceTokenSource.GetAndSet(cancellationTokenSource);
@@ -112,7 +124,7 @@ public sealed class VolumeSettingsManager
                     await oldCancellationTokenSource.CancelAsync().ConfigureAwait(false);
                 }
 
-                await Task.Delay(SaveDelay, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(saveDelay, cancellationToken).ConfigureAwait(false);
                 if (cancellationToken.IsCancellationRequested) return;
 
                 await SaveSettingsToDiskAsync(cancellationToken).ConfigureAwait(false);
@@ -178,6 +190,23 @@ public sealed class VolumeSettingsManager
         finally
         {
             _fileLock.Release();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (!_isDisposed.CompareAndSet(false, true))
+            return;
+
+        try
+        {
+            _logger.Debug("Saving volume settings during dispose");
+            Save(saveImmediately: true);
+            DisposeAll(_fileLock);
+        }
+        catch
+        {
+            /* Ignore exceptions during dispose */
         }
     }
 }

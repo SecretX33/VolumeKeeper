@@ -7,16 +7,18 @@ using System.Threading.Tasks;
 using VolumeKeeper.Models;
 using VolumeKeeper.Services.Log;
 using VolumeKeeper.Util;
+using static VolumeKeeper.Util.Util;
 
 namespace VolumeKeeper.Services.Managers;
 
-public sealed class WindowSettingsManager
+public sealed class WindowSettingsManager : IDisposable
 {
     private readonly Logger _logger = App.Logger.Named();
     private static readonly TimeSpan NormalSaveDelay = TimeSpan.FromSeconds(2);
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly ConcurrentDictionary<WindowId, WindowSettings> _cachedSettings = new();
     private readonly AtomicReference<CancellationTokenSource?> _saveDebounceTokenSource = new(null);
+    private readonly AtomicReference<bool> _isDisposed = new(false);
 
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -45,9 +47,14 @@ public sealed class WindowSettingsManager
 
     private void Set(WindowId windowId, WindowSettings settings) => _cachedSettings[windowId] = settings;
 
-    public void SetAndSave(WindowId windowId, WindowSettings settings, bool saveImmediately = true)
+    public void SetAndSave(WindowId windowId, WindowSettings settings, bool saveImmediately = false)
     {
         Set(windowId, settings);
+        Save(saveImmediately: saveImmediately);
+    }
+
+    private void Save(bool saveImmediately = false)
+    {
         var task = ScheduleSave(saveImmediately ? TimeSpan.Zero : NormalSaveDelay);
         if (saveImmediately)
         {
@@ -113,6 +120,23 @@ public sealed class WindowSettingsManager
         finally
         {
             _fileLock.Release();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (!_isDisposed.CompareAndSet(false, true))
+            return;
+
+        try
+        {
+            _logger.Debug("Saving window settings during dispose");
+            Save(saveImmediately: true);
+            DisposeAll(_fileLock);
+        }
+        catch
+        {
+            /* Ignore exceptions during dispose */
         }
     }
 }

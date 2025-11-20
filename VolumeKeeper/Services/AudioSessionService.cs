@@ -23,6 +23,7 @@ public sealed partial class AudioSessionService(
     private const int VolumeDebounceDelayMs = 300;
     private readonly ConcurrentDictionary<VolumeApplicationId, CancellationTokenSource> _volumeDebounceTokens = new();
     private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);
+
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public Task<bool> SetSessionVolumeAsync(VolumeApplicationId volumeApplicationId, int volumePercentage)
@@ -123,6 +124,26 @@ public sealed partial class AudioSessionService(
         }
     }
 
+    public void RestorePinnedVolumeOfAllOpenedApps()
+    {
+        var restoredCount = 0;
+        foreach (var app in sessionManager.AudioSessions)
+        {
+            if (app.PinnedVolume.HasValue && app.Volume != app.PinnedVolume.Value)
+            {
+                var pinnedVolume = app.PinnedVolume.Value;
+                SetSessionVolumeImmediate(app.AppId, pinnedVolume);
+                _logger.Info($"Restored volume for {app.ExecutableName} (PID: {app.ProcessId}) to pinned volume {pinnedVolume}");
+                restoredCount++;
+            }
+        }
+
+        if (restoredCount > 0)
+        {
+            _logger.Info($"Auto-restore enabled: Restored {restoredCount} application(s) to their pinned volumes");
+        }
+    }
+
     private void RequireMainThreadAccess([CallerMemberName] string caller = "")
     {
         if (!mainThreadQueue.HasThreadAccess)
@@ -160,26 +181,6 @@ public sealed partial class AudioSessionService(
         catch
         {
             /* Ignore exceptions during dispose */
-        }
-    }
-
-    public void RestorePinnedVolumeOfAllOpenedApps()
-    {
-        var restoredCount = 0;
-        foreach (var app in sessionManager.AudioSessions)
-        {
-            if (app.PinnedVolume.HasValue && app.Volume != app.PinnedVolume.Value)
-            {
-                var pinnedVolume = app.PinnedVolume.Value;
-                SetSessionVolumeImmediate(app.AppId, pinnedVolume);
-                _logger.Info($"Restored volume for {app.ExecutableName} (PID: {app.ProcessId}) to pinned volume {pinnedVolume}");
-                restoredCount++;
-            }
-        }
-
-        if (restoredCount > 0)
-        {
-            _logger.Info($"Auto-restore enabled: Restored {restoredCount} application(s) to their pinned volumes");
         }
     }
 }
