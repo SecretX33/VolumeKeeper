@@ -1,11 +1,13 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using VolumeKeeper.Services.Log;
 
 namespace VolumeKeeper.Controls;
 
 public sealed partial class CompactToggleSwitch : UserControl
 {
-    private int _clickedCount;
+    private bool _hasIgnoredFirstEvent;
+    private static Logger Logger => App.Logger.Named();
 
     public static readonly DependencyProperty IsOnProperty = DependencyProperty.Register(
         nameof(IsOn),
@@ -60,7 +62,12 @@ public sealed partial class CompactToggleSwitch : UserControl
     private void InternalToggle_Toggled(object sender, RoutedEventArgs e)
     {
         IsOn = InternalToggle.IsOn;
-        if (_clickedCount++ == 0) return; // Ignore the first event which is triggered on initialization
+        if (!_hasIgnoredFirstEvent)
+        {
+            Logger.Debug("CompactToggleSwitch: Ignoring first Toggled event on initialization");
+            _hasIgnoredFirstEvent = true;
+            return; // Ignore the first event which is triggered on initialization
+        }
         Toggled?.Invoke(this, e);
     }
 }

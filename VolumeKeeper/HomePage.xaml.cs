@@ -97,7 +97,7 @@ public sealed partial class HomePage : Page, IDisposable
     private async void VolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         try {
-            if (sender is not Slider { Tag: ObservableAudioSession app } || string.IsNullOrEmpty(app.ExecutableName)) return;
+            if (sender is not DeduppedSlider { Tag: ObservableAudioSession app } || string.IsNullOrEmpty(app.ExecutableName)) return;
 
             var newVolume = (int)e.NewValue;
             if (app.Volume == newVolume) return;
