@@ -1,5 +1,8 @@
 <UserControl x:Class="VolumeKeeper.Controls.DeduppedSlider"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <Slider x:Name="InternalSlider" />
+  <Slider x:Name="InternalSlider"
+          Value="{x:Bind Value, Mode=TwoWay}"
+          Minimum="{x:Bind Minimum, Mode=OneWay}"
+          Maximum="{x:Bind Maximum, Mode=OneWay}" />
 </UserControl>

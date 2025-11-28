@@ -14,21 +14,21 @@ public sealed partial class DeduppedSlider : UserControl
         nameof(Value),
         typeof(double),
         typeof(DeduppedSlider),
-        new PropertyMetadata(0.0, OnValueChanged)
+        new PropertyMetadata(0.0)
     );
 
     public static readonly DependencyProperty MinimumProperty = DependencyProperty.Register(
         nameof(Minimum),
         typeof(double),
         typeof(DeduppedSlider),
-        new PropertyMetadata(0.0, OnMinimumChanged)
+        new PropertyMetadata(0.0)
     );
 
     public static readonly DependencyProperty MaximumProperty = DependencyProperty.Register(
         nameof(Maximum),
         typeof(double),
         typeof(DeduppedSlider),
-        new PropertyMetadata(100.0, OnMaximumChanged)
+        new PropertyMetadata(100.0)
     );
 
     public double Value
@@ -57,33 +57,8 @@ public sealed partial class DeduppedSlider : UserControl
         InternalSlider.ValueChanged += InternalSlider_ValueChanged;
     }
 
-    private static void OnValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-    {
-        if (d is DeduppedSlider control)
-        {
-            control.InternalSlider.Value = (double)e.NewValue;
-        }
-    }
-
-    private static void OnMinimumChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-    {
-        if (d is DeduppedSlider control)
-        {
-            control.InternalSlider.Minimum = (double)e.NewValue;
-        }
-    }
-
-    private static void OnMaximumChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-    {
-        if (d is DeduppedSlider control)
-        {
-            control.InternalSlider.Maximum = (double)e.NewValue;
-        }
-    }
-
     private void InternalSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        Value = InternalSlider.Value;
         if (!_hasIgnoredFirstEvent)
         {
             Logger.Debug("DeduppedSlider: Ignoring first ValueChanged event on initialization");
