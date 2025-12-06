@@ -64,7 +64,7 @@ public sealed partial class CompactToggleSwitch : UserControl
         IsOn = InternalToggle.IsOn;
         if (!_hasIgnoredFirstEvent)
         {
-            Logger.Debug("CompactToggleSwitch: Ignoring first Toggled event on initialization");
+            // Logger.Debug("CompactToggleSwitch: Ignoring first Toggled event on initialization");
             _hasIgnoredFirstEvent = true;
             return; // Ignore the first event which is triggered on initialization
         }

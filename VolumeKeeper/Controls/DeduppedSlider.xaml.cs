@@ -61,7 +61,7 @@ public sealed partial class DeduppedSlider : UserControl
     {
         if (!_hasIgnoredFirstEvent)
         {
-            Logger.Debug("DeduppedSlider: Ignoring first ValueChanged event on initialization");
+            // Logger.Debug("DeduppedSlider: Ignoring first ValueChanged event on initialization");
             _hasIgnoredFirstEvent = true;
             return; // Ignore the first event which is triggered on initialization
         }
