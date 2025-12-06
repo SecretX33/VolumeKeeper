@@ -109,14 +109,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void CenterWindowOnScreen(AppWindow appWindow)
+    private bool CenterWindowOnScreen(AppWindow appWindow)
     {
         // Get the primary display work area
         var displayArea = DisplayArea.Primary;
         if (displayArea == null)
         {
             _logger.Warn("Failed to get primary display area, thus couldn't center window on screen");
-            return;
+            return false;
         }
 
         var workArea = displayArea.WorkArea;
@@ -128,6 +128,7 @@ public sealed partial class MainWindow : Window
         };
 
         appWindow.Move(centeredPosition);
+        return true;
     }
 
     private bool IsWindowOutOfBounds(AppWindow appWindow)
@@ -154,7 +155,7 @@ public sealed partial class MainWindow : Window
         return isWindowOutOfBoundsOnAllScreens;
     }
 
-    private void SaveWindowSettings(bool saveImmediately = false)
+    private void SaveWindowSettings()
     {
         // Get current window state using AppWindow
         var appWindow = AppWindow;
@@ -176,7 +177,7 @@ public sealed partial class MainWindow : Window
         );
         if (windowSettings == newWindowSettings) return;
 
-        App.WindowSettingsManager.SetAndSave(WindowId, newWindowSettings, saveImmediately);
+        App.WindowSettingsManager.SetAndSave(WindowId, newWindowSettings);
     }
 
     private void MainWindow_SizeChanged(object sender, WindowSizeChangedEventArgs args)
@@ -187,13 +188,16 @@ public sealed partial class MainWindow : Window
     private void CentralizeWindowIfVisibleAndOutOfBounds()
     {
         if (!Visible || !IsWindowOutOfBounds(AppWindow)) return;
-        CenterWindowOnScreen(AppWindow);
+        if (CenterWindowOnScreen(AppWindow))
+        {
+            _logger.Debug("Centralized out of bounds window to primary screen");
+        }
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         args.Handled = true;
         this.Hide();
-        SaveWindowSettings(true);
+        SaveWindowSettings();
     }
 }

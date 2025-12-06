@@ -23,6 +23,7 @@ public sealed partial class AudioSessionService(
     private const int VolumeDebounceDelayMs = 300;
     private readonly ConcurrentDictionary<VolumeApplicationId, CancellationTokenSource> _volumeDebounceTokens = new();
     private readonly SemaphoreSlim _volumeSetSemaphore = new(1, 1);
+
     private readonly AtomicReference<bool> _isDisposed = new(false);
 
     public Task<bool> SetSessionVolumeAsync(VolumeApplicationId volumeApplicationId, int volumePercentage)
@@ -49,8 +50,7 @@ public sealed partial class AudioSessionService(
                     await _volumeSetSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
-                        return await mainThreadQueue.TryFetchImmediate(() => SetSessionVolumeImmediate(volumeApplicationId, volumePercentage))
-                            .ConfigureAwait(false);
+                        return await SetSessionVolumeImmediate(volumeApplicationId, volumePercentage).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -75,28 +75,36 @@ public sealed partial class AudioSessionService(
         });
     }
 
-    public bool SetSessionVolumeImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage)
+    public Task<bool> SetSessionVolumeImmediate(VolumeApplicationId volumeApplicationId, int volumePercentage)
     {
-        RequireMainThreadAccess();
+        return mainThreadQueue.TryFetchImmediate(async () => {
+            var session = sessionManager.GetSessionById(volumeApplicationId);
+            var attempts = 0;
 
-        var session = sessionManager.GetSessionById(volumeApplicationId);
-        if (session == null)
-        {
-            _logger.Warn($"No audio session found for {volumeApplicationId}, could not set volume to {volumePercentage}");
-            return false;
-        }
+            while (session == null && attempts++ < 12)
+            {
+                _logger.Debug($"Audio session of {volumeApplicationId} not found, retrying... ({attempts}x)");
+                await Task.Delay(25).ConfigureAwait(false);
+                session = sessionManager.GetSessionById(volumeApplicationId);
+            }
+            if (session == null)
+            {
+                _logger.Warn($"No audio session found for {volumeApplicationId}, could not set volume to {volumePercentage} after {attempts} tries");
+                return false;
+            }
 
-        try
-        {
-            session.SetVolume(volumePercentage);
-            _logger.Info($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage}");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Failed to set volume for {session.ExecutableName} (PID: {session.ProcessId})", ex);
-            return false;
-        }
+            try
+            {
+                session.SetVolume(volumePercentage);
+                _logger.Info($"Set volume for {session.ExecutableName} (PID: {session.ProcessId}) to {volumePercentage}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to set volume for {session.ExecutableName} (PID: {session.ProcessId})", ex);
+                return false;
+            }
+        });
     }
 
     public bool SetMuteSessionImmediate(VolumeApplicationId volumeApplicationId, bool mute)
@@ -120,6 +128,32 @@ public sealed partial class AudioSessionService(
         {
             _logger.Error($"Failed to set volume for {volumeApplicationId} (PID: {session.ProcessId})", ex);
             return false;
+        }
+    }
+
+    public async void RestorePinnedVolumeOfAllOpenedApps()
+    {
+        RequireMainThreadAccess();
+
+        var audioSessions = sessionManager.AudioSessions.ToList();
+        var tasks = audioSessions.Where(app => app.PinnedVolume.HasValue && app.Volume != app.PinnedVolume.Value)
+            .Select(app =>
+            {
+                var pinnedVolume = app.PinnedVolume!.Value;
+                return Task.Run(async () =>
+                {
+                    var result = await SetSessionVolumeImmediate(app.AppId, pinnedVolume);
+                    if (result) _logger.Info($"Restored volume for {app.ExecutableName} (PID: {app.ProcessId}) to pinned volume {pinnedVolume}");
+                    return result;
+                });
+            });
+
+        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+        var restoredCount = results.Count(result => result);
+
+        if (restoredCount > 0)
+        {
+            _logger.Info($"Auto-restore enabled: Restored {restoredCount} application(s) to their pinned volumes");
         }
     }
 
@@ -160,26 +194,6 @@ public sealed partial class AudioSessionService(
         catch
         {
             /* Ignore exceptions during dispose */
-        }
-    }
-
-    public void RestorePinnedVolumeOfAllOpenedApps()
-    {
-        var restoredCount = 0;
-        foreach (var app in sessionManager.AudioSessions)
-        {
-            if (app.PinnedVolume.HasValue && app.Volume != app.PinnedVolume.Value)
-            {
-                var pinnedVolume = app.PinnedVolume.Value;
-                SetSessionVolumeImmediate(app.AppId, pinnedVolume);
-                _logger.Info($"Restored volume for {app.ExecutableName} (PID: {app.ProcessId}) to pinned volume {pinnedVolume}");
-                restoredCount++;
-            }
-        }
-
-        if (restoredCount > 0)
-        {
-            _logger.Info($"Auto-restore enabled: Restored {restoredCount} application(s) to their pinned volumes");
         }
     }
 }
