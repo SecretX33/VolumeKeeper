@@ -171,8 +171,8 @@ public sealed partial class MainWindow : Window
         var newWindowSettings = new WindowSettings(
             X: !isMaximized ? appWindow.Position.X : windowSettings.X,
             Y: !isMaximized ? appWindow.Position.Y : windowSettings.Y,
-            Width: !isMaximized ? appWindow.ClientSize.Width : windowSettings.Width,
-            Height: !isMaximized ? appWindow.ClientSize.Height : windowSettings.Height,
+            Width: !isMaximized ? appWindow.Size.Width : windowSettings.Width,
+            Height: !isMaximized ? appWindow.Size.Height : windowSettings.Height,
             IsMaximized: isMaximized
         );
         if (windowSettings == newWindowSettings) return;

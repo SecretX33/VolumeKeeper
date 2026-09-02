@@ -131,13 +131,12 @@
                   <FontIcon Glyph="{x:Bind VolumeIconGlyph, Mode=OneWay}"
                             FontFamily="{StaticResource SymbolThemeFontFamily}" />
                 </Button>
-                <controls:DeduppedSlider Value="{x:Bind Volume, Mode=TwoWay}"
-                                   Minimum="0"
-                                   Maximum="100"
-                                   Width="120"
-                                   VerticalAlignment="Center"
-                                   ValueChanged="VolumeSlider_ValueChanged"
-                                   Tag="{x:Bind}" />
+                <Slider Value="{x:Bind Volume, Mode=OneWay}"
+                        Minimum="0"
+                        Maximum="100"
+                        Width="120"
+                        VerticalAlignment="Center"
+                        ValueChanged="VolumeSlider_ValueChanged" />
                 <TextBlock Text="{x:Bind VolumeDisplayText, Mode=OneWay}"
                            Width="30"
                            VerticalAlignment="Center" />

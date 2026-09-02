@@ -1,0 +1,38 @@
+name: Sanitize Version
+description: Validates and normalizes a version string into an application version (1.2.3) and git tag (v1.2.3)
+
+inputs:
+  version:
+    description: Raw version string (e.g. "v1.2.3", "1.2.3", " v1.2.3 ")
+    required: true
+
+outputs:
+  version:
+    description: Normalized version without v prefix (e.g. 1.2.3)
+    value: ${{ steps.sanitize.outputs.version }}
+  tag:
+    description: Normalized git tag with v prefix (e.g. v1.2.3)
+    value: ${{ steps.sanitize.outputs.tag }}
+
+runs:
+  using: composite
+  steps:
+    - name: Sanitize and validate version
+      id: sanitize
+      shell: bash
+      run: |
+        raw_version="${{ inputs.version }}"
+
+        version="$(echo "$raw_version" | xargs)"
+
+        if [[ ! "$version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::Invalid version format: '$version'. Expected format: '1.2.3' or 'v1.2.3'"
+          exit 1
+        fi
+
+        version="${version#v}"
+        tag="v${version}"
+
+        echo "version=${version}" >> "$GITHUB_OUTPUT"
+        echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+        echo "Normalized version: ${version}, tag: ${tag}"
