@@ -93,17 +93,16 @@ public static class Util
         if (processId <= 0) return null;
         try
         {
-            using var process = Process.GetProcessById((int)processId);
-            var fullPath = process.MainModule?.FileName;
+            var fullPath = NativeMethods.GetProcessImagePath(processId);
             if (string.IsNullOrWhiteSpace(fullPath)) return null;
 
             var info = GetFileVersionInfoOrNull(processId, fullPath);
             var executableName = Path.GetFileName(fullPath);
             var displayName = new[]
                 {
-                    process.MainWindowTitle,
+                    GetMainWindowTitleOrNull(processId),
                     info?.FileDescription,
-                    process.MainModule?.ModuleName
+                    executableName
                 }
                 .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
                 ?? executableName;
@@ -114,6 +113,20 @@ public static class Util
                 ExecutableName: executableName,
                 ExecutablePath: fullPath
             );
+        }
+        catch (Exception ex)
+        {
+            Logger.Debug($"Failed to get process info for process {processId}", ex);
+            return null;
+        }
+    }
+
+    private static string? GetMainWindowTitleOrNull(uint processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById((int)processId);
+            return process.MainWindowTitle;
         }
         catch
         {
