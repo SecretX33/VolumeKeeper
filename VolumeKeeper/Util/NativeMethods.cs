@@ -1,12 +1,18 @@
 using System;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.UI.Xaml;
+using Microsoft.Win32.SafeHandles;
 using WinRT.Interop;
 
 namespace VolumeKeeper.Util;
 
 internal static partial class NativeMethods
 {
+    private const uint ProcessQueryLimitedInformation = 0x1000;
+    private const int MaximumProcessImagePathLength = 32768;
+
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ShowWindow(IntPtr hWnd, ShowWindowCommand nCmdShow);
@@ -23,6 +29,22 @@ internal static partial class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern SafeProcessHandle OpenProcess(
+        uint processAccess,
+        [MarshalAs(UnmanagedType.Bool)] bool inheritHandle,
+        uint processId
+    );
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool QueryFullProcessImageName(
+        SafeProcessHandle processHandle,
+        uint flags,
+        [Out] StringBuilder executablePath,
+        ref uint size
+    );
 
     public delegate nint SubclassProc(IntPtr hWnd, WindowMessage Msg, UIntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData);
 
@@ -59,5 +81,19 @@ internal static partial class NativeMethods
     {
         ShowWindow(hWnd, ShowWindowCommand.SW_RESTORE);  // Show and restore if minimized
         SetForegroundWindow(hWnd);  // Bring to foreground
+    }
+
+    public static string GetProcessImagePath(uint processId)
+    {
+        using var processHandle = OpenProcess(ProcessQueryLimitedInformation, false, processId);
+        if (processHandle.IsInvalid)
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+
+        var executablePath = new StringBuilder(MaximumProcessImagePathLength);
+        var size = (uint)executablePath.Capacity;
+        if (!QueryFullProcessImageName(processHandle, 0, executablePath, ref size))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+
+        return executablePath.ToString();
     }
 }
