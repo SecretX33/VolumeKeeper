@@ -48,7 +48,6 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDi
             if (oldValue?.Volume != value.Volume)
             {
                 changedProperties.Add(nameof(Volume));
-                changedProperties.Add(nameof(VolumeDisplayText));
                 changedProperties.Add(nameof(VolumeIconGlyph));
             }
             IsMuted = value.IsMuted;
@@ -125,8 +124,6 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDi
 
     public string PinnedVolumeDisplay => !PinnedVolume.HasValue ? "No pinned volume" : $"Pinned: {PinnedVolume}%";
 
-    public string VolumeDisplayText => $"{Volume}%";
-
     public string VolumeIconGlyph
     {
         get
@@ -146,7 +143,6 @@ public sealed partial class ObservableAudioSession : INotifyPropertyChanged, IDi
     {
         OnPropertyChanged(nameof(Volume));
         OnPropertyChanged(nameof(IsMuted));
-        OnPropertyChanged(nameof(VolumeDisplayText));
         OnPropertyChanged(nameof(VolumeIconGlyph));
     }
 
