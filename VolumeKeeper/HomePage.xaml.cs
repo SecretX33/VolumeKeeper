@@ -110,7 +110,7 @@ public sealed partial class HomePage : Page, IDisposable
             }
 
             // Finally, update the audio session volume
-            await App.AudioSessionService.SetSessionVolumeAsync(app.AppId, newVolume);
+            await App.AudioSessionService.SetSessionVolumeImmediate(app.AppId, newVolume);
         } catch (Exception ex)
         {
             _logger.Error("Failed to change volume", ex);

@@ -234,7 +234,6 @@ public sealed partial class App : Application
         {
             _mainWindow?.Close();
             DisposeAll(
-                _audioSessionService,
                 _audioSessionManager,
                 _volumeSettingsManager,
                 _windowSettingsManager,
