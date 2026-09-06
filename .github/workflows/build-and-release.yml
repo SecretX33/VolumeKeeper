@@ -96,6 +96,9 @@ jobs:
       - build
     permissions:
       contents: write
+    environment:
+      name: production
+      url: ${{ steps.publish.outputs.url }}
     if: success() && (inputs.build_mode == 'build and release' || inputs.build_mode == 'build and release (force)')
 
     steps:
@@ -150,9 +153,11 @@ jobs:
         TAG: ${{ needs.version.outputs.tag }}
 
     - name: Create release
+      id: publish
       uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
       with:
         tag_name: ${{ needs.version.outputs.tag }}
+        target_commitish: ${{ github.sha }}
         name: ${{ needs.version.outputs.tag }}
         body: |
           # Downloads
