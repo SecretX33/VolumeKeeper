@@ -24,7 +24,7 @@ Direct package references are Microsoft Windows App SDK 1.8.251003001, Microsoft
 - `LogsPage.xaml.cs` is code-behind for the in-memory activity feed, clear command, and persisted auto-scroll preference.
 - `AudioSessionManager` enumerates sessions from every active render endpoint through NAudio. It refreshes on endpoint changes, default multimedia render-device changes, new sessions, manual refreshes, disconnections, and expired sessions.
 - Session controls are grouped by process ID across devices. One `ObservableAudioSession` represents a process and writes volume or mute changes to every grouped control for that process. Collection updates find sessions by process ID, while pinned settings are keyed by executable path.
-- `AudioSessionService` applies debounced slider changes, immediate mute changes, and bulk restoration when auto-restore is enabled.
+- `AudioSessionService` applies slider and mute changes immediately and handles bulk restoration when auto-restore is enabled. Pinned volume settings are saved with a two-second debounce by `VolumeSettingsManager`.
 - `IconService` extracts and caches application icons. `VolumeSettingsManager` and `WindowSettingsManager` own JSON persistence. `FileLogger` writes through NLog and mirrors entries into the Logs page.
 
 This is a code-behind application with observable models and service classes. It has no ViewModels, repositories, process-launch watcher, or general background-host framework. Application arrival is detected through Core Audio session creation and refreshes.
